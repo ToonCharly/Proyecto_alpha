@@ -1,0 +1,955 @@
+package main
+
+import (
+	"archive/zip"
+	"bytes"
+	"database/sql"
+	"encoding/json"
+	"encoding/xml"
+	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"baliance.com/gooxml/document"
+	_ "github.com/go-sql-driver/mysql"
+	"github.com/phpdave11/gofpdf"
+)
+
+type Factura struct {
+    IdFactura         int64   `json:"idfactura,omitempty"`
+    IdEmpresa         int64   `json:"idempresa,omitempty"`
+    RFC               string  `json:"rfc"`
+    RazonSocial       string  `json:"razon_social"`
+    Subtotal          float64 `json:"subtotal,omitempty"`
+    Impuestos         float64 `json:"impuestos,omitempty"`
+    Estatus           string  `json:"estatus,omitempty"`
+    Pagado            string  `json:"pagado,omitempty"`
+    FechaPago         string  `json:"fecha_pago,omitempty"`
+    Direccion         string  `json:"direccion,omitempty"`
+    CodigoPostal      string  `json:"codigo_postal,omitempty"`
+    Pais              string  `json:"pais,omitempty"`
+    Estado            string  `json:"estado,omitempty"`
+    Localidad         string  `json:"localidad,omitempty"`
+    Municipio         string  `json:"municipio,omitempty"`
+    Colonia           string  `json:"colonia,omitempty"`
+    Observaciones     string  `json:"observaciones,omitempty"`
+    UsoCFDI           string  `json:"uso_cfdi,omitempty"`
+    RegimenFiscal     string  `json:"regimen_fiscal,omitempty"`
+    ClaveTicket       string  `json:"clave_ticket,omitempty"`
+    Total             float64 `json:"total,omitempty"`
+    FechaEmision      string  `json:"fecha_emision,omitempty"`
+    MetodoPago        string  `json:"metodo_pago,omitempty"`
+    FormaPago         string  `json:"forma_pago,omitempty"`
+    Descuento         float64 `json:"descuento,omitempty"`
+    Moneda            string  `json:"moneda,omitempty"`
+    TipoCambio        float64 `json:"tipo_cambio,omitempty"`
+    NumeroCuentaPago  string  `json:"numero_cuenta_pago,omitempty"`
+    CondicionesPago   string  `json:"condiciones_pago,omitempty"`
+    NumeroPedido      string  `json:"numero_pedido,omitempty"`
+    NumeroContrato    string  `json:"numero_contrato,omitempty"`
+    NumeroCliente     string  `json:"numero_cliente,omitempty"`
+    NumeroProveedor   string  `json:"numero_proveedor,omitempty"`
+    FechaVencimiento  string  `json:"fecha_vencimiento,omitempty"`
+    Conceptos         []Concepto `json:"conceptos,omitempty"`
+}
+
+type Concepto struct {
+    ClaveProductoServicio string  `json:"clave_producto_servicio,omitempty"`
+    ClaveUnidad           string  `json:"clave_unidad,omitempty"`
+    Descripcion           string  `json:"descripcion,omitempty"`
+    Cantidad              float64 `json:"cantidad,omitempty"`
+    ValorUnitario         float64 `json:"valor_unitario,omitempty"`
+    Importe               float64 `json:"importe,omitempty"`
+    Descuento             float64 `json:"descuento,omitempty"`
+}
+
+type CFDI struct {
+    XMLName           xml.Name `xml:"cfdi:Comprobante"`
+    XmlnsCfdi         string   `xml:"xmlns:cfdi,attr"`
+    Version           string   `xml:"Version,attr"`
+    Serie             string   `xml:"Serie,attr"`
+    Folio             string   `xml:"Folio,attr"`
+    Fecha             string   `xml:"Fecha,attr"`
+    SubTotal          string   `xml:"SubTotal,attr"`
+    Total             string   `xml:"Total,attr"`
+    Moneda            string   `xml:"Moneda,attr"`
+    TipoCambio        string   `xml:"TipoCambio,attr,omitempty"`
+    LugarExpedicion   string   `xml:"LugarExpedicion,attr"`
+    TipoDeComprobante string   `xml:"TipoDeComprobante,attr"`
+    MetodoPago        string   `xml:"MetodoPago,attr"`
+    FormaPago         string   `xml:"FormaPago,attr"`
+    CondicionesPago   string   `xml:"CondicionesDePago,attr,omitempty"`
+    Descuento         string   `xml:"Descuento,attr,omitempty"`
+    ClaveTicket       string   `xml:"ClaveTicket,attr,omitempty"`
+    Emisor            struct {
+        RFC           string `xml:"Rfc,attr"`
+        Nombre        string `xml:"Nombre,attr"`
+        RegimenFiscal string `xml:"RegimenFiscal,attr"`
+    } `xml:"cfdi:Emisor"`
+    Receptor struct {
+        RFC     string `xml:"Rfc,attr"`
+        Nombre  string `xml:"Nombre,attr"`
+        UsoCFDI string `xml:"UsoCFDI,attr"`
+        DomicilioFiscal string `xml:"DomicilioFiscal,attr,omitempty"`
+        RegimenFiscalReceptor string `xml:"RegimenFiscalReceptor,attr,omitempty"`
+    } `xml:"cfdi:Receptor"`
+    Conceptos []struct {
+        ClaveProdServ string `xml:"ClaveProdServ,attr"`
+        NoIdentificacion string `xml:"NoIdentificacion,attr,omitempty"`
+        Cantidad       string `xml:"Cantidad,attr"`
+        ClaveUnidad    string `xml:"ClaveUnidad,attr"`
+        Unidad         string `xml:"Unidad,attr,omitempty"`
+        Descripcion    string `xml:"Descripcion,attr"`
+        ValorUnitario  string `xml:"ValorUnitario,attr"`
+        Importe        string `xml:"Importe,attr"`
+        Descuento      string `xml:"Descuento,attr,omitempty"`
+    } `xml:"cfdi:Conceptos>cfdi:Concepto"`
+    Impuestos struct {
+        TotalImpuestosTrasladados string `xml:"TotalImpuestosTrasladados,attr,omitempty"`
+        Traslados []struct {
+            Impuesto string `xml:"Impuesto,attr"`
+            TipoFactor string `xml:"TipoFactor,attr"`
+            TasaOCuota string `xml:"TasaOCuota,attr"`
+            Importe string `xml:"Importe,attr"`
+        } `xml:"cfdi:Traslados>cfdi:Traslado"`
+    } `xml:"cfdi:Impuestos,omitempty"`
+}
+
+// Mejora 1: Función para manejar errores y logging de manera consistente
+func logError(msg string, err error) {
+	log.Printf("ERROR: %s: %v", msg, err)
+}
+
+// Mejora 2: Función mejorada para reemplazar texto en el documento
+func reemplazarTextoEnDocumento(doc *document.Document, placeholders map[string]string) {
+    // Reemplazar en párrafos
+    for _, para := range doc.Paragraphs() {
+        for _, run := range para.Runs() {
+            text := run.Text()
+            modified := false
+
+            for placeholder, valor := range placeholders {
+                if strings.Contains(text, placeholder) {
+                    text = strings.ReplaceAll(text, placeholder, valor)
+                    log.Printf("%s cambiado", placeholder) // Log para cada placeholder reemplazado
+                    modified = true
+                }
+            }
+
+            if modified {
+                run.ClearContent()
+                run.AddText(text)
+            }
+        }
+    }
+
+    // Reemplazar en tablas
+    for _, table := range doc.Tables() {
+        for _, row := range table.Rows() {
+            for _, cell := range row.Cells() {
+                for _, para := range cell.Paragraphs() {
+                    for _, run := range para.Runs() {
+                        text := run.Text()
+                        modified := false
+
+                        for placeholder, valor := range placeholders {
+                            if strings.Contains(text, placeholder) {
+                                text = strings.ReplaceAll(text, placeholder, valor)
+                                log.Printf("%s cambiado", placeholder) // Log para cada placeholder reemplazado
+                                modified = true
+                            }
+                        }
+
+                        if modified {
+                            run.ClearContent()
+                            run.AddText(text)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Mejora 3: Función para procesar plantilla con mejor manejo de errores y logging
+func procesarPlantilla(factura Factura, plantillaBytes []byte) (*bytes.Buffer, error) {
+	log.Printf("Iniciando procesamiento de plantilla para factura de %s", factura.RazonSocial)
+	
+	// Crear directorio temporal si no existe
+	tmpDir := os.TempDir()
+	
+	// Generar nombres únicos para los archivos temporales
+	timestamp := time.Now().UnixNano()
+	plantillaPath := filepath.Join(tmpDir, fmt.Sprintf("plantilla-%d.docx", timestamp))
+	outputPath := filepath.Join(tmpDir, fmt.Sprintf("factura_rellena-%d.docx", timestamp))
+	pdfPath := filepath.Join(tmpDir, fmt.Sprintf("factura-%d.pdf", timestamp))
+	
+	// Crear archivos temporales con manejo de errores correcto
+	log.Printf("Guardando plantilla temporal en: %s", plantillaPath)
+	if err := os.WriteFile(plantillaPath, plantillaBytes, 0644); err != nil {
+		logError("Error al guardar plantilla temporal", err)
+		return nil, fmt.Errorf("error al guardar plantilla temporal: %w", err)
+	}
+	defer os.Remove(plantillaPath)
+	
+	// Abrir el archivo DOCX
+	log.Printf("Abriendo documento DOCX")
+	doc, err := document.Open(plantillaPath)
+	if err != nil {
+		logError("Error al abrir documento DOCX", err)
+		return nil, fmt.Errorf("error al abrir documento DOCX: %w", err)
+	}
+	
+	// Mejora: Formatear números con función dedicada
+	formatearMoneda := func(valor float64) string {
+		return fmt.Sprintf("$%.2f", valor)
+	}
+	
+// Preparar mapa de reemplazos con validación mejorada
+log.Printf("Reemplazando placeholders en el documento")
+placeholders := map[string]string{
+    "{{DIRECCION}}":             ifEmpty(factura.Direccion, "Campo no completo"),
+    "{{RFC}}":                   ifEmpty(factura.RFC, "Campo no completo"),
+    "{{NUMERO_FOLIO}}":          ifEmpty(factura.ClaveTicket, "Campo no completo"),
+    "{{FECHA_FACTURA}}":         ifEmpty(formatearFecha(factura.FechaEmision), "Campo no completo"),
+    "{{REGIMEN_FISCAL}}":        ifEmpty(obtenerDescripcionRegimenFiscal(factura.RegimenFiscal), "Campo no completo"),
+    "{{LUGAR_EXPEDICION}}":      ifEmpty(factura.CodigoPostal, "Campo no completo"),
+    "{{RECEPTOR_RFC}}":          ifEmpty(factura.RFC, "Campo no completo"),
+    "{{DOMICILIO_FISCAL}}":      ifEmpty(factura.Direccion, "Campo no completo"),
+    "{{USO_CFDI}}":              ifEmpty(obtenerDescripcionUsoCfdi(factura.UsoCFDI), "Campo no completo"),
+    "{{REGIMEN_FISCAL_RECEPTOR}}": ifEmpty(obtenerDescripcionRegimenFiscal(factura.RegimenFiscal), "Campo no completo"),
+    "{{SUBTOTAL}}":              formatearMoneda(factura.Subtotal),
+    "{{IVA}}":                   formatearMoneda(factura.Impuestos), 
+    "{{TOTAL}}":                 formatearMoneda(factura.Total),
+}
+	
+	// Añadir más placeholders para fechas en diferentes formatos
+	if factura.FechaEmision != "" {
+		fecha, err := time.Parse("2006-01-02T15:04:05", factura.FechaEmision)
+		if err == nil {
+			placeholders["{{FECHA_CORTA}}"] = fecha.Format("02/01/2006")
+			placeholders["{{FECHA_LARGA}}"] = fecha.Format("2 de January de 2006")
+			placeholders["{{HORA}}"] = fecha.Format("15:04:05")
+		}
+	}
+	
+	// Reemplazar placeholders en párrafos
+	for _, para := range doc.Paragraphs() {
+		for _, run := range para.Runs() {
+			texto := run.Text()
+			reemplazado := false
+			
+			for placeholder, valor := range placeholders {
+				if strings.Contains(texto, placeholder) {
+					nuevoTexto := strings.ReplaceAll(texto, placeholder, valor)
+					run.ClearContent()
+					run.AddText(nuevoTexto)
+					reemplazado = true
+				}
+			}
+			
+			if reemplazado {
+				log.Printf("Texto reemplazado en párrafo")
+			}
+		}
+	}
+	
+	// Guardar el archivo DOCX modificado
+	log.Printf("Guardando documento modificado en: %s", outputPath)
+	if err := doc.SaveToFile(outputPath); err != nil {
+		logError("Error al guardar documento modificado", err)
+		return nil, fmt.Errorf("error al guardar documento modificado: %w", err)
+	}
+	defer os.Remove(outputPath)
+	
+	// Ruta a LibreOffice - usando ruta fija en vez de buscar en el PATH
+	libreOfficePath := "C:/Program Files/LibreOffice/program/soffice.exe"
+	
+	// Verificar que el archivo existe
+	if _, err := os.Stat(libreOfficePath); os.IsNotExist(err) {
+		log.Printf("LibreOffice no encontrado en la ruta %s", libreOfficePath)
+		
+		// Intenta una ruta alternativa común
+		libreOfficePath = "C:/Program Files (x86)/LibreOffice/program/soffice.exe"
+		if _, err := os.Stat(libreOfficePath); os.IsNotExist(err) {
+			// Si también falla, intentar con el PATH como último recurso
+			pathExe, err := exec.LookPath("libreoffice")
+			if err != nil {
+				// Si tampoco está en el PATH, intentar con soffice
+				pathExe, err = exec.LookPath("soffice")
+				if err != nil {
+					logError("LibreOffice no encontrado en el sistema", err)
+					return nil, fmt.Errorf("LibreOffice no está instalado o no se encuentra en el PATH. Es necesario para convertir DOCX a PDF")
+				}
+				libreOfficePath = pathExe
+			} else {
+				libreOfficePath = pathExe
+			}
+		}
+	}
+	
+	log.Printf("Usando LibreOffice en: %s", libreOfficePath)
+	
+	// Convertir el archivo DOCX a PDF
+	log.Printf("Convirtiendo DOCX a PDF usando LibreOffice")
+	// Try a different command line format
+	cmd := exec.Command(libreOfficePath, "--headless", "--convert-to", "pdf", "--outdir", tmpDir, outputPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		logError(fmt.Sprintf("Error al convertir DOCX a PDF. Salida: %s", string(output)), err)
+		logError(fmt.Sprintf("Error al convertir DOCX a PDF. Salida: %s", string(output)), err)
+		return nil, fmt.Errorf("error al convertir DOCX a PDF: %w", err)
+	}
+	
+	// Verificar que el PDF se haya generado correctamente
+	if _, err := os.Stat(pdfPath); os.IsNotExist(err) {
+		// Si no se encuentra en la ruta esperada, buscar por el nombre base
+		baseFileName := filepath.Base(outputPath)
+		baseFileNameWithoutExt := strings.TrimSuffix(baseFileName, filepath.Ext(baseFileName))
+		alternatePdfPath := filepath.Join(tmpDir, baseFileNameWithoutExt+".pdf")
+		
+		if _, err := os.Stat(alternatePdfPath); os.IsNotExist(err) {
+			logError("PDF generado no encontrado", err)
+			return nil, fmt.Errorf("no se pudo encontrar el PDF generado")
+		}
+		
+		pdfPath = alternatePdfPath
+	}
+	defer os.Remove(pdfPath)
+	
+	// Leer el archivo PDF generado
+	log.Printf("Leyendo archivo PDF generado: %s", pdfPath)
+	pdfBytes, err := os.ReadFile(pdfPath)
+	if err != nil {
+		logError("Error al leer archivo PDF generado", err)
+		return nil, fmt.Errorf("error al leer archivo PDF generado: %w", err)
+	}
+	
+	// Devolver el PDF como un buffer
+	log.Printf("PDF generado correctamente (%d bytes)", len(pdfBytes))
+	return bytes.NewBuffer(pdfBytes), nil
+}
+
+func ifEmpty(value, defaultValue string) string {
+    if strings.TrimSpace(value) == "" {
+        return defaultValue
+    }
+    return value
+}
+
+// Las funciones existentes se mantienen igual
+func enableCors(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func buscarFactura(db *sql.DB, w http.ResponseWriter, criterio string) {
+	log.Println("Criterio recibido:", criterio)
+	query := `SELECT idfactura, idempresa, rfc, razon_social, subtotal, impuestos, estatus, pagado, fecha_pago FROM adm_efacturas WHERE rfc LIKE ? OR razon_social LIKE ? LIMIT 1`
+	likeCriterio := "%" + criterio + "%"
+	row := db.QueryRow(query, likeCriterio, likeCriterio)
+
+	var f Factura
+	err := row.Scan(&f.IdFactura, &f.IdEmpresa, &f.RFC, &f.RazonSocial, &f.Subtotal, &f.Impuestos, &f.Estatus, &f.Pagado, &f.FechaPago)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		if err == sql.ErrNoRows {
+			json.NewEncoder(w).Encode(map[string]string{"error": "Empresa no encontrada"})
+		} else {
+			json.NewEncoder(w).Encode(map[string]string{"error": "Error al consultar la base de datos"})
+		}
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(f)
+}
+
+func generarPDF(factura Factura, logoBytes []byte) (*bytes.Buffer, error) {
+	// Crear un nuevo PDF con codificación UTF-8
+	pdf := gofpdf.New("P", "mm", "A4", "")
+
+	// Importante: Activar UTF-8 para manejar correctamente los acentos
+	pdf.SetAuthor("Sistema de Facturación", true)
+	pdf.SetTitle("Factura Electrónica", true)
+
+	// Añadir página
+	pdf.AddPage()
+
+	// Establecer los márgenes
+	pdf.SetMargins(15, 15, 15)
+
+	// Configurar la fuente principal - importante usar UTF8
+	tr := pdf.UnicodeTranslatorFromDescriptor("") // Esto permite UTF-8
+
+	// Agregar un fondo gris claro para el encabezado
+	pdf.SetFillColor(240, 240, 240)
+	pdf.Rect(15, 15, 180, 40, "F")
+
+	// Si hay un logo, lo añadimos, sino mostramos el placeholder
+	if len(logoBytes) > 0 {
+		// Crear directorio temporal si no existe
+		tmpDir := os.TempDir()
+
+		// Generar un nombre único para el archivo temporal
+		tmpfileName := filepath.Join(tmpDir, fmt.Sprintf("logo-%d.png", time.Now().UnixNano()))
+
+		// Escribir el archivo
+		err := os.WriteFile(tmpfileName, logoBytes, 0644)
+		if err == nil {
+			defer os.Remove(tmpfileName) // Borrar el archivo temporal al terminar
+
+			// Intentar insertar la imagen en el PDF
+			pdf.Image(tmpfileName, 155, 17, 38, 36, false, "", 0, "")
+			log.Printf("Logo añadido desde: %s", tmpfileName)
+		} else {
+			log.Printf("Error al crear archivo temporal para logo: %v", err)
+			// Usamos el placeholder en caso de error
+			pdf.SetDrawColor(200, 200, 200)
+			pdf.Rect(155, 17, 38, 36, "D")
+			pdf.SetFont("Arial", "I", 8)
+			pdf.SetTextColor(150, 150, 150)
+			pdf.SetXY(155, 33)
+			pdf.Cell(38, 10, tr("ERROR LOGO"))
+		}
+	} else {
+		// Dibujar un placeholder para el logo
+		pdf.SetDrawColor(200, 200, 200) // Color del borde gris claro
+
+		// Texto indicando área de logo
+		pdf.SetFont("Arial", "I", 8)
+		pdf.SetTextColor(150, 150, 150)
+		pdf.SetXY(155, 33)
+		pdf.Cell(38, 10, tr(""))
+	}
+
+	// Agregar título de la factura con manejo de UTF-8 (ajustado a la izquierda para dar espacio al logo)
+	pdf.SetFont("Arial", "B", 20)
+	pdf.SetTextColor(50, 50, 50)
+	pdf.SetXY(20, 20)
+	pdf.Cell(130, 10, tr("FACTURA ELECTRÓNICA"))
+
+	// Agregar número de factura y fecha (ajustado)
+	pdf.SetFont("Arial", "B", 10)
+	pdf.SetXY(20, 35)
+	pdf.Cell(100, 10, fmt.Sprintf("Serie-Folio: A-%s", "12345"))
+
+	pdf.SetFont("Arial", "", 10)
+	pdf.SetXY(20, 45)
+	pdf.Cell(130, 10, tr(fmt.Sprintf("Fecha de emisión: %s", formatearFecha(factura.FechaEmision))))
+
+	// Línea separadora (movida abajo para acomodar el área más grande del encabezado)
+	pdf.SetDrawColor(200, 200, 200)
+	pdf.Line(15, 60, 195, 60)
+
+	// Datos del emisor (movido abajo)
+	pdf.SetFont("Arial", "B", 12)
+	pdf.SetTextColor(30, 80, 150)
+	pdf.SetXY(15, 65)
+	pdf.Cell(180, 8, tr("DATOS DEL EMISOR"))
+
+	pdf.SetFont("Arial", "", 10)
+	pdf.SetTextColor(50, 50, 50)
+	pdf.SetXY(15, 75)
+	pdf.Cell(180, 6, tr("Empresa Ejemplo SA de CV"))
+	pdf.SetXY(15, 81)
+	pdf.Cell(180, 6, tr("RFC: AAA010101AAA"))
+	pdf.SetXY(15, 87)
+	pdf.Cell(180, 6, tr("Régimen Fiscal: 601 - General de Ley Personas Morales"))
+
+	// Línea separadora
+	pdf.Line(15, 95, 195, 95)
+
+	// Datos del receptor
+	pdf.SetFont("Arial", "B", 12)
+	pdf.SetTextColor(30, 80, 150)
+	pdf.SetXY(15, 100)
+	pdf.Cell(180, 8, tr("DATOS DEL RECEPTOR"))
+
+	pdf.SetFont("Arial", "", 10)
+	pdf.SetTextColor(50, 50, 50)
+	pdf.SetXY(15, 110)
+	pdf.Cell(180, 6, tr(fmt.Sprintf("Razón Social: %s", factura.RazonSocial)))
+	pdf.SetXY(15, 116)
+	pdf.Cell(180, 6, tr(fmt.Sprintf("RFC: %s", factura.RFC)))
+	pdf.SetXY(15, 122)
+	pdf.Cell(180, 6, tr(fmt.Sprintf("Uso CFDI: %s", obtenerDescripcionUsoCfdi(factura.UsoCFDI))))
+
+	// Dirección si está disponible
+	if factura.Direccion != "" {
+		pdf.SetXY(15, 128)
+		pdf.Cell(180, 6, tr(fmt.Sprintf("Dirección: %s", factura.Direccion)))
+	}
+
+	// Línea separadora
+	pdf.Line(15, 136, 195, 136)
+
+	// Detalles de la factura - Encabezado
+	pdf.SetFillColor(230, 230, 230)
+	pdf.SetFont("Arial", "B", 10)
+	pdf.SetXY(15, 141)
+	pdf.CellFormat(120, 8, tr("Concepto"), "1", 0, "C", true, 0, "")
+	pdf.CellFormat(30, 8, tr("Cantidad"), "1", 0, "C", true, 0, "")
+	pdf.CellFormat(30, 8, tr("Importe"), "1", 1, "C", true, 0, "")
+
+	// Detalle
+	pdf.SetFont("Arial", "", 10)
+	pdf.SetFillColor(255, 255, 255)
+	pdf.SetXY(15, 149)
+	pdf.CellFormat(120, 8, tr("Servicios profesionales"), "1", 0, "L", true, 0, "")
+	pdf.CellFormat(30, 8, "1", "1", 0, "C", true, 0, "")
+	pdf.CellFormat(30, 8, fmt.Sprintf("$%.2f", factura.Subtotal), "1", 1, "R", true, 0, "")
+
+	// Totales
+	pdf.SetXY(15, 165)
+	pdf.SetFont("Arial", "B", 10)
+	pdf.CellFormat(150, 8, tr("Subtotal:"), "0", 0, "R", false, 0, "")
+	pdf.SetFont("Arial", "", 10)
+	pdf.CellFormat(30, 8, fmt.Sprintf("$%.2f", factura.Subtotal), "0", 1, "R", false, 0, "")
+
+	pdf.SetXY(15, 173)
+	pdf.SetFont("Arial", "B", 10)
+	pdf.CellFormat(150, 8, tr("IVA (16%):"), "0", 0, "R", false, 0, "")
+	pdf.SetFont("Arial", "", 10)
+	pdf.CellFormat(30, 8, fmt.Sprintf("$%.2f", factura.Impuestos), "0", 1, "R", false, 0, "")
+
+	pdf.SetXY(15, 181)
+	pdf.SetFont("Arial", "B", 12)
+	pdf.CellFormat(150, 8, tr("Total:"), "0", 0, "R", false, 0, "")
+	pdf.SetTextColor(30, 80, 150)
+	pdf.CellFormat(30, 8, fmt.Sprintf("$%.2f", factura.Total), "0", 1, "R", false, 0, "")
+
+	// Clave de ticket
+	pdf.SetTextColor(50, 50, 50)
+	pdf.SetFont("Arial", "I", 10)
+	pdf.SetXY(15, 195)
+	pdf.Cell(180, 8, tr(fmt.Sprintf("Clave Ticket: %s", factura.ClaveTicket)))
+
+	// Información adicional
+	pdf.SetFont("Arial", "", 8)
+	pdf.SetXY(15, 205)
+	pdf.MultiCell(180, 4, tr("Este documento es una representación impresa de un CFDI"), "", "L", false)
+
+	// Guardar el PDF en un buffer
+	var pdfBuffer bytes.Buffer
+	err := pdf.Output(&pdfBuffer)
+	if err != nil {
+		return nil, fmt.Errorf("error al generar PDF: %w", err)
+	}
+
+	return &pdfBuffer, nil
+}
+
+func formatearFecha(fechaISO string) string {
+	// Parsear la fecha ISO
+	t, err := time.Parse("2006-01-02T15:04:05", fechaISO)
+	if err != nil {
+		return fechaISO // Si hay error, retornar la fecha original
+	}
+
+	// Formatear fecha a un formato más legible
+	return t.Format("02/01/2006 15:04:05")
+}
+
+func obtenerDescripcionUsoCfdi(clave string) string {
+	// Mapeo de claves CFDI a descripciones
+	descripciones := map[string]string{
+		"G01": "G01 - Adquisición de mercancías",
+		"G02": "G02 - Devoluciones, descuentos o bonificaciones",
+		"G03": "G03 - Gastos en general",
+		"I01": "I01 - Construcciones",
+		"D01": "D01 - Honorarios médicos",
+		"P01": "P01 - Por definir",
+		// Agregar más según se necesite
+	}
+
+	if desc, ok := descripciones[clave]; ok {
+		return desc
+	}
+	return clave // Si no hay descripción, retornar la clave
+}
+
+func obtenerDescripcionRegimenFiscal(clave string) string {
+	// Mapeo de claves de Régimen Fiscal a descripciones
+	descripciones := map[string]string{
+		"601": "601 - General de Ley Personas Morales",
+		"603": "603 - Personas Morales con Fines no Lucrativos",
+		"605": "605 - Sueldos y Salarios e Ingresos Asimilados a Salarios",
+		"606": "606 - Arrendamiento",
+		"608": "608 - Demás ingresos",
+		"612": "612 - Personas Físicas con Actividades Empresariales y Profesionales",
+		"621": "621 - Incorporación Fiscal",
+		"622": "622 - Actividades Agrícolas, Ganaderas, Silvícolas y Pesqueras",
+		"626": "626 - Régimen Simplificado de Confianza",
+		// Agregar más según se necesite
+	}
+
+	if desc, ok := descripciones[clave]; ok {
+		return desc
+	}
+	return clave // Si no hay descripción, retornar la clave
+}
+
+// Mejora 4: Función para verificar los requisitos del sistema antes de iniciar
+func verificarRequisitos() error {
+	// Verificar LibreOffice
+	_, err := exec.LookPath("libreoffice")
+	if err != nil {
+		return fmt.Errorf("LibreOffice no está instalado o no se encuentra en el PATH. Es necesario para convertir DOCX a PDF")
+	}
+	
+	// Verificar directorios necesarios
+	for _, dir := range []string{"./templates", "./templates/facturas"} {
+		if _, err := os.Stat(dir); os.IsNotExist(err) {
+			if err := os.MkdirAll(dir, 0755); err != nil {
+				return fmt.Errorf("no se pudo crear el directorio %s: %v", dir, err)
+			}
+		}
+	}
+	
+	return nil
+}
+
+func generarFacturaHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var factura Factura
+	var logoBytes []byte
+	var plantillaBytes []byte
+	var err error
+
+	// Detectar el tipo de contenido
+	contentType := r.Header.Get("Content-Type")
+	log.Printf("Content-Type recibido: %s", contentType)
+
+	if strings.Contains(contentType, "multipart/form-data") {
+		// Es un formulario multipart
+		if err := r.ParseMultipartForm(10 << 20); err != nil {
+			log.Printf("Error al parsear multipart form: %v", err)
+			http.Error(w, "Error al procesar el formulario: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		// Obtener los datos de la factura
+		var facturaData string
+
+		// Intentar varios campos posibles donde podría estar la factura
+		for _, fieldName := range []string{"datos", "factura"} {
+			fieldValue := r.FormValue(fieldName)
+			if fieldValue != "" {
+				facturaData = fieldValue
+				log.Printf("Datos de factura encontrados en campo: %s", fieldName)
+				break
+			}
+		}
+
+		if facturaData == "" {
+			// Si no encontramos datos en los campos esperados, buscar en el cuerpo
+			log.Printf("No se encontraron datos de factura en campos. Intentando leer del cuerpo...")
+			formFile, _, err := r.FormFile("file")
+			if err == nil && formFile != nil {
+				defer formFile.Close()
+				bodyBytes, err := io.ReadAll(formFile)
+				if err == nil {
+					facturaData = string(bodyBytes)
+					log.Printf("Datos leídos del archivo adjunto")
+				}
+			}
+		}
+
+		// Si aún no tenemos datos, error
+		if facturaData == "" {
+			http.Error(w, "No se encontraron datos de factura", http.StatusBadRequest)
+			return
+		}
+
+		// Decodificar JSON
+		if err := json.Unmarshal([]byte(facturaData), &factura); err != nil {
+			log.Printf("Error al decodificar JSON: %v", err)
+			http.Error(w, "Error al procesar los datos JSON: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		// Procesar la plantilla si existe
+		plantillaFile, plantillaHandler, err := r.FormFile("plantilla")
+		if err == nil && plantillaFile != nil {
+			defer plantillaFile.Close()
+			log.Printf("Plantilla encontrada. Nombre: %s, Tamaño: %d bytes, Tipo: %s",
+				plantillaHandler.Filename, plantillaHandler.Size, plantillaHandler.Header.Get("Content-Type"))
+
+			plantillaBytes, err = io.ReadAll(plantillaFile)
+			if err != nil {
+				log.Printf("Error leyendo la plantilla: %v", err)
+				// Continuamos sin plantilla
+			} else {
+				log.Printf("Plantilla leída correctamente: %d bytes", len(plantillaBytes))
+			}
+		} else {
+			log.Printf("No se encontró plantilla o hubo error: %v", err)
+		}
+		
+		// También procesar logo si existe
+		logoFile, logoHandler, err := r.FormFile("logo")
+		if err == nil && logoFile != nil {
+			defer logoFile.Close()
+			log.Printf("Logo encontrado. Nombre: %s, Tamaño: %d bytes, Tipo: %s",
+				logoHandler.Filename, logoHandler.Size, logoHandler.Header.Get("Content-Type"))
+
+			logoBytes, err = io.ReadAll(logoFile)
+			if err != nil {
+				log.Printf("Error leyendo el logo: %v", err)
+				// Continuamos sin logo
+			} else {
+				log.Printf("Logo leído correctamente: %d bytes", len(logoBytes))
+			}
+		}
+	} else {
+		// Es JSON simple
+		log.Printf("Procesando como JSON simple")
+		if err := json.NewDecoder(r.Body).Decode(&factura); err != nil {
+			log.Printf("Error al decodificar JSON: %v", err)
+			http.Error(w, "Error al procesar los datos: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+	}
+
+	// Validar datos mínimos
+	if factura.RFC == "" || factura.RazonSocial == "" || factura.Total <= 0 {
+		log.Printf("Datos incompletos: RFC=%s, RazonSocial=%s, Total=%f",
+			factura.RFC, factura.RazonSocial, factura.Total)
+		http.Error(w, "Datos incompletos para generar la factura", http.StatusBadRequest)
+		return
+	}
+
+	// Calcular subtotal e impuestos si no están especificados
+	if factura.Subtotal <= 0 {
+		factura.Subtotal = factura.Total / 1.16
+	}
+	if factura.Impuestos <= 0 {
+		factura.Impuestos = factura.Total - factura.Subtotal
+	}
+
+	// Si no se proporciona fecha de emisión, usar la actual
+	if factura.FechaEmision == "" {
+		factura.FechaEmision = time.Now().Format("2006-01-02T15:04:05")
+	}
+
+	// Preparar datos para el XML CFDI
+	cfdi := CFDI{
+		Version:           "4.0",
+		XmlnsCfdi:         "http://www.sat.gob.mx/cfd/4",
+		Serie:             "A",
+		Folio:             "12345",
+		Fecha:             factura.FechaEmision,
+		SubTotal:          fmt.Sprintf("%.2f", factura.Subtotal),
+		Total:             fmt.Sprintf("%.2f", factura.Total),
+		Moneda:            "MXN",
+		LugarExpedicion:   factura.CodigoPostal,
+		TipoDeComprobante: "I",
+		MetodoPago:        "PUE",
+		FormaPago:         "03",
+		ClaveTicket:       factura.ClaveTicket,
+	}
+	cfdi.Emisor.RFC = "AAA010101AAA"
+	cfdi.Emisor.Nombre = "Empresa Ejemplo SA de CV"
+	cfdi.Emisor.RegimenFiscal = "601"
+	cfdi.Receptor.RFC = factura.RFC
+	cfdi.Receptor.Nombre = factura.RazonSocial
+	cfdi.Receptor.UsoCFDI = factura.UsoCFDI
+
+	// Generar XML con formato
+	xmlData, err := xml.MarshalIndent(cfdi, "", "  ")
+	if err != nil {
+		log.Printf("Error generando XML: %v", err)
+		http.Error(w, "Error generando XML: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Agregar declaración XML
+	xmlData = append([]byte(xml.Header), xmlData...)
+
+	// Generar PDF según si hay plantilla o se usa el formato estándar
+	var pdfBuffer *bytes.Buffer
+	if len(plantillaBytes) > 0 {
+		// Usar la plantilla proporcionada
+		pdfBuffer, err = procesarPlantilla(factura, plantillaBytes)
+		if err != nil {
+			log.Printf("Error al procesar plantilla: %v. Intentando generar PDF directamente...", err)
+			// Si falla la conversión de plantilla, usar el método directo como backup
+			pdfBuffer, err = generarPDF(factura, logoBytes)
+			if err != nil {
+				log.Printf("Error generando PDF incluso con método directo: %v", err)
+				http.Error(w, "Error generando PDF: "+err.Error(), http.StatusInternalServerError)
+				return
+			}
+			log.Printf("PDF generado con método directo como fallback")
+		} else {
+			log.Printf("PDF generado con plantilla personalizada exitosamente")
+		}
+	} else {
+		// Usar el formato estándar
+		pdfBuffer, err = generarPDF(factura, logoBytes)
+		if err != nil {
+			log.Printf("Error generando PDF: %v", err)
+			http.Error(w, "Error generando PDF: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		log.Printf("PDF generado con formato estándar")
+	}
+
+	// Crear archivo ZIP para incluir ambos
+log.Printf("Creando archivo ZIP...")
+var zipBuffer bytes.Buffer
+zipWriter := zip.NewWriter(&zipBuffer)
+
+// Incluir XML en el ZIP
+log.Printf("Añadiendo XML al ZIP (%d bytes)...", len(xmlData))
+xmlFile, err := zipWriter.Create("factura.xml")
+if err != nil {
+    log.Printf("Error creando archivo XML en ZIP: %v", err)
+    http.Error(w, "Error creando archivo XML en ZIP: "+err.Error(), http.StatusInternalServerError)
+    return
+}
+xmlFile.Write(xmlData)
+
+// Incluir PDF en el ZIP
+log.Printf("Añadiendo PDF al ZIP (%d bytes)...", pdfBuffer.Len())
+pdfFile, err := zipWriter.Create("factura.pdf")
+if err != nil {
+    log.Printf("Error creando archivo PDF en ZIP: %v", err)
+    http.Error(w, "Error creando archivo PDF en ZIP: "+err.Error(), http.StatusInternalServerError)
+    return
+}
+pdfFile.Write(pdfBuffer.Bytes())
+
+// Cerrar el ZIP
+log.Printf("Cerrando archivo ZIP...")
+err = zipWriter.Close()
+if err != nil {
+    log.Printf("Error cerrando archivo ZIP: %v", err)
+    http.Error(w, "Error cerrando archivo ZIP: "+err.Error(), http.StatusInternalServerError)
+    return
+}
+
+// Enviar el ZIP como respuesta
+log.Printf("Enviando archivo ZIP al cliente (%d bytes)...", zipBuffer.Len())
+w.Header().Set("Content-Type", "application/zip")
+w.Header().Set("Content-Disposition", "attachment; filename=factura.zip")
+bytesWritten, err := w.Write(zipBuffer.Bytes())
+if err != nil {
+    log.Printf("Error al enviar ZIP al cliente: %v", err)
+} else {
+    log.Printf("ZIP enviado correctamente (%d bytes escritos)", bytesWritten)
+	}
+}
+
+// Endpoint para buscar plantillas disponibles en el sistema
+func buscarPlantillasHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Directorio donde se almacenan las plantillas
+	plantillasDir := "./templates/facturas"
+
+	// Asegurar que el directorio existe
+	if _, err := os.Stat(plantillasDir); os.IsNotExist(err) {
+		if err := os.MkdirAll(plantillasDir, 0755); err != nil {
+			log.Printf("Error al crear directorio de plantillas: %v", err)
+			http.Error(w, "Error interno del servidor", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	// Buscar archivos .docx en el directorio
+	files, err := os.ReadDir(plantillasDir)
+	if err != nil {
+		log.Printf("Error al leer directorio de plantillas: %v", err)
+		http.Error(w, "Error interno del servidor", http.StatusInternalServerError)
+		return
+	}
+
+	// Filtrar solo archivos .docx
+	type PlantillaInfo struct {
+		Nombre string `json:"nombre"`
+		Ruta   string `json:"ruta"`
+	}
+
+	var plantillas []PlantillaInfo
+
+	for _, file := range files {
+		if !file.IsDir() && strings.HasSuffix(strings.ToLower(file.Name()), ".docx") {
+			plantillas = append(plantillas, PlantillaInfo{
+				Nombre: file.Name(),
+				Ruta:   filepath.Join(plantillasDir, file.Name()),
+			})
+		}
+	}
+
+	// Responder con la lista de plantillas
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"plantillas": plantillas,
+		"total":      len(plantillas),
+	})
+}
+
+func main() {
+	db, err := sql.Open("mysql", "alpha_junior:GHtLop23_P54@tcp(199.89.55.249:3306)/optimus")
+	if err != nil {
+		log.Fatal("Error al conectar a la base de datos:", err)
+	}
+	defer db.Close()
+
+	if err := db.Ping(); err != nil {
+		log.Fatal("No se pudo conectar a la base de datos:", err)
+	}
+
+	fmt.Println("Conexión exitosa a la base de datos")
+
+	// Crear directorios necesarios
+	for _, dir := range []string{"./templates", "./templates/facturas"} {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			log.Fatal("Error al crear directorios:", err)
+		}
+	}
+
+	http.Handle("/api/factura", enableCors(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+			return
+		}
+		criterio := strings.TrimSpace(r.URL.Query().Get("criterio"))
+		if criterio == "" {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]string{"error": "Criterio no proporcionado"})
+			return
+		}
+		buscarFactura(db, w, criterio)
+	})))
+
+	http.Handle("/api/generar_factura", enableCors(http.HandlerFunc(generarFacturaHandler)))
+
+	// Nuevo endpoint para buscar plantillas disponibles
+	http.Handle("/api/plantillas", enableCors(http.HandlerFunc(buscarPlantillasHandler)))
+
+	fmt.Println("Servidor corriendo en http://localhost:8080")
+	log.Fatal(http.ListenAndServe(":8080", nil))
+}

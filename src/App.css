@@ -1,0 +1,169 @@
+/* Actualizar las variables CSS globales */
+:root {
+  --sidebar-color: #455a64; /* Color predeterminado del sidebar */
+  --app-logo: url('/default-logo.png'); /* Logo predeterminado */
+  --company-text-color: #333333; /* Color predeterminado del texto */
+  --navbar-bg-color: #ffffff; /* Color de fondo de la barra de navegación */
+  --action-button-color: #2e7d32; /* Color predeterminado para botones principales */
+  --delete-button-color: #d32f2f;
+  --edit-button-color: #1976d2;
+  --file-select-button-color: #455a64;
+  
+  /* Variables para hover */
+  --action-button-color-dark: #1b5e20;
+  --delete-button-color-dark: #b71c1c;
+  --edit-button-color-dark: #0d47a1;
+  --file-select-button-color-dark: #37474f;
+  
+  /* Variables para tipografía */
+  --app-font-family: 'Roboto', sans-serif;
+  --app-heading-font-family: 'Roboto', sans-serif;
+  --app-font-size-base: 16px;
+  --app-line-height-base: 1.5;
+}
+
+#root {
+  margin: 0; /* Eliminado el auto para evitar centrado */
+  padding: 0; /* Eliminado el padding para usar todo el espacio */
+  width: 100%; /* Asegurar ancho completo */
+  height: 100%; /* Asegurar alto completo */
+  text-align: left; /* Opcional: cambia la alineación de texto si prefieres */
+}
+
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
+}
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
+}
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em #61dafbaa);
+}
+
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
+}
+
+.card {
+  padding: 2em;
+}
+
+.read-the-docs {
+  color: #888;
+}
+
+/* Este código va en src/App.css o donde tengas tus estilos globales */
+.app-container {
+  min-height: 100vh;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  background-color: white;
+  display: flex; /* Añadido para mejor distribución de elementos */
+  flex-direction: column; /* Contenido en columna */
+  position: relative; /* Para posicionamiento de elementos internos */
+}
+
+.full-page-component {
+  min-height: 100vh;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1; /* Añadido para que tome todo el espacio disponible */
+}
+
+/* Añade esto al final de tu archivo App.css */
+
+/* Ajustes específicos para la página de registro */
+.registro-container, 
+.register-page, 
+.register-container,
+.auth-container {
+  background-color: white !important;
+  width: 100% !important;
+  min-height: 100vh !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
+/* Asegurarse de que las tarjetas tengan un fondo blanco a su alrededor */
+.card-container,
+.auth-card,
+.register-card {
+  background-color: white;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  margin: 0;
+  max-width: 90%;
+}
+
+/* Eliminar cualquier fondo negro */
+body, html {
+  background-color: white !important;
+}
+
+/* Estilos para los botones del modal */
+.modal-buttons {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.btn {
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.btn.cancel {
+  background-color: white;
+  color: #333;
+  border: 1px solid #ddd;
+  margin-right: 10px;
+}
+
+.btn.cancel:hover {
+  background-color: #f5f5f5;
+}
+
+.btn.confirm {
+  background-color: #2c3e50;
+  color: white;
+  border: none;
+}
+
+.btn.confirm:hover {
+  background-color: #4c6075;
+}
+
+/* Aplicar fuentes a elementos globales */
+body {
+  font-family: var(--app-font-family);
+  font-size: var(--app-font-size-base);
+  line-height: var(--app-line-height-base);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--app-heading-font-family);
+}

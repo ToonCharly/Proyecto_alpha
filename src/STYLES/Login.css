@@ -1,0 +1,370 @@
+/* Configuración base y reset */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+/* Estructura de página */
+.login-page {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #000;
+  overflow: hidden;
+}
+
+#root {
+  height: 100vh;
+  width: 100vw;
+  margin: 0;
+  padding: 0;
+  background-color: #000;
+}
+
+/* Contenedor principal y layout */
+.login-container {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  background-color: #ffffff; /* Cambiado de #e6e6e6 a blanco */
+  color: #000;
+  font-family: Arial, sans-serif;
+}
+
+.login-form-container {
+  width: 40%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 3rem;
+}
+
+/* Área de logo */
+.logo-container {
+  display: flex;
+  align-items: center;
+  margin-bottom: 4rem;
+}
+
+.logo-circle {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background-color: #fff;
+  margin-right: 8px;
+}
+
+.logo-text {
+  color: #333;
+}
+
+/* Logo de la aplicación */
+.login-logo {
+  width: 120px;
+  height: 120px;
+  background-image: var(--app-logo);
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  margin: 0 auto 30px;
+}
+
+/* Sección de formulario */
+.login-form-content {
+  margin-bottom: 2.5rem;
+}
+
+.sign-in-title {
+  font-size: 1.875rem;
+  font-weight: 700;
+  margin-bottom: 2rem;
+  color: #000;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Grupos de campos de formulario */
+.form-group {
+  margin-bottom: 1.8rem;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.form-label {
+  display: inline-block;
+  font-size: 0.7rem;
+  color: #333;
+  position: absolute;
+  top: -0.5rem;
+  left: 0.7rem;
+  background-color: #ffffff; /* Cambiado de #e6e6e6 a blanco */
+  padding: 0 0.4rem;
+  z-index: 2;
+  font-weight: 500;
+  text-align: left;
+  order: 1;
+}
+
+.input-container {
+  position: relative;
+  order: 2;
+  width: 100%;
+}
+
+.form-input {
+  width: 100%;
+  height: 50px;
+  background-color: transparent;
+  border: 1px solid #333;
+  border-radius: 4px;
+  padding: 0.75rem 1rem;
+  color: #000;
+  box-sizing: border-box;
+  margin-top: 0.25rem;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #546e7a;
+}
+
+.form-input.input-error {
+  border-color: #ff4c4c;
+}
+
+/* Iconos y elementos decorativos */
+.username-symbol {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  transform: translateY(-50%);
+  color: #546e7a;
+  z-index: 1;
+}
+
+.form-input.with-icon {
+  padding-left: 2.5rem;
+}
+
+/* Estilos para el toggle de contraseña */
+.password-toggle-icon {
+  position: absolute;
+  right: 0;
+  top: 0;
+  height: 100%;
+  width: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: transparent;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s;
+}
+
+.password-toggle-icon img {
+  max-width: 20px;
+  max-height: 20px;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+
+/* Ajustar el padding del campo de contraseña */
+.form-input[type="password"],
+.form-input[type="text"] {
+  padding-right: 45px;
+}
+
+/* Recuperación de contraseña */
+.forgot-password-container {
+  text-align: right;
+  margin-top: 0.5rem;
+  margin-bottom: 2rem;
+}
+
+.forgot-password {
+  font-size: 0.75rem;
+  color: #333;
+  cursor: pointer;
+  text-decoration: none;
+  border-bottom: 1px solid #666;
+  padding-bottom: 2px;
+  display: inline-block;
+  transition: all 0.2s ease;
+}
+
+.forgot-password:hover {
+  color: #000;
+  border-bottom-color: #000;
+}
+
+/* Botones de acción */
+.sign-in-button {
+  width: 100%;
+  background-color: #37474f; 
+  color: #fff;
+  padding: 0.5rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.sign-in-button:hover:not(:disabled) {
+  background-color: #455a64; 
+}
+
+.sign-in-button:disabled {
+  background-color: #78909c; 
+  cursor: not-allowed;
+}
+
+/* Enlaces de registro */
+.signup-container {
+  margin-top: 2rem;
+}
+
+.signup-text {
+  font-size: 0.875rem;
+  color: #000000;
+}
+
+.signup-link {
+  color: #000;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.signup-link:hover {
+  text-decoration: underline;
+}
+
+/* Sección de imágenes */
+.pattern-container {
+  width: 60%;
+  background-color: transparent;
+  position: relative;
+  overflow: hidden;
+}
+
+.pattern-lines {
+  display: none;
+}
+
+.image-carousel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+}
+
+.carousel-slide {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  opacity: 0;
+  transition: opacity 1s ease-in-out;
+}
+
+.carousel-slide.active {
+  opacity: 1;
+}
+
+/* Modal de errores */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1010; /* Mayor que cualquier otro elemento */
+}
+
+.modal-contenido {
+  background-color: white;
+  padding: 2rem;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  z-index: 1011;
+}
+
+.modal-contenido h3 {
+  color: #333;
+  margin-top: 0;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.lista-errores {
+  list-style-type: none;
+  padding: 0;
+  margin-bottom: 1.5rem;
+}
+
+.lista-errores li {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+  color: #ff4c4c;
+}
+
+.punto-error {
+  margin-right: 8px;
+}
+
+.modal-boton {
+  background-color: #546e7a;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  width: 100%;
+}
+
+.modal-boton:hover {
+  background-color: #455a64;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .login-container {
+    flex-direction: column;
+  }
+  
+  .login-form-container,
+  .pattern-container {
+    width: 100%;
+  }
+  
+  .login-form-container {
+    padding: 2rem;
+    order: 2;
+  }
+  
+  .pattern-container {
+    height: 30vh;
+    order: 1;
+  }
+}

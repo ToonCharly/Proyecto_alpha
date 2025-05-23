@@ -1,0 +1,114 @@
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import '../index.css'; // Cambia la ruta si el archivo CSS está en otra ubicación
+
+const RegisterMessage = () => {
+  const navigate = useNavigate();
+
+  return (
+    <div className="form-container">
+      <h2>¡BIENVENIDO!</h2>
+      <p>
+        Ya puede empezar a facturar y utilizar los servicios de <strong>La Gas</strong>.
+      </p>
+      <p>
+        Hemos generado su cuenta con su número telefónico y enviado la nueva contraseña al correo proporcionado.
+      </p>
+      <p>
+        Esta contraseña servirá para asociar razones sociales a su número telefónico y cuenta de correo.
+      </p>
+      <button className="button" onClick={() => navigate('/')}>Ir al Inicio</button>
+    </div>
+  );
+};
+
+export default RegisterMessage;
+
+-------------------------------DB------------------------------------------------------
+-------------------------------DB------------------------------------------------------ 
+package main
+
+import (
+    "database/sql"
+    "encoding/json"
+    "fmt"
+    "log"
+    "net/http"
+
+    "github.com/go-sql-driver/mysql"
+)
+
+// Estructura para recibir datos del formulario
+type User struct {
+    CorreoElectronico string `json:"email"`
+    NumeroCelular     string `json:"phone"`
+    Contrasena        string `json:"password"`
+    RFC               string `json:"rfc"`
+}
+
+// Middleware para habilitar CORS
+func enableCors(next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        w.Header().Set("Access-Control-Allow-Origin", "*") // Permitir solicitudes desde cualquier origen
+        w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+        w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+        if r.Method == "OPTIONS" {
+            w.WriteHeader(http.StatusOK)
+            return
+        }
+        next.ServeHTTP(w, r)
+    })
+}
+
+func main() {
+    // Conexión a la base de datos
+    db, err := sql.Open("mysql", "root:AlphaP1n3@tcp(127.0.0.1:3306)/Cliente")
+    if err != nil {
+        log.Fatal("Error al conectar a la base de datos:", err)
+    }
+    defer db.Close()
+
+    // Verificar la conexión
+    err = db.Ping()
+    if err != nil {
+        log.Fatal("No se pudo conectar a la base de datos:", err)
+    }
+    fmt.Println("Conexión exitosa a la base de datos")
+
+    // Ruta para manejar el registro de usuarios
+    http.Handle("/register", enableCors(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        if r.Method != http.MethodPost {
+            http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+            return
+        }
+
+        // Decodificar el cuerpo de la solicitud
+        var user User
+        err := json.NewDecoder(r.Body).Decode(&user)
+        if err != nil {
+            http.Error(w, "Error al procesar la solicitud", http.StatusBadRequest)
+            return
+        }
+
+        // Insertar datos en la base de datos
+        query := "INSERT INTO cliente (correo_electronico, numero_celular, contrasena, rfc) VALUES (?, ?, ?, ?)"
+        _, err = db.Exec(query, user.CorreoElectronico, user.NumeroCelular, user.Contrasena, user.RFC)
+        if err != nil {
+            // Manejar errores de datos duplicados
+            if mysqlErr, ok := err.(*mysql.MySQLError); ok && mysqlErr.Number == 1062 {
+                http.Error(w, "El correo, RFC o número de teléfono ya están registrados.", http.StatusConflict)
+                return
+            }
+            http.Error(w, "Error al registrar el usuario", http.StatusInternalServerError)
+            log.Println("Error al insertar datos:", err)
+            return
+        }
+
+        w.WriteHeader(http.StatusOK)
+        fmt.Fprintln(w, "Usuario registrado exitosamente")
+    })))
+
+    // Iniciar el servidor
+    fmt.Println("Servidor corriendo en http://localhost:8080")
+    log.Fatal(http.ListenAndServe(":8080", nil))
+}

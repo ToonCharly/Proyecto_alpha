@@ -1,0 +1,473 @@
+/* Estilos generales */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #333;
+  background-color: #f9fafb;
+}
+
+/* Variables de tema */
+:root {
+  --sidebar-color: #455a64; /* Color predeterminado del sidebar */
+  --navbar-bg-color: white; /* Color de fondo de la barra de navegación */
+  --button-primary-color: #1a237e; /* Color primario para botones */
+}
+
+/* Contenedor principal */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100%;
+}
+
+/* Barra de navegación superior */
+.navbar {
+  display: flex;
+  justify-content: space-between; /* Esto separará el contenido izquierdo y derecho */
+  align-items: center;
+  width: 100%;
+  height: 60px;
+  padding: 0 20px;
+  background-color: var(--navbar-bg-color);
+  border-bottom: 1px solid #e0e0e0;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1000;
+}
+
+.navbar-left {
+  display: flex;
+  align-items: center;
+}
+
+.navbar-right {
+  display: flex;
+  align-items: center;
+}
+
+.navbar-left > * {
+  margin-right: 1.5rem;
+}
+
+.navbar-right > * {
+  margin-right: 1.2rem;
+}
+
+.navbar-right > *:last-child {
+  margin-right: 0;
+}
+
+.logo {
+  color: #06b6d4;
+  font-weight: bold;
+  font-size: 1.5rem;
+}
+
+.welcome-text {
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.menu-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #4b5563;
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.factura-label {
+  display: flex;
+  align-items: center;
+}
+
+.new-badge {
+  background-color: #06b6d4;
+  color: white;
+  font-size: 0.75rem;
+  padding: 0.1rem 0.3rem;
+  border-radius: 0.25rem;
+  margin-left: 0.3rem;
+}
+
+.consultar-container {
+  display: flex;
+  align-items: center;
+}
+
+.consultar-container .icon {
+  margin-right: 0.3rem;
+}
+
+/* Contenedor principal que contiene sidebar y contenido */
+.content-container {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.sidebar {
+  position: fixed;
+  left: 0;
+  top: 60px;
+  width: 250px;
+  background-color: var(--sidebar-color);
+  color: white;
+  transition: all 0.3s ease-in-out;
+  height: calc(100vh - 60px);
+  flex-shrink: 0;
+  margin-left: 0;
+}
+
+.sidebar.open {
+  transform: translateX(0);
+}
+
+/* Ajuste para la barra lateral cerrada */
+.sidebar.closed {
+  width: 100px;
+  transform: translateX(0);
+  background-color: var(--sidebar-color);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 1rem;
+  overflow: hidden;
+}
+
+.sidebar.closed .nav-item {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding: 1rem 0;
+}
+
+.sidebar.closed .nav-item-content span {
+  display: none;
+}
+
+.sidebar.closed .nav-item-content .icon {
+  font-size: 2rem;
+  color: white;
+  text-align: center;
+}
+
+.sidebar-nav {
+  padding: 1rem 0;
+}
+
+.nav-section {
+  padding: 0.5rem 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.icon {
+  width: 24px;
+  height: 24px;
+  margin-right: 8px;
+}
+
+.user-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background-color: #fff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border-radius: 0.5rem;
+  overflow: hidden;
+  z-index: 10;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+/* Estilos para el modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: fadeInOverlay 0.3s ease-in-out;
+}
+
+/* Ajustes para el modal de cierre de sesión */
+.modal {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  text-align: center;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  width: 280px;
+  animation: slideIn 0.3s ease-in-out;
+}
+
+.modal h2 {
+  margin-bottom: 0.5rem;
+  font-size: 1.2rem;
+  color: #1a237e;
+}
+
+.modal p {
+  margin-bottom: 1rem;
+  color: #555;
+  font-size: 0.9rem;
+}
+
+.modal-buttons {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.modal-buttons .btn {
+  padding: 0.4rem 0.8rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  min-width: 80px;
+}
+
+/* Estilos para los botones del modal con los colores estandarizados */
+.modal-buttons .btn-primary {
+  background-color: #1a237e;
+  color: white;
+  transition: background-color 0.2s;
+}
+
+.modal-buttons .btn-primary:hover {
+  background-color: #283593;
+}
+
+.modal-buttons .btn-secondary {
+  background-color: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  transition: background-color 0.2s;
+}
+
+.modal-buttons .btn-secondary:hover {
+  background-color: #e5e7eb;
+}
+
+/* Animaciones */
+@keyframes fadeInOverlay {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.dropdown-item {
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+  font-size: 0.9rem;
+  color: white;
+  background-color: #334155;
+}
+
+.dropdown-item:hover {
+  background-color: #475569;
+  color: white;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.nav-item:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.nav-item.active {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-left: 3px solid rgba(255, 255, 255, 0.7);
+}
+
+.nav-item-content {
+  display: flex;
+  align-items: center;
+}
+
+.nav-item-content .icon {
+  margin-right: 0.75rem;
+}
+
+.chevron-icon {
+  transition: transform 0.2s;
+}
+
+.chevron-icon.expanded {
+  transform: rotate(180deg);
+}
+
+.subnav {
+  margin-left: 1.5rem;
+  margin-top: 0.5rem;
+}
+
+.subnav-item {
+  padding: 0.5rem 1rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.subnav-item:hover {
+  background-color: #475569;
+}
+
+/* Contenido principal */
+.main-content {
+  flex: 1;
+  padding: 1.5rem;
+  background-color: #f9fafb;
+  overflow-y: auto;
+}
+
+/* Updated user info styles */
+.user-info-section {
+  padding: 15px 10px;
+  margin-top: 15px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.user-info-content {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  padding: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.user-info-content.collapsed {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 8px;
+  margin: 0 auto;
+  background-color: transparent; /* Make the container transparent */
+  box-shadow: none; /* Remove the shadow */
+}
+
+.user-initials {
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 16px;
+  /* Removed: width, height, border-radius, and background-color */
+}
+
+.user-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+  margin-bottom: 4px;
+  word-break: break-word;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.user-email {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.8);
+  word-break: break-word;
+  font-style: italic;
+}
+
+/* Añadir estos estilos para el logo en el navbar */
+.company-logo {
+  width: 40px;
+  height: 40px;
+  background-image: var(--app-logo);
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  margin-left: 15px; /* Margen a la izquierda en lugar de a la derecha */
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .sidebar {
+    position: fixed;
+    left: 0;
+    top: 60px;
+    z-index: 10;
+  }
+  
+  .content-container {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 768px) {
+  .navbar {
+    padding: 0.5rem 1rem;
+  }
+  
+  .navbar-right {
+    display: none;
+  }
+  
+  .tabla-historial {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+  }
+  
+  .tabla-historial th, .tabla-historial td {
+    border: 1px solid #ddd;
+    padding: 8px;
+  }
+  
+  .tabla-historial th {
+    background-color: #f4f4f4;
+    text-align: left;
+  }
+  
+  .navbar-left {
+    width: 100%;
+    justify-content: space-between;
+  }
+}

@@ -1,0 +1,351 @@
+/* Contenedor principal */
+.empresas-container {
+  padding: 2rem;
+  background-color: transparent; /* Quita el fondo */
+  min-height: 100vh;
+  font-family: 'Segoe UI', sans-serif;
+  max-width: 900px; /* Reduce el ancho máximo */
+  margin: 0 auto; /* Centra el contenido */
+}
+
+/* Títulos */
+h1, h2, h3 {
+  color: #2c3e50;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+/* Botones */
+button {
+  background-color: #2c3e50;
+  color: white;
+  padding: 0.6rem 1.2rem;
+  border: none;
+  border-radius: 5px;
+  margin: 0.5rem 0;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background 0.3s;
+}
+
+button:hover {
+  background-color: #34495e;
+}
+
+/* Formularios */
+.empresa-form,
+.sucursal-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); /* Aumenta el ancho mínimo */
+  gap: 1rem;
+  background-color: white;
+  padding: 2rem; /* Aumenta el padding */
+  margin: 1rem 0;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  max-width: 800px; /* Aumenta el ancho máximo */
+  margin-left: auto; /* Centra horizontalmente */
+  margin-right: auto; /* Centra horizontalmente */
+}
+
+/* Contenedor para los botones del formulario */
+.empresa-form {
+  position: relative;
+  padding-bottom: 80px; /* Espacio para los botones */
+}
+
+/* Estilos comunes para ambos botones */
+.empresa-form button[type="submit"],
+.empresa-form .close-modal {
+  position: absolute;
+  bottom: 20px;
+  width: 40%;
+  max-width: 200px;
+}
+
+/* Posicionar el botón de guardar a la izquierda */
+.empresa-form button[type="submit"] {
+  left: calc(50% - 210px); /* Posición a la izquierda del centro */
+}
+
+/* Posicionar el botón de cancelar a la derecha */
+.empresa-form .close-modal {
+  right: calc(50% - 210px); /* Posición a la derecha del centro */
+  background-color: #2c3e50; /* Mantener el color rojo */
+}
+
+/* Centrar y destacar el título del formulario */
+.empresa-form h2 {
+  grid-column: 1 / -1; /* Hacer que el título ocupe todo el ancho */
+  text-align: center;
+  margin-bottom: 1.5rem;
+  color: #2c3e50;
+  font-weight: bold;
+  font-size: 1.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #eee;
+}
+
+.empresa-form label,
+.sucursal-form label {
+  display: flex;
+  flex-direction: column;
+  font-weight: 600;
+  color: #333;
+}
+
+.required {
+  color: red;
+  margin-left: 5px;
+}
+
+.empresa-form input,
+.sucursal-form input {
+  padding: 0.5rem;
+  margin-top: 0.3rem;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  font-size: 0.9rem;
+}   
+
+/* Asegurar que los selects tengan el mismo aspecto que los inputs */
+.empresa-form select,
+.sucursal-form select {
+  padding: 0.5rem;
+  margin-top: 0.3rem;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  font-size: 0.9rem;
+  height: 37px; /* Altura fija igual a los inputs */
+  background-color: white;
+  width: 100%;
+}
+
+/* Tarjeta para la tabla */
+.table-card {
+  background-color: white;
+  padding: 1.5rem;
+  border-radius: 10px;
+  margin-top: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  max-width: 90%; /* Hacer la tabla menos ancha */
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Asegurar que los encabezados de tabla tengan fondo azul */
+.table-card table thead tr th {
+  background-color: #2c3e50 !important; /* Azul oscuro forzado */
+  color: white !important;
+  font-weight: 600;
+  border: none; /* Eliminar bordes que puedan estar interfiriendo */
+}
+
+/* Añadir un borde al encabezado completo para mejor apariencia */
+.table-card table thead {
+  border-bottom: 2px solid #1a2433;
+}
+
+/* Hacer que la primera celda tenga esquinas redondeadas a la izquierda */
+.table-card table thead tr th:first-child {
+  border-top-left-radius: 6px;
+  border-bottom-left-radius: 6px;
+}
+
+/* Hacer que la última celda tenga esquinas redondeadas a la derecha */
+.table-card table thead tr th:last-child {
+  border-top-right-radius: 6px;
+  border-bottom-right-radius: 6px;
+}
+
+/* Tablas */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+
+th, td {
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid #e0e0e0;
+  font-size: 0.9rem; /* Reduce el tamaño del texto */
+}
+
+/* Encabezados de tabla en azul (ID, Razón Social, Acciones) */
+th {
+  background-color: #2c3e50; /* Azul oscuro para encabezados */
+  color: white;
+  font-weight: 600;
+}
+
+tr:hover {
+  background-color: #f1f1f1;
+}
+
+/* Separar los botones de acción */
+td button {
+  margin-right: 10px; /* Espacio entre botones */
+}
+
+/* Estilo para el contenedor de la información de la empresa */
+td .empresa-info {
+  padding: 8px;
+  background-color: white; /* Fondo blanco para info de empresa */
+  border: 1px solid #e0e0e0; /* Borde ligero para separar */
+  border-radius: 5px;
+  margin-bottom: 5px;
+}
+
+td .empresa-nombre {
+  font-weight: bold;
+  font-size: 0.95em;
+  color: #2c3e50; /* Color de texto azul oscuro */
+}
+
+td .empresa-detalles {
+  font-size: 0.85em;
+  color: #333; /* Color oscuro para detalles */
+  margin-top: 3px;
+}
+
+/* Botón para agregar */
+.boton-agregar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 1rem;
+}
+
+/* Ajustes para pantallas pequeñas */
+@media (max-width: 768px) {
+  .empresa-form,
+  .sucursal-form {
+    grid-template-columns: 1fr; /* Una sola columna en pantallas pequeñas */
+  }
+
+  .empresas-container {
+    padding: 1rem;
+  }
+
+  .modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background-color: white;
+  padding: 2rem;
+  border-radius: 10px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.close-modal {
+  background-color: #ff3b30;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 5px;
+  cursor: pointer;
+  margin-top: 1rem;
+}
+
+.close-modal:hover {
+  background-color: #cc2a25;
+}
+
+  .table-card {
+    padding: 1rem;
+  }
+
+  th, td {
+    font-size: 0.8rem; /* Reduce el tamaño del texto */
+  }
+.modal-content h3 {
+  color: var(--primary-color, #2c3e50);
+  margin-top: 0;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 10px;
+}
+
+.form-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.form-buttons button {
+  padding: 8px 15px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.form-buttons button.close-modal {
+  background-color: #6c757d;
+  color: white;
+}
+
+.form-buttons button:not(.close-modal) {
+  background-color: #dc3545;
+  color: white;
+}
+
+.form-buttons button:hover {
+  opacity: 0.9;
+}
+
+  .empresa-form {
+    padding-bottom: 140px; /* Más espacio para botones en columna */
+  }
+  
+  .empresa-form button[type="submit"],
+  .empresa-form .close-modal {
+    width: 80%;
+    max-width: 300px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  
+  .empresa-form button[type="submit"] {
+    bottom: 70px;
+  }
+  
+  .empresa-form .close-modal {
+    bottom: 20px;
+  }
+}
+
+/* Estilos específicos para modal de edición */
+.edit-confirmation-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1100; /* Mayor que el formulario normal */
+}
+
+.edit-confirmation-content {
+  background-color: white;
+  padding: 2rem;
+  border-radius: 10px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  z-index: 1101;
+}
