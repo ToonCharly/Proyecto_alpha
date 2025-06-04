@@ -3,12 +3,20 @@ import { usePreferencias } from '../context/PreferenciasContext';
 import '../STYLES/Preferencias.css';
 
 function Preferencias() {
-  // Estados para manejo de temas
+  // Estado para controlar qué panel se está personalizando
+  const [panelActivo, setPanelActivo] = useState('admin'); // 'admin' o 'facturacion'
+  
+  // Estados para manejo de temas - Panel Admin
   const [selectedTheme, setSelectedTheme] = useState('default');
   const [customColor, setCustomColor] = useState('#000000');
+  
+  // Estados para manejo de temas - Panel Facturación
+  const [selectedThemeFactura, setSelectedThemeFactura] = useState('default');
+  const [customColorFactura, setCustomColorFactura] = useState('#000000');
+  
   const [mensaje, setMensaje] = useState(null);
   
-  // Estado para gestión de logo
+  // Estado para gestión de logo (compartido)
   const [logoImage, setLogoImage] = useState(null);
   const [logoPreview, setLogoPreview] = useState('');
   
@@ -25,6 +33,26 @@ function Preferencias() {
   // Estados locales para editar
   const [localCompanyName, setLocalCompanyName] = useState(companyName);
   
+  // Estados para colores de botones - Panel Admin
+  const [actionButtonsColor, setActionButtonsColor] = useState('#2e7d32');
+  const [deleteButtonsColor, setDeleteButtonsColor] = useState('#d32f2f');
+  const [editButtonsColor, setEditButtonsColor] = useState('#1976d2');
+  const [fileSelectButtonsColor, setFileSelectButtonsColor] = useState('#455a64');
+  
+  // Estados para colores de botones - Panel Facturación
+  const [actionButtonsColorFactura, setActionButtonsColorFactura] = useState('#2e7d32');
+  const [deleteButtonsColorFactura, setDeleteButtonsColorFactura] = useState('#d32f2f');
+  const [editButtonsColorFactura, setEditButtonsColorFactura] = useState('#1976d2');
+  const [fileSelectButtonsColorFactura, setFileSelectButtonsColorFactura] = useState('#455a64');
+  
+  // Estados para fuentes - Panel Admin
+  const [selectedFont, setSelectedFont] = useState('roboto');
+  const [selectedHeadingFont, setSelectedHeadingFont] = useState('roboto');
+  
+  // Estados para fuentes - Panel Facturación
+  const [selectedFontFactura, setSelectedFontFactura] = useState('roboto');
+  const [selectedHeadingFontFactura, setSelectedHeadingFontFactura] = useState('roboto');
+  
   // Actualizar estado local cuando cambien los valores del contexto
   useEffect(() => {
     setLocalCompanyName(companyName);
@@ -32,7 +60,7 @@ function Preferencias() {
 
   // Cargar configuraciones guardadas
   useEffect(() => {
-    // Cargar tema
+    // Cargar tema del panel admin
     const savedTheme = localStorage.getItem('sidebarTheme');
     if (savedTheme) {
       try {
@@ -41,65 +69,102 @@ function Preferencias() {
         if (themeData.id === 'custom') {
           setCustomColor(themeData.color);
         }
-        
-        // Aplicar el tema guardado
-        document.documentElement.style.setProperty('--sidebar-color', themeData.color);
       } catch (error) {
         console.error('Error al cargar el tema guardado:', error);
       }
     }
     
-    // Cargar logo si existe
+    // Cargar tema del panel facturación
+    const savedThemeFactura = localStorage.getItem('userPanelTheme');
+    if (savedThemeFactura) {
+      try {
+        const themeData = JSON.parse(savedThemeFactura);
+        setSelectedThemeFactura(themeData.id);
+        if (themeData.id === 'custom') {
+          setCustomColorFactura(themeData.color);
+        }
+      } catch (error) {
+        console.error('Error al cargar el tema de facturación:', error);
+      }
+    }
+    
+    // Cargar logo compartido
     const savedLogo = localStorage.getItem('appLogo');
     if (savedLogo) {
       setLogoPreview(savedLogo);
-      document.documentElement.style.setProperty('--app-logo', `url(${savedLogo})`);
     }
     
-    // Cargar colores de botones
-    const savedActionButtonsColor = localStorage.getItem('actionButtonsColor');
-    if (savedActionButtonsColor) {
-      setActionButtonsColor(savedActionButtonsColor);
-      document.documentElement.style.setProperty('--action-button-color', savedActionButtonsColor);
-    }
+    // Cargar colores de botones - Admin
+    loadButtonColors('admin');
     
-    const savedDeleteButtonsColor = localStorage.getItem('deleteButtonsColor');
-    if (savedDeleteButtonsColor) {
-      setDeleteButtonsColor(savedDeleteButtonsColor);
-      document.documentElement.style.setProperty('--delete-button-color', savedDeleteButtonsColor);
-    }
+    // Cargar colores de botones - Facturación
+    loadButtonColors('factura');
     
-    const savedEditButtonsColor = localStorage.getItem('editButtonsColor');
-    if (savedEditButtonsColor) {
-      setEditButtonsColor(savedEditButtonsColor);
-      document.documentElement.style.setProperty('--edit-button-color', savedEditButtonsColor);
-    }
+    // Cargar tipografías - Admin
+    loadFonts('admin');
     
-    const savedFileSelectButtonsColor = localStorage.getItem('fileSelectButtonsColor');
-    if (savedFileSelectButtonsColor) {
-      setFileSelectButtonsColor(savedFileSelectButtonsColor);
-      document.documentElement.style.setProperty('--file-select-button-color', savedFileSelectButtonsColor);
-    }
+    // Cargar tipografías - Facturación
+    loadFonts('factura');
     
-    // Cargar tipografía guardada
-    const savedFontId = localStorage.getItem('appFontId');
-    if (savedFontId) {
-      setSelectedFont(savedFontId);
-      const fontFamily = localStorage.getItem('appFontFamily');
-      if (fontFamily) {
-        document.documentElement.style.setProperty('--app-font-family', fontFamily);
-      }
-    }
-    
-    const savedHeadingFontId = localStorage.getItem('appHeadingFontId');
-    if (savedHeadingFontId) {
-      setSelectedHeadingFont(savedHeadingFontId);
-      const headingFontFamily = localStorage.getItem('appHeadingFontFamily');
-      if (headingFontFamily) {
-        document.documentElement.style.setProperty('--app-heading-font-family', headingFontFamily);
-      }
-    }
   }, []);
+  
+  // Función para cargar colores de botones según el panel
+  const loadButtonColors = (panel) => {
+    const storagePrefix = panel === 'admin' ? '' : 'factura_';
+    const cssPrefix = panel === 'admin' ? 'admin-' : 'user-';
+    
+    const savedActionButtonsColor = localStorage.getItem(`${storagePrefix}actionButtonsColor`);
+    if (savedActionButtonsColor) {
+      panel === 'admin' 
+        ? setActionButtonsColor(savedActionButtonsColor)
+        : setActionButtonsColorFactura(savedActionButtonsColor);
+        
+      // Aplicar la variable CSS correcta según el panel
+      document.documentElement.style.setProperty(`--${cssPrefix}action-button-color`, savedActionButtonsColor);
+    }
+    
+    const savedDeleteButtonsColor = localStorage.getItem(`${storagePrefix}deleteButtonsColor`);
+    if (savedDeleteButtonsColor) {
+      panel === 'admin'
+        ? setDeleteButtonsColor(savedDeleteButtonsColor)
+        : setDeleteButtonsColorFactura(savedDeleteButtonsColor);
+        
+      document.documentElement.style.setProperty(`--${cssPrefix}delete-button-color`, savedDeleteButtonsColor);
+    }
+    
+    const savedEditButtonsColor = localStorage.getItem(`${storagePrefix}editButtonsColor`);
+    if (savedEditButtonsColor) {
+      panel === 'admin'
+        ? setEditButtonsColor(savedEditButtonsColor)
+        : setEditButtonsColorFactura(savedEditButtonsColor);
+    }
+    
+    const savedFileSelectButtonsColor = localStorage.getItem(`${storagePrefix}fileSelectButtonsColor`);
+    if (savedFileSelectButtonsColor) {
+      panel === 'admin'
+        ? setFileSelectButtonsColor(savedFileSelectButtonsColor)
+        : setFileSelectButtonsColorFactura(savedFileSelectButtonsColor);
+    }
+  };
+  
+  // Función para cargar fuentes según el panel
+  const loadFonts = (panel) => {
+    const storagePrefix = panel === 'admin' ? '' : 'factura_';
+    
+    const savedFontId = localStorage.getItem(`${storagePrefix}appFontId`);
+    if (savedFontId) {
+      panel === 'admin'
+        ? setSelectedFont(savedFontId)
+        : setSelectedFontFactura(savedFontId);
+    }
+    
+    const savedHeadingFontId = localStorage.getItem(`${storagePrefix}appHeadingFontId`);
+    if (savedHeadingFontId) {
+      panel === 'admin'
+        ? setSelectedHeadingFont(savedHeadingFontId)
+        : setSelectedHeadingFontFactura(savedHeadingFontId);
+    }
+  };
   
   // Función para manejar cambios en el nombre (actualiza en tiempo real)
   const handleCompanyNameChange = (e) => {
@@ -118,24 +183,49 @@ function Preferencias() {
     updateNavbarBgColor(e.target.value);
   };
 
-  // Aplicar tema a la aplicación
+  // Aplicar tema a la aplicación según el panel seleccionado
   const applyTheme = (themeId, color) => {
     const themeColor = themeId === 'custom' ? color : themeOptions.find(t => t.id === themeId)?.color;
     
     if (themeColor) {
-      document.documentElement.style.setProperty('--sidebar-color', themeColor);
+      if (panelActivo === 'admin') {
+        // Aplicar al panel admin
+        document.documentElement.style.setProperty('--sidebar-color', themeColor);
+        document.documentElement.style.setProperty('--admin-accent-color', themeColor);
+        
+        // Guardar preferencia de tema en localStorage
+        localStorage.setItem('sidebarTheme', JSON.stringify({
+          id: themeId,
+          color: themeColor,
+          textColor: companyTextColor // Usar variable existente en lugar de adminTheme.textColor
+        }));
+      } else {
+        // Aplicar al panel de facturación
+        document.documentElement.style.setProperty('--user-sidebar-color', themeColor);
+        document.documentElement.style.setProperty('--user-accent-color', themeColor);
+        
+        // Guardar preferencia de tema en localStorage
+        localStorage.setItem('userPanelTheme', JSON.stringify({
+          id: themeId,
+          color: themeColor,
+          sidebarColor: themeColor,
+          textColor: companyTextColor, // Usar variable existente en lugar de facturaTheme.textColor
+          navbarColor: navbarBgColor, // Usar variable existente en lugar de facturaTheme.navbarColor
+          accentColor: themeColor,
+          buttonColor: actionButtonsColorFactura // Usar variable existente en lugar de facturaTheme.buttonColor
+        }));
+      }
       
-      // Guardar preferencia de tema en localStorage
-      localStorage.setItem('sidebarTheme', JSON.stringify({
-        id: themeId,
-        color: themeId === 'custom' ? color : themeColor
-      }));
-      
-      showSuccessMessage('Color del panel actualizado correctamente');
+      showSuccessMessage(`Color del panel de ${panelActivo === 'admin' ? 'administración' : 'facturación'} actualizado correctamente`);
     }
   };
+  
+  // Funciones para el selector de panel
+  const handlePanelChange = (panel) => {
+    setPanelActivo(panel);
+  };
 
-  // Función para seleccionar un archivo de imagen
+  // Función para seleccionar un archivo de imagen (logo compartido)
   const handleLogoChange = (e) => {
     const file = e.target.files[0];
     
@@ -162,7 +252,7 @@ function Preferencias() {
     }
   };
 
-  // Guardar el logo
+  // Guardar el logo (compartido para ambos paneles)
   const saveLogo = () => {
     if (logoPreview) {
       localStorage.setItem('appLogo', logoPreview);
@@ -171,7 +261,7 @@ function Preferencias() {
     }
   };
 
-  // Eliminar el logo
+  // Eliminar el logo (compartido para ambos paneles)
   const removeLogo = () => {
     setLogoImage(null);
     setLogoPreview('');
@@ -195,80 +285,33 @@ function Preferencias() {
     }, 5000);
   };
 
+  // Manejadores de cambio de tema según el panel activo
   const handleThemeChange = (e) => {
     const newTheme = e.target.value;
-    setSelectedTheme(newTheme);
-    applyTheme(newTheme, customColor);
+    
+    if (panelActivo === 'admin') {
+      setSelectedTheme(newTheme);
+      applyTheme(newTheme, customColor);
+    } else {
+      setSelectedThemeFactura(newTheme);
+      applyTheme(newTheme, customColorFactura);
+    }
   };
 
   const handleCustomColorChange = (e) => {
     const newColor = e.target.value;
-    setCustomColor(newColor);
-    if (selectedTheme === 'custom') {
-      applyTheme('custom', newColor);
+    
+    if (panelActivo === 'admin') {
+      setCustomColor(newColor);
+      if (selectedTheme === 'custom') {
+        applyTheme('custom', newColor);
+      }
+    } else {
+      setCustomColorFactura(newColor);
+      if (selectedThemeFactura === 'custom') {
+        applyTheme('custom', newColor);
+      }
     }
-  };
-
-  // Añade estos estados después de los estados existentes
-  const [actionButtonsColor, setActionButtonsColor] = useState('#2e7d32'); // Color para guardar/descargar
-  const [deleteButtonsColor, setDeleteButtonsColor] = useState('#d32f2f'); // Color para eliminar
-  const [editButtonsColor, setEditButtonsColor] = useState('#1976d2'); // Color para botones de editar
-  const [fileSelectButtonsColor, setFileSelectButtonsColor] = useState('#455a64'); // Color para seleccionar archivos
-
-  // Función para manejar el cambio de color de los botones de acción
-  const handleActionButtonsColorChange = (e) => {
-    const newColor = e.target.value;
-    setActionButtonsColor(newColor);
-    
-    // Asegurar que el color se aplica inmediatamente
-    document.documentElement.style.setProperty('--action-button-color', newColor);
-    
-    // Calcular un color más oscuro para hover
-    const darkerColor = getDarkerColor(newColor);
-    document.documentElement.style.setProperty('--action-button-color-dark', darkerColor);
-    
-    // Guardar en localStorage
-    localStorage.setItem('actionButtonsColor', newColor);
-    localStorage.setItem('actionButtonsColorDark', darkerColor);
-    
-    showSuccessMessage('Color de botones de acción actualizado');
-  };
-
-  // Función para manejar el cambio de color de los botones de eliminar
-  const handleDeleteButtonsColorChange = (e) => {
-    const newColor = e.target.value;
-    setDeleteButtonsColor(newColor);
-    localStorage.setItem('deleteButtonsColor', newColor);
-    document.documentElement.style.setProperty('--delete-button-color', newColor);
-    showSuccessMessage('Color de botones de eliminar actualizado');
-  };
-
-  // Función para manejar el cambio de color de los botones de editar
-  const handleEditButtonsColorChange = (e) => {
-    const newColor = e.target.value;
-    setEditButtonsColor(newColor);
-    localStorage.setItem('editButtonsColor', newColor);
-    document.documentElement.style.setProperty('--edit-button-color', newColor);
-    showSuccessMessage('Color de botones de editar actualizado');
-  };
-
-  // Función para manejar el cambio de color de los botones de seleccionar archivo
-  const handleFileSelectButtonsColorChange = (e) => {
-    const newColor = e.target.value;
-    setFileSelectButtonsColor(newColor);
-    
-    // Asegurar que el color se aplica inmediatamente
-    document.documentElement.style.setProperty('--file-select-button-color', newColor);
-    
-    // Calcular un color más oscuro para hover
-    const darkerColor = getDarkerColor(newColor);
-    document.documentElement.style.setProperty('--file-select-button-color-dark', darkerColor);
-    
-    // Guardar en localStorage
-    localStorage.setItem('fileSelectButtonsColor', newColor);
-    localStorage.setItem('fileSelectButtonsColorDark', darkerColor);
-    
-    showSuccessMessage('Color de botones de selección de archivo actualizado');
   };
 
   // Función auxiliar para calcular un color más oscuro para hover
@@ -287,7 +330,7 @@ function Preferencias() {
     return `#${darkerR.toString(16).padStart(2, '0')}${darkerG.toString(16).padStart(2, '0')}${darkerB.toString(16).padStart(2, '0')}`;
   }
 
-  // Opciones de temas
+  // Opciones de temas (compartidas para ambos paneles)
   const themeOptions = [
     { id: 'default', name: 'Tema Predeterminado', color: '#455a64' },
     { id: 'dark', name: 'Oscuro', color: '#37474f' },
@@ -298,94 +341,167 @@ function Preferencias() {
     { id: 'custom', name: 'Personalizado', color: '#000000' }
   ];
 
-  // Opciones de fuentes
+  // Opciones de fuentes (compartidas para ambos paneles)
   const fontOptions = [
     { id: 'roboto', name: 'Roboto (Predeterminado)', family: "'Roboto', sans-serif" },
-    { id: 'openSans', name: 'Open Sans', family: "'Open Sans', sans-serif" },
     { id: 'lato', name: 'Lato', family: "'Lato', sans-serif" },
     { id: 'montserrat', name: 'Montserrat', family: "'Montserrat', sans-serif" },
+    { id: 'openSans', name: 'Open Sans', family: "'Open Sans', sans-serif" },
     { id: 'poppins', name: 'Poppins', family: "'Poppins', sans-serif" },
-    { id: 'sourceSansPro', name: 'Source Sans Pro', family: "'Source Sans Pro', sans-serif" },
-    { id: 'raleway', name: 'Raleway', family: "'Raleway', sans-serif" }
+    { id: 'raleway', name: 'Raleway', family: "'Raleway', sans-serif" },
+    { id: 'sourceSansPro', name: 'Source Sans Pro', family: "'Source Sans Pro', sans-serif" }
   ];
 
-  // Opciones de fuentes para títulos (puedes usar las mismas o diferentes)
+  // Opciones de fuentes para títulos (compartidas para ambos paneles)
   const headingFontOptions = [
     { id: 'roboto', name: 'Roboto (Predeterminado)', family: "'Roboto', sans-serif" },
-    { id: 'openSans', name: 'Open Sans', family: "'Open Sans', sans-serif" },
     { id: 'lato', name: 'Lato', family: "'Lato', sans-serif" },
+    { id: 'merriweather', name: 'Merriweather', family: "'Merriweather', serif" },
     { id: 'montserrat', name: 'Montserrat', family: "'Montserrat', sans-serif" },
-    { id: 'poppins', name: 'Poppins', family: "'Poppins', sans-serif" },
+    { id: 'openSans', name: 'Open Sans', family: "'Open Sans', sans-serif" },
     { id: 'playfairDisplay', name: 'Playfair Display', family: "'Playfair Display', serif" },
-    { id: 'merriweather', name: 'Merriweather', family: "'Merriweather', serif" }
+    { id: 'poppins', name: 'Poppins', family: "'Poppins', sans-serif" }
   ];
 
-  // Estados para manejar las selecciones de fuentes
-  const [selectedFont, setSelectedFont] = useState('roboto');
-  const [selectedHeadingFont, setSelectedHeadingFont] = useState('roboto');
+  // Funciones para manejar cambios en los colores de botones según el panel activo
+  const handleActionButtonsColorChange = (e) => {
+    const newColor = e.target.value;
+    const storagePrefix = panelActivo === 'admin' ? '' : 'factura_';
+    const cssPrefix = panelActivo === 'admin' ? '' : 'user-';
+    
+    if (panelActivo === 'admin') {
+      setActionButtonsColor(newColor);
+    } else {
+      setActionButtonsColorFactura(newColor);
+    }
+    
+    // Aplicar inmediatamente
+    document.documentElement.style.setProperty(`--${cssPrefix}action-button-color`, newColor);
+    
+    // Calcular color oscuro para hover
+    const darkerColor = getDarkerColor(newColor);
+    document.documentElement.style.setProperty(`--${cssPrefix}action-button-color-dark`, darkerColor);
+    
+    // Guardar en localStorage
+    localStorage.setItem(`${storagePrefix}actionButtonsColor`, newColor);
+    localStorage.setItem(`${storagePrefix}actionButtonsColorDark`, darkerColor);
+    
+    showSuccessMessage(`Color de botones de acción del panel de ${panelActivo === 'admin' ? 'administración' : 'facturación'} actualizado`);
+  };
 
-  // Añade esto al principio del componente o en un archivo de inicialización global
-  useEffect(() => {
-    // Establecer valores predeterminados para las variables CSS
-    if (!document.documentElement.style.getPropertyValue('--action-button-color')) {
-      document.documentElement.style.setProperty('--action-button-color', '#2e7d32');
-      document.documentElement.style.setProperty('--action-button-color-dark', '#1b5e20');
+  // Función para manejar cambios en el color de botones de eliminar
+  const handleDeleteButtonsColorChange = (e) => {
+    const newColor = e.target.value;
+    const storagePrefix = panelActivo === 'admin' ? '' : 'factura_';
+    const cssPrefix = panelActivo === 'admin' ? '' : 'user-';
+    
+    if (panelActivo === 'admin') {
+      setDeleteButtonsColor(newColor);
+    } else {
+      setDeleteButtonsColorFactura(newColor);
     }
     
-    if (!document.documentElement.style.getPropertyValue('--delete-button-color')) {
-      document.documentElement.style.setProperty('--delete-button-color', '#d32f2f');
-      document.documentElement.style.setProperty('--delete-button-color-dark', '#b71c1c');
-    }
+    // Aplicar inmediatamente
+    document.documentElement.style.setProperty(`--${cssPrefix}delete-button-color`, newColor);
     
-    if (!document.documentElement.style.getPropertyValue('--edit-button-color')) {
-      document.documentElement.style.setProperty('--edit-button-color', '#1976d2');
-      document.documentElement.style.setProperty('--edit-button-color-dark', '#0d47a1');
-    }
+    // Guardar en localStorage
+    localStorage.setItem(`${storagePrefix}deleteButtonsColor`, newColor);
     
-    if (!document.documentElement.style.getPropertyValue('--file-select-button-color')) {
-      document.documentElement.style.setProperty('--file-select-button-color', '#455a64');
-      document.documentElement.style.setProperty('--file-select-button-color-dark', '#37474f');
-    }
-    
-    // Cargar valores guardados del localStorage
-    const savedActionButtonsColor = localStorage.getItem('actionButtonsColor');
-    if (savedActionButtonsColor) {
-      document.documentElement.style.setProperty('--action-button-color', savedActionButtonsColor);
-      setActionButtonsColor(savedActionButtonsColor);
-    }
-    
-    // Repetir para los demás colores
-  }, []);
-  
-  // Añade estas funciones
+    showSuccessMessage(`Color de botones de eliminar del panel de ${panelActivo === 'admin' ? 'administración' : 'facturación'} actualizado`);
+  };
 
-  // Función para cambiar la fuente principal
+  // Función para manejar cambios en el color de botones de editar
+  const handleEditButtonsColorChange = (e) => {
+    const newColor = e.target.value;
+    const storagePrefix = panelActivo === 'admin' ? '' : 'factura_';
+    const cssPrefix = panelActivo === 'admin' ? '' : 'user-';
+    
+    if (panelActivo === 'admin') {
+      setEditButtonsColor(newColor);
+    } else {
+      setEditButtonsColorFactura(newColor);
+    }
+    
+    // Aplicar inmediatamente
+    document.documentElement.style.setProperty(`--${cssPrefix}edit-button-color`, newColor);
+    
+    // Guardar en localStorage
+    localStorage.setItem(`${storagePrefix}editButtonsColor`, newColor);
+    
+    showSuccessMessage(`Color de botones de editar del panel de ${panelActivo === 'admin' ? 'administración' : 'facturación'} actualizado`);
+  };
+
+  // Función para manejar cambios en el color de botones de seleccionar archivo
+  const handleFileSelectButtonsColorChange = (e) => {
+    const newColor = e.target.value;
+    const storagePrefix = panelActivo === 'admin' ? '' : 'factura_';
+    const cssPrefix = panelActivo === 'admin' ? '' : 'user-';
+    
+    if (panelActivo === 'admin') {
+      setFileSelectButtonsColor(newColor);
+    } else {
+      setFileSelectButtonsColorFactura(newColor);
+    }
+    
+    // Aplicar inmediatamente
+    document.documentElement.style.setProperty(`--${cssPrefix}file-select-button-color`, newColor);
+    
+    // Calcular color oscuro para hover
+    const darkerColor = getDarkerColor(newColor);
+    document.documentElement.style.setProperty(`--${cssPrefix}file-select-button-color-dark`, darkerColor);
+    
+    // Guardar en localStorage
+    localStorage.setItem(`${storagePrefix}fileSelectButtonsColor`, newColor);
+    localStorage.setItem(`${storagePrefix}fileSelectButtonsColorDark`, darkerColor);
+    
+    showSuccessMessage(`Color de botones de selección de archivo del panel de ${panelActivo === 'admin' ? 'administración' : 'facturación'} actualizado`);
+  };
+
+  // Funciones para cambiar las fuentes según el panel activo
   const handleFontChange = (e) => {
     const fontId = e.target.value;
-    setSelectedFont(fontId);
+    const storagePrefix = panelActivo === 'admin' ? '' : 'factura_';
+    const cssPrefix = panelActivo === 'admin' ? 'admin-' : 'user-';
+    
+    if (panelActivo === 'admin') {
+      setSelectedFont(fontId);
+    } else {
+      setSelectedFontFactura(fontId);
+    }
     
     const fontFamily = fontOptions.find(f => f.id === fontId)?.family;
     if (fontFamily) {
-      document.documentElement.style.setProperty('--app-font-family', fontFamily);
-      localStorage.setItem('appFontFamily', fontFamily);
-      localStorage.setItem('appFontId', fontId);
-      showSuccessMessage('Tipografía principal actualizada');
+      // Ahora actualizará correctamente --admin-app-font-family
+      document.documentElement.style.setProperty(`--${cssPrefix}app-font-family`, fontFamily);
+      localStorage.setItem(`${storagePrefix}appFontFamily`, fontFamily);
+      localStorage.setItem(`${storagePrefix}appFontId`, fontId);
+      showSuccessMessage(`Tipografía principal del panel de ${panelActivo === 'admin' ? 'administración' : 'facturación'} actualizada`);
     }
   };
 
   // Función para cambiar la fuente de los títulos
   const handleHeadingFontChange = (e) => {
     const fontId = e.target.value;
-    setSelectedHeadingFont(fontId);
+    const storagePrefix = panelActivo === 'admin' ? '' : 'factura_';
+    const cssPrefix = panelActivo === 'admin' ? 'admin-' : 'user-';
+    
+    if (panelActivo === 'admin') {
+      setSelectedHeadingFont(fontId);
+    } else {
+      setSelectedHeadingFontFactura(fontId);
+    }
     
     const fontFamily = headingFontOptions.find(f => f.id === fontId)?.family;
     if (fontFamily) {
-      document.documentElement.style.setProperty('--app-heading-font-family', fontFamily);
-      localStorage.setItem('appHeadingFontFamily', fontFamily);
-      localStorage.setItem('appHeadingFontId', fontId);
-      showSuccessMessage('Tipografía de títulos actualizada');
+      // Ahora actualizará correctamente --admin-app-heading-font-family
+      document.documentElement.style.setProperty(`--${cssPrefix}app-heading-font-family`, fontFamily);
+      localStorage.setItem(`${storagePrefix}appHeadingFontFamily`, fontFamily);
+      localStorage.setItem(`${storagePrefix}appHeadingFontId`, fontId);
+      showSuccessMessage(`Tipografía de títulos del panel de ${panelActivo === 'admin' ? 'administración' : 'facturación'} actualizada`);
     }
   };
+
+  // Y lo mismo para handleHeadingFontFamilyChange
 
   return (
     <div className="info-personal-container" style={{ marginTop: '60px', marginLeft: '290px' }}>
@@ -403,6 +519,29 @@ function Preferencias() {
       
       <h1 className="titulo">Preferencias del Sistema</h1>
       
+      {/* SELECTOR DE PANEL */}
+      <div className="panel-selector-container">
+        <h2>Selecciona el panel a personalizar:</h2>
+        <div className="panel-selector-tabs">
+          <div 
+            className={`panel-tab ${panelActivo === 'admin' ? 'active' : ''}`}
+            onClick={() => handlePanelChange('admin')}
+          >
+            Panel Administrativo
+          </div>
+          <div 
+            className={`panel-tab ${panelActivo === 'facturacion' ? 'active' : ''}`}
+            onClick={() => handlePanelChange('facturacion')}
+          >
+            Panel de Facturación
+          </div>
+        </div>
+        
+        <div className="panel-indicator">
+          Estás personalizando: <strong>{panelActivo === 'admin' ? 'PANEL ADMINISTRATIVO' : 'PANEL DE FACTURACIÓN'}</strong>
+        </div>
+      </div>
+      
       {/* SECCIÓN DE TEMA */}
       <div className="info-card">
         <div className="card-header">
@@ -411,10 +550,10 @@ function Preferencias() {
         
         <div className="theme-options">
           <div className="info-group">
-            <label htmlFor="theme-select">Color del Panel Administrativo:</label>
+            <label htmlFor="theme-select">Color del Panel {panelActivo === 'admin' ? 'Administrativo' : 'de Facturación'}:</label>
             <select 
               id="theme-select" 
-              value={selectedTheme} 
+              value={panelActivo === 'admin' ? selectedTheme : selectedThemeFactura} 
               onChange={handleThemeChange}
               className="theme-select"
             >
@@ -424,32 +563,36 @@ function Preferencias() {
             </select>
           </div>
           
-          {selectedTheme === 'custom' && (
+          {(panelActivo === 'admin' && selectedTheme === 'custom') || 
+           (panelActivo === 'facturacion' && selectedThemeFactura === 'custom') ? (
             <div className="info-group">
               <label htmlFor="custom-color">Color Personalizado:</label>
               <input 
                 type="color" 
                 id="custom-color" 
-                value={customColor} 
+                value={panelActivo === 'admin' ? customColor : customColorFactura} 
                 onChange={handleCustomColorChange}
                 className="color-picker"
               />
             </div>
-          )}
+          ) : null}
           
           <div className="theme-preview-container">
             <h3>Vista Previa</h3>
             <div className="theme-preview-flex">
               <div className="theme-preview-sidebar" 
-                   style={{ backgroundColor: selectedTheme === 'custom' 
-                           ? customColor 
-                           : themeOptions.find(t => t.id === selectedTheme)?.color }}>
+                   style={{ backgroundColor: panelActivo === 'admin' 
+                     ? (selectedTheme === 'custom' ? customColor : themeOptions.find(t => t.id === selectedTheme)?.color)
+                     : (selectedThemeFactura === 'custom' ? customColorFactura : themeOptions.find(t => t.id === selectedThemeFactura)?.color) 
+                   }}>
                 <div className="preview-menu-item">Inicio</div>
                 <div className="preview-menu-item">Facturas</div>
                 <div className="preview-menu-item active">Configuración</div>
               </div>
               <div className="theme-preview-content">
-                <div className="preview-header">Panel Administrativo</div>
+                <div className="preview-header">
+                  {panelActivo === 'admin' ? 'Panel Administrativo' : 'Panel de Facturación'}
+                </div>
                 <div className="preview-content">Vista previa del tema</div>
               </div>
             </div>
@@ -457,7 +600,7 @@ function Preferencias() {
         </div>
       </div>
       
-      {/* SECCIÓN DE LOGO */}
+      {/* SECCIÓN DE LOGO (Compartida) */}
       <div className="info-card" style={{ marginTop: '30px' }}>
         <div className="card-header">
           <h2>Logo de la Empresa</h2>
@@ -526,7 +669,7 @@ function Preferencias() {
         </div>
       </div>
       
-      {/* SECCIÓN DE INFORMACIÓN DE EMPRESA */}
+      {/* SECCIÓN DE INFORMACIÓN DE EMPRESA (Compartida) */}
       <div className="info-card" style={{ marginTop: '30px' }}>
         <div className="card-header">
           <h2>Información de la Empresa</h2>
@@ -543,7 +686,7 @@ function Preferencias() {
               className="theme-select"
               placeholder="Ingrese el nombre de su empresa"
             />
-            <p className="field-help">Este nombre aparecerá en el encabezado del portal administrativo.</p>
+            <p className="field-help">Este nombre aparecerá en el encabezado del portal.</p>
           </div>
           
           <div className="info-group" style={{ marginTop: '20px' }}>
@@ -563,7 +706,6 @@ function Preferencias() {
             <p className="field-help">Este color se aplicará al texto del encabezado.</p>
           </div>
           
-          {/* NUEVA OPCIÓN: Color de fondo del navbar */}
           <div className="info-group" style={{ marginTop: '20px' }}>
             <label htmlFor="navbar-bg-color">Color de fondo del panel:</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -601,17 +743,17 @@ function Preferencias() {
                 fontWeight: 'bold', 
                 color: companyTextColor 
               }}>
-                Portal Administrativo de {localCompanyName}
+                Portal {panelActivo === 'admin' ? 'Administrativo' : 'de Facturación'} de {localCompanyName}
               </span>
             </div>
           </div>
         </div>
       </div>
       
-      {/* NUEVA SECCIÓN: PERSONALIZACIÓN DE BOTONES */}
+      {/* SECCIÓN DE PERSONALIZACIÓN DE BOTONES */}
       <div className="info-card" style={{ marginTop: '30px' }}>
         <div className="card-header">
-          <h2>Personalización de Botones</h2>
+          <h2>Personalización de Botones - {panelActivo === 'admin' ? 'Panel Administrativo' : 'Panel de Facturación'}</h2>
         </div>
         
         <div className="buttons-options">
@@ -621,12 +763,12 @@ function Preferencias() {
               <input
                 type="color"
                 id="action-buttons-color"
-                value={actionButtonsColor}
+                value={panelActivo === 'admin' ? actionButtonsColor : actionButtonsColorFactura}
                 onChange={handleActionButtonsColorChange}
                 className="color-picker"
               />
               <button style={{ 
-                backgroundColor: actionButtonsColor, 
+                backgroundColor: panelActivo === 'admin' ? actionButtonsColor : actionButtonsColorFactura, 
                 color: 'white',
                 padding: '8px 16px',
                 borderRadius: '4px',
@@ -645,12 +787,12 @@ function Preferencias() {
               <input
                 type="color"
                 id="delete-buttons-color"
-                value={deleteButtonsColor}
+                value={panelActivo === 'admin' ? deleteButtonsColor : deleteButtonsColorFactura}
                 onChange={handleDeleteButtonsColorChange}
                 className="color-picker"
               />
               <button style={{ 
-                backgroundColor: deleteButtonsColor, 
+                backgroundColor: panelActivo === 'admin' ? deleteButtonsColor : deleteButtonsColorFactura, 
                 color: 'white',
                 padding: '8px 16px',
                 borderRadius: '4px',
@@ -669,12 +811,12 @@ function Preferencias() {
               <input
                 type="color"
                 id="edit-buttons-color"
-                value={editButtonsColor}
+                value={panelActivo === 'admin' ? editButtonsColor : editButtonsColorFactura}
                 onChange={handleEditButtonsColorChange}
                 className="color-picker"
               />
               <button style={{ 
-                backgroundColor: editButtonsColor, 
+                backgroundColor: panelActivo === 'admin' ? editButtonsColor : editButtonsColorFactura, 
                 color: 'white',
                 padding: '8px 16px',
                 borderRadius: '4px',
@@ -693,12 +835,12 @@ function Preferencias() {
               <input
                 type="color"
                 id="file-select-buttons-color"
-                value={fileSelectButtonsColor}
+                value={panelActivo === 'admin' ? fileSelectButtonsColor : fileSelectButtonsColorFactura}
                 onChange={handleFileSelectButtonsColorChange}
                 className="color-picker"
               />
               <button style={{ 
-                backgroundColor: fileSelectButtonsColor, 
+                backgroundColor: panelActivo === 'admin' ? fileSelectButtonsColor : fileSelectButtonsColorFactura, 
                 color: 'white',
                 padding: '8px 16px',
                 borderRadius: '4px',
@@ -713,10 +855,10 @@ function Preferencias() {
         </div>
       </div>
       
-      {/* NUEVA SECCIÓN: PERSONALIZACIÓN DE TIPOGRAFÍA */}
+      {/* SECCIÓN DE PERSONALIZACIÓN DE TIPOGRAFÍA */}
       <div className="info-card" style={{ marginTop: '30px' }}>
         <div className="card-header">
-          <h2>Personalización de Tipografía</h2>
+          <h2>Personalización de Tipografía - {panelActivo === 'admin' ? 'Panel Administrativo' : 'Panel de Facturación'}</h2>
         </div>
         
         <div className="typography-options">
@@ -724,7 +866,7 @@ function Preferencias() {
             <label htmlFor="font-select">Fuente Principal:</label>
             <select 
               id="font-select" 
-              value={selectedFont} 
+              value={panelActivo === 'admin' ? selectedFont : selectedFontFactura} 
               onChange={handleFontChange}
               className="theme-select"
             >
@@ -737,7 +879,7 @@ function Preferencias() {
               padding: '15px', 
               border: '1px solid #ddd', 
               borderRadius: '4px',
-              fontFamily: fontOptions.find(f => f.id === selectedFont)?.family
+              fontFamily: fontOptions.find(f => f.id === (panelActivo === 'admin' ? selectedFont : selectedFontFactura))?.family
             }}>
               <p style={{ margin: 0 }}>Vista previa de la fuente seleccionada.</p>
               <p style={{ margin: '10px 0 0 0' }}>HOLA A TODOS</p>
@@ -750,7 +892,7 @@ function Preferencias() {
             <label htmlFor="heading-font-select">Fuente para Títulos:</label>
             <select 
               id="heading-font-select" 
-              value={selectedHeadingFont} 
+              value={panelActivo === 'admin' ? selectedHeadingFont : selectedHeadingFontFactura} 
               onChange={handleHeadingFontChange}
               className="theme-select"
             >
@@ -767,13 +909,13 @@ function Preferencias() {
             }}>
               <h3 style={{ 
                 margin: '0 0 10px 0', 
-                fontFamily: headingFontOptions.find(f => f.id === selectedHeadingFont)?.family 
+                fontFamily: headingFontOptions.find(f => f.id === (panelActivo === 'admin' ? selectedHeadingFont : selectedHeadingFontFactura))?.family 
               }}>
                 Vista previa del título con la fuente seleccionada
               </h3>
               <p style={{ 
                 margin: 0,
-                fontFamily: fontOptions.find(f => f.id === selectedFont)?.family 
+                fontFamily: fontOptions.find(f => f.id === (panelActivo === 'admin' ? selectedFont : selectedFontFactura))?.family 
               }}>
                 Este es un texto normal con la fuente principal.
               </p>

@@ -21,7 +21,7 @@ func VentasHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		// Actualizar la consulta SQL para incluir sat_clave y sat_medida
+		// Actualizar la consulta SQL para incluir precio_o e iva
 		query := `
             SELECT 
                 p.id_pedido, 
@@ -29,6 +29,8 @@ func VentasHandler(db *sql.DB) http.HandlerFunc {
                 d.descripcion AS producto, 
                 d.cantidad, 
                 d.precio, 
+                d.precio_o,           -- Nuevo campo
+                d.iva,                -- Nuevo campo
                 d.descuento,
                 d.idproducto AS codigo_producto, 
                 pr.clave AS categoria_producto,
@@ -53,9 +55,9 @@ func VentasHandler(db *sql.DB) http.HandlerFunc {
 			var clavePedido, producto string
 			var codigoProducto int
 			var categoriaProducto sql.NullString
-			var satClave sql.NullString  // Asegúrate de usar sql.NullString
-			var satMedida sql.NullString // Asegúrate de usar sql.NullString
-			var cantidad, precio, descuento float64
+			var satClave sql.NullString
+			var satMedida sql.NullString
+			var cantidad, precio, precio_o, iva, descuento float64 // Añadido precio_o e iva
 
 			if err := rows.Scan(
 				&idPedido,
@@ -63,11 +65,13 @@ func VentasHandler(db *sql.DB) http.HandlerFunc {
 				&producto,
 				&cantidad,
 				&precio,
+				&precio_o, // Nuevo campo
+				&iva,      // Nuevo campo
 				&descuento,
 				&codigoProducto,
 				&categoriaProducto,
-				&satClave,  // Asegúrate de incluir estos campos
-				&satMedida, // en el escaneo
+				&satClave,
+				&satMedida,
 			); err != nil {
 				log.Printf("Error al escanear los resultados: %v", err)
 				http.Error(w, "Error al procesar los datos", http.StatusInternalServerError)
@@ -90,18 +94,25 @@ func VentasHandler(db *sql.DB) http.HandlerFunc {
 				satMedidaVal = satMedida.String
 			}
 
+			// Calcular el total incluyendo el IVA
+			subtotal := (cantidad * precio) - descuento
+			totalConIva := subtotal + (subtotal * (iva / 100.0))
+
 			ventas = append(ventas, map[string]interface{}{
 				"idPedido":           idPedido,
 				"clavePedido":        clavePedido,
 				"producto":           producto,
 				"cantidad":           cantidad,
 				"precio":             precio,
+				"precio_o":           precio_o, // Nuevo campo en la respuesta
+				"iva":                iva,      // Nuevo campo en la respuesta
 				"descuento":          descuento,
-				"total":              (cantidad * precio) - descuento,
+				"subtotal":           subtotal,
+				"total":              totalConIva, // Ahora incluye IVA
 				"codigo_producto":    codigoProducto,
 				"categoria_producto": categoriaProductoVal,
-				"sat_clave":          satClaveVal,  // Agregar a la respuesta
-				"sat_medida":         satMedidaVal, // Agregar a la respuesta
+				"sat_clave":          satClaveVal,
+				"sat_medida":         satMedidaVal,
 			})
 		}
 
@@ -136,11 +147,13 @@ func DiagnosticoVentasHandler(db *sql.DB) http.HandlerFunc {
                 d.descripcion AS producto, 
                 d.cantidad, 
                 d.precio, 
+                d.precio_o,           -- Nuevo campo
+                d.iva,                -- Nuevo campo
                 d.descuento, 
                 pr.idproducto AS id_producto_crm,
                 pr.clave AS clave_producto,
-                pr.sat_clave,           -- Nuevo campo
-                pr.sat_medida,          -- Nuevo campo
+                pr.sat_clave,
+                pr.sat_medida,
                 CASE 
                     WHEN pr.idproducto IS NULL THEN 'Producto no existe en crm_productos'
                     WHEN pr.clave IS NULL OR pr.clave = '' THEN 'Clave vacía o nula'
@@ -165,11 +178,9 @@ func DiagnosticoVentasHandler(db *sql.DB) http.HandlerFunc {
 			var idProductoDet int
 			var idProductoCrm sql.NullInt64
 			var clavePedido, producto, claveProducto, estadoDiagnostico string
-			var satClave sql.NullString  // Nuevo: para manejar valores NULL
-			var satMedida sql.NullString // Nuevo: para manejar valores NULL
-			var cantidad float64
-			var precio float64
-			var descuento float64
+			var satClave sql.NullString
+			var satMedida sql.NullString
+			var cantidad, precio, precio_o, iva, descuento float64 // Añadido precio_o e iva
 
 			if err := rows.Scan(
 				&idPedido,
@@ -178,11 +189,13 @@ func DiagnosticoVentasHandler(db *sql.DB) http.HandlerFunc {
 				&producto,
 				&cantidad,
 				&precio,
+				&precio_o, // Nuevo campo
+				&iva,      // Nuevo campo
 				&descuento,
 				&idProductoCrm,
 				&claveProducto,
-				&satClave,  // Nuevo campo
-				&satMedida, // Nuevo campo
+				&satClave,
+				&satMedida,
 				&estadoDiagnostico,
 			); err != nil {
 				log.Printf("Error al escanear resultados diagnóstico: %v", err)
@@ -209,6 +222,10 @@ func DiagnosticoVentasHandler(db *sql.DB) http.HandlerFunc {
 				satMedidaVal = satMedida.String
 			}
 
+			// Calcular el total incluyendo el IVA
+			subtotal := (cantidad * precio) - descuento
+			totalConIva := subtotal + (subtotal * (iva / 100.0))
+
 			diagnostico = append(diagnostico, map[string]interface{}{
 				"idPedido":          idPedido,
 				"clavePedido":       clavePedido,
@@ -216,13 +233,16 @@ func DiagnosticoVentasHandler(db *sql.DB) http.HandlerFunc {
 				"producto":          producto,
 				"cantidad":          cantidad,
 				"precio":            precio,
+				"precio_o":          precio_o, // Nuevo campo en la respuesta
+				"iva":               iva,      // Nuevo campo en la respuesta
 				"descuento":         descuento,
 				"idProductoCrm":     idProductoCrmValue,
 				"claveProducto":     claveProducto,
-				"sat_clave":         satClaveVal,  // Nuevo campo en la respuesta
-				"sat_medida":        satMedidaVal, // Nuevo campo en la respuesta
+				"sat_clave":         satClaveVal,
+				"sat_medida":        satMedidaVal,
 				"estadoDiagnostico": estadoDiagnostico,
-				"total":             (cantidad * precio) - descuento,
+				"subtotal":          subtotal,
+				"total":             totalConIva, // Ahora incluye IVA
 			})
 		}
 
@@ -230,6 +250,73 @@ func DiagnosticoVentasHandler(db *sql.DB) http.HandlerFunc {
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"diagnostico": diagnostico,
 			"total":       len(diagnostico),
+		})
+	}
+}
+
+// InfoPedidoHandler obtiene la información básica del pedido (encabezado)
+func InfoPedidoHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+			return
+		}
+
+		clave := r.URL.Query().Get("clave")
+		if len(clave) < 30 {
+			http.Error(w, "La clave debe tener al menos 30 caracteres", http.StatusBadRequest)
+			return
+		}
+
+		query := `
+            SELECT 
+                id_pedido,
+                estatus,
+                tipo_docto,
+                facturar
+            FROM optimus.crm_pedidos
+            WHERE clave_pedido = ?`
+
+		var idPedido int
+		var estatus, tipoDocto, facturar sql.NullString
+
+		err := db.QueryRow(query, clave).Scan(&idPedido, &estatus, &tipoDocto, &facturar)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				http.Error(w, "Pedido no encontrado", http.StatusNotFound)
+				return
+			}
+			log.Printf("Error al buscar pedido: %v", err)
+			http.Error(w, "Error al buscar pedido", http.StatusInternalServerError)
+			return
+		}
+
+		// Convertir valores nulos a strings vacíos
+		estatusStr := ""
+		if estatus.Valid {
+			estatusStr = estatus.String
+		}
+
+		tipoDoctoStr := ""
+		if tipoDocto.Valid {
+			tipoDoctoStr = tipoDocto.String
+		}
+
+		facturarStr := ""
+		if facturar.Valid {
+			facturarStr = facturar.String
+		}
+
+		pedidoInfo := map[string]interface{}{
+			"id_pedido":  idPedido,
+			"estatus":    estatusStr,
+			"tipo_docto": tipoDoctoStr,
+			"facturar":   facturarStr,
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"pedido": pedidoInfo,
 		})
 	}
 }

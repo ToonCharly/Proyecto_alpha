@@ -226,3 +226,71 @@ func UpdateUser(db *sql.DB, email, username, phone, direccion, codigoPostal, ciu
 	fmt.Println("Información de usuario actualizada exitosamente")
 	return nil
 }
+
+// GetAllUsers obtiene todos los usuarios registrados en el sistema
+func GetAllUsers() ([]map[string]interface{}, error) {
+	db, err := ConnectUserDB()
+	if err != nil {
+		return nil, fmt.Errorf("error al conectar a la base de datos: %w", err)
+	}
+	defer db.Close()
+
+	query := `SELECT id, username, email, phone, role FROM usuarios`
+
+	rows, err := db.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("error al consultar usuarios: %w", err)
+	}
+	defer rows.Close()
+
+	var users []map[string]interface{}
+
+	for rows.Next() {
+		var id int
+		var username, email, phone, role string
+
+		if err := rows.Scan(&id, &username, &email, &phone, &role); err != nil {
+			return nil, fmt.Errorf("error al escanear datos de usuario: %w", err)
+		}
+
+		user := map[string]interface{}{
+			"id":       id,
+			"nombre":   username,
+			"email":    email,
+			"telefono": phone,
+			"isAdmin":  role == "admin",
+		}
+
+		users = append(users, user)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error al procesar filas de usuarios: %w", err)
+	}
+
+	return users, nil
+}
+
+// UpdateUserRole actualiza el rol de un usuario (admin o no)
+func UpdateUserRole(userId int, isAdmin bool) error {
+	db, err := ConnectUserDB()
+	if err != nil {
+		return fmt.Errorf("error al conectar a la base de datos: %w", err)
+	}
+	defer db.Close()
+
+	// Convertir booleano a string para la base de datos
+	role := "user"
+	if isAdmin {
+		role = "admin"
+	}
+
+	query := `UPDATE usuarios SET role = ? WHERE id = ?`
+
+	_, err = db.Exec(query, role, userId)
+	if err != nil {
+		return fmt.Errorf("error al actualizar rol del usuario: %w", err)
+	}
+
+	return nil
+}

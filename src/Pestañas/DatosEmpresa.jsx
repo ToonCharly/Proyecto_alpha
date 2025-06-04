@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+// Eliminar la importación de useNavigate si no se va a usar
+// import { useNavigate } from 'react-router-dom';
 import '../STYLES/DatosEmpresa.css';
 
 function DatosEmpresa() {
-  const navigate = useNavigate();
-  const [isEditing, setIsEditing] = useState(false); // Por defecto en modo visualización
+  const [isEditing, setIsEditing] = useState(true); 
   const [datosFiscales, setDatosFiscales] = useState({
     claveSat: '',
     rfcEmisor: '',
@@ -27,31 +27,45 @@ function DatosEmpresa() {
 
   // Obtener datos del usuario actual
   const [userData, setUserData] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false); // Añadir este estado después de tus declaraciones de estado existentes
 
   useEffect(() => {
-    // Obtener datos del usuario del localStorage
     const storedUserData = localStorage.getItem('userData');
     if (storedUserData) {
       try {
         const parsedUserData = JSON.parse(storedUserData);
         setUserData(parsedUserData);
         
-        // Si hay un usuario, intentar obtener sus datos fiscales
-        if (parsedUserData.email || parsedUserData.username) {
-          fetchDatosFiscales(parsedUserData.email || parsedUserData.username);
+        // Verificar si el usuario es administrador
+        const isUserAdmin = parsedUserData.role === 'admin';
+        setIsAdmin(isUserAdmin);
+        
+        // Si no es admin, mostrar mensaje
+        if (!isUserAdmin) {
+          setMensaje({
+            tipo: 'error',
+            texto: 'Solo los administradores pueden editar los datos fiscales'
+          });
+          setIsEditing(false); // Desactivar edición para no-admin
+        } else if (parsedUserData.email || parsedUserData.username) {
+          try {
+            fetchDatosFiscales(parsedUserData.id || parsedUserData.email || parsedUserData.username);
+          } catch {
+            console.log("No hay datos previos o no se pudo conectar - modo edición activado");
+          }
         }
-      } catch (error) {
-        console.error("Error al procesar datos del usuario:", error);
+      } catch (err) {
+        console.error("Error al procesar datos del usuario:", err);
       }
     }
   }, []);
 
-  // Función para obtener datos fiscales existentes
+  // Función para obtener datos fiscales existentes - silenciosa para carga inicial
   const fetchDatosFiscales = async (identifier) => {
     try {
       setIsSubmitting(true);
-      setMensaje(null); // Limpiar mensaje anterior
-      const response = await fetch(`http://localhost:8080/api/empresa/datos-fiscales?identifier=${encodeURIComponent(identifier)}`);
+      // Usar el parámetro identifier en lugar de ignorarlo
+      const response = await fetch(`http://localhost:8080/api/datos-fiscales?id_usuario=${identifier || ''}`);
       if (response.ok) {
         const data = await response.json();
         setDatosFiscales({
@@ -63,17 +77,13 @@ function DatosEmpresa() {
           claveArchivoCSD: data.claveArchivoCSD || '',
           regimenFiscal: data.regimenFiscal || ''
         });
-        setIsEditing(false); // Si hay datos, mostrar en modo visualización
+        setIsEditing(false); // Solo salimos del modo edición si hay datos
+      } else {
+        // Si no hay datos, mantenemos el modo edición sin mostrar error
+        setIsEditing(true);
       }
-    } catch (error) {
-      console.error("Error al obtener datos fiscales:", error);
-      setModalErrores([...modalErrores, { 
-        mensaje: `Error al cargar datos fiscales: ${error.message}` 
-      }]);
-      setMensaje({
-        tipo: 'error',
-        texto: `Error al cargar datos fiscales: ${error.message}`
-      });
+    } catch {
+      setIsEditing(true);
     } finally {
       setIsSubmitting(false);
     }
@@ -115,25 +125,66 @@ function DatosEmpresa() {
     setMensaje(null); // Limpiar mensaje anterior
     setFieldErrors({});
     
-    // Validación de campos requeridos
-    const errores = {};
-    if (!datosFiscales.rfcEmisor) errores.rfcEmisor = true;
-    if (!datosFiscales.razonSocial) errores.razonSocial = true;
-    if (!datosFiscales.cp) errores.cp = true;
-    if (!datosFiscales.regimenFiscal) errores.regimenFiscal = true;
-    
-    // Validación de archivos si es un nuevo registro
-    if (!datosFiscales.rfcEmisor) {
-      if (!csdKey) errores.csdKey = true;
-      if (!csdCer) errores.csdCer = true;
+    // Verificar si el usuario es administrador
+    if (!isAdmin) {
+      setMensaje({
+        tipo: 'error',
+        texto: 'Solo los administradores pueden editar los datos fiscales'
+      });
+      return;
     }
     
+    // Validación de campos requeridos
+    const errores = {};
+    const mensajesError = [];
+    
+    // Validar campos obligatorios con mensajes específicos
+    if (!datosFiscales.rfcEmisor) {
+      errores.rfcEmisor = true;
+      mensajesError.push('El RFC del Emisor es obligatorio');
+    }
+    
+    if (!datosFiscales.razonSocial) {
+      errores.razonSocial = true;
+      mensajesError.push('La Razón Social es obligatoria');
+    }
+    
+    if (!datosFiscales.cp) {
+      errores.cp = true;
+      mensajesError.push('El Código Postal es obligatorio');
+    }
+    
+    if (!datosFiscales.regimenFiscal) {
+      errores.regimenFiscal = true;
+      mensajesError.push('Debe seleccionar un Régimen Fiscal');
+    }
+    
+    // Validación de archivos solo si es un nuevo registro y no hay RFC
+    if (!datosFiscales.rfcEmisor) {
+      if (!csdKey) {
+        errores.csdKey = true;
+        mensajesError.push('Debe cargar el archivo CSD KEY');
+      }
+      if (!csdCer) {
+        errores.csdCer = true;
+        mensajesError.push('Debe cargar el archivo CSD CER');
+      }
+    }
+    
+    // Si hay errores, mostrarlos y detener el envío
     if (Object.keys(errores).length > 0) {
       setFieldErrors(errores);
       setIsSubmitting(false);
-      const errorMsg = 'Por favor completa todos los campos requeridos';
-      setModalErrores([...modalErrores, { mensaje: errorMsg }]);
-      setMensaje({ tipo: 'error', texto: errorMsg });
+      
+      // Crear mensajes de error para la modal
+      const mensajesModal = mensajesError.map(mensaje => ({ mensaje }));
+      setModalErrores(mensajesModal);
+      
+      // Mensaje general para el banner
+      setMensaje({ 
+        tipo: 'error', 
+        texto: 'Por favor completa todos los campos marcados como obligatorios' 
+      });
       return;
     }
     
@@ -141,47 +192,113 @@ function DatosEmpresa() {
       // Crear FormData para enviar los archivos
       const formDataToSend = new FormData();
       
-      // Agregar los datos del formulario
-      Object.keys(datosFiscales).forEach(key => {
-        formDataToSend.append(key, datosFiscales[key]);
-      });
-      
-      // Agregar identificador del usuario
-      if (userData && (userData.email || userData.username)) {
-        formDataToSend.append('identifier', userData.email || userData.username);
+      // AÑADIR ESTA LÍNEA - Incluir el ID del usuario actual
+      // Verificación explícita de userData
+      if (!userData) {
+        console.error("Error crítico: userData es null o undefined");
+        setMensaje({
+          tipo: 'error',
+          texto: 'Sesión inválida. Por favor, vuelve a iniciar sesión.'
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Verificación explícita del ID
+      if (!userData.id) {
+        console.error("Error crítico: userData no contiene ID", userData);
+        setMensaje({
+          tipo: 'error',
+          texto: 'No se pudo identificar el usuario. Por favor, vuelve a iniciar sesión.'
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Convertir a entero y verificar
+      const userId = parseInt(userData.id, 10);
+      if (isNaN(userId) || userId <= 0) {
+        console.error("Error crítico: ID de usuario inválido", userData.id);
+        setMensaje({
+          tipo: 'error',
+          texto: 'ID de usuario inválido. Por favor, vuelve a iniciar sesión.'
+        });
+        setIsSubmitting(false);
+        return;
       }
       
-      // Agregar los archivos solo si se han seleccionado
+      formDataToSend.append('id_usuario', userId);
+      console.log("ID convertido a número:", userId);
+      
+      // Resto de los campos que ya estás enviando
+      formDataToSend.append('rfc', datosFiscales.rfcEmisor);
+      formDataToSend.append('razon_social', datosFiscales.razonSocial);
+      formDataToSend.append('direccion_fiscal', datosFiscales.direccionFiscal);
+      formDataToSend.append('codigo_postal', datosFiscales.cp);
+      formDataToSend.append('clave_csd', datosFiscales.claveArchivoCSD);
+      formDataToSend.append('regimen_fiscal', datosFiscales.regimenFiscal);
+      
+      // Agregar archivos solo si se seleccionaron
       if (csdKey) formDataToSend.append('csdKey', csdKey);
       if (csdCer) formDataToSend.append('csdCer', csdCer);
       
-      // Enviar los datos al servidor
-      const response = await fetch('http://localhost:8080/api/empresa/datos-fiscales', {
-        method: 'POST',
-        body: formDataToSend,
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Error al guardar los datos');
+      // Inspeccionar el FormData
+      console.log("Contenido del FormData a enviar:");
+      for (let [key, value] of formDataToSend.entries()) {
+        console.log(`${key}: ${value}`);
       }
       
-      setIsEditing(false);
-      setMensaje({
-        tipo: 'exito',
-        texto: 'Datos fiscales guardados correctamente'
+      // Enviar los datos al servidor
+      const response = await fetch('http://localhost:8080/api/actualizar-datos-fiscales', {
+        method: 'POST',
+        body: formDataToSend
       });
       
-      // Usar navigate para redirigir después de un guardado exitoso
-      setTimeout(() => {
-        navigate('/dashboard');
-      }, 2000);
-      
+      // Mejorar el manejo de errores
+      if (!response.ok) {
+        // Obtener el texto completo de la respuesta para mejor diagnóstico
+        const responseText = await response.text();
+        console.error("Respuesta de error del servidor:", responseText);
+        
+        try {
+          // Intentar parsear como JSON si es posible
+          const errorData = JSON.parse(responseText);
+          throw new Error(errorData.error || 'Error en los datos enviados');
+        } catch {
+          // Quitar el parámetro '_' completamente si no lo usas
+          throw new Error(`Error ${response.status}: ${responseText || 'Error al guardar los datos'}`);
+        }
+      } else {
+        // Procesar la respuesta exitosa
+        await response.json(); // Procesar la respuesta sin asignarla
+        
+        // Actualizar estado local con los datos que acabas de guardar 
+        // en lugar de esperar a que se carguen desde el servidor
+        setDatosFiscales(prev => ({
+          ...prev,
+          // No reinicies los valores - mantén los actuales que el usuario acaba de guardar
+        }));
+        
+        setIsEditing(false); // Cambiar a modo visualización
+        setMensaje({
+          tipo: 'exito',
+          texto: 'Datos fiscales guardados correctamente'
+        });
+        
+        // Eliminar el timeout que está causando problemas
+        // setTimeout(() => {
+        //   fetchDatosFiscales(userData.id);
+        // }, 1000);
+      }
     } catch (error) {
       console.error('Error al guardar datos:', error);
-      const errorMsg = `Error: ${error.message}`;
-      setModalErrores([...modalErrores, { mensaje: errorMsg }]);
-      setMensaje({ tipo: 'error', texto: errorMsg });
+      
+      // Solo mostrar el mensaje de error específico, sin mencionar problemas de conexión
+      setModalErrores([{ mensaje: 'Revisa los datos ingresados e intenta nuevamente' }]);
+      setMensaje({ 
+        tipo: 'error', 
+        texto: 'No se pudieron guardar los datos. Verifica que todos los campos sean correctos.' 
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -207,11 +324,10 @@ function DatosEmpresa() {
   };
 
   return (
-    <div className="info-personal-container" style={{ marginTop: '60px', marginLeft: '290px' }}>
-      {modalErrores.length > 0 && (
+<div className="info-personal-container" style={{ marginTop: '0px', marginLeft: '290px' }}>      {modalErrores.length > 0 && (
         <div className="modal-errores">
           <div className="modal-contenido">
-            <h3>Errores:</h3>
+            <h3>Campos pendientes:</h3>
             <ul>
               {modalErrores.map((error, index) => (
                 <li key={index}>{error.mensaje}</li>
@@ -240,20 +356,33 @@ function DatosEmpresa() {
       <div className="info-card">
         <div className="card-header">
           <h2>Datos Fiscales de la Empresa</h2>
-          {!isEditing ? (
+          {!isEditing && isAdmin ? (
             <button 
               className="btn-editar" 
               onClick={() => setIsEditing(true)}
             >
               Editar Datos 
             </button>
-          ) : (
+          ) : isEditing && isAdmin ? (
             <button 
               className="btn-cancelar" 
               onClick={() => {
-                setIsEditing(false);
-                if (userData) {
-                  fetchDatosFiscales(userData.email || userData.username);
+                // Al cancelar, intentar recuperar datos o simplemente limpiar el formulario
+                if (userData && !isSubmitting) {
+                  try {
+                    fetchDatosFiscales(userData.id || userData.email || userData.username);
+                  } catch {
+                    // Resetear formulario
+                    setDatosFiscales({
+                      claveSat: '',
+                      rfcEmisor: '',
+                      razonSocial: '',
+                      cp: '',
+                      direccionFiscal: '',
+                      claveArchivoCSD: '',
+                      regimenFiscal: ''
+                    });
+                  }
                 }
                 setCsdKey(null);
                 setCsdCer(null);
@@ -262,7 +391,7 @@ function DatosEmpresa() {
             >
               Cancelar
             </button>
-          )}
+          ) : null}
         </div>
 
         <form onSubmit={handleSubmit}>

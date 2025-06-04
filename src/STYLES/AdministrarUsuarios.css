@@ -1,0 +1,508 @@
+/* ==========================================
+   ESTRUCTURA BÁSICA Y CONTENEDORES
+   ========================================== */
+.seccion-container {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  margin-top: 50px; /* Añadir margen superior para bajar el componente */
+  margin-bottom: 20px;
+  overflow: hidden;
+  max-width: 950px; /* Reducido para hacerlo más estrecho */
+  margin-left: auto;
+  margin-right: auto;
+  height: auto;
+  max-height: calc(100vh - 180px); /* Reducir altura máxima */
+  display: flex;
+  flex-direction: column;
+}
+
+.seccion-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 15px;
+  background-color: #f8f8f8;
+  border-bottom: 1px solid #ddd;
+}
+
+.seccion-header h2 {
+  margin: 0;
+  color: #37474f;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.seccion-content {
+  padding: 0;
+  flex: 1;
+  overflow: auto;
+  min-height: 0; /* Importante para que flex funcione correctamente */
+}
+
+.admin-usuarios-container {
+  padding: 20px;
+  max-width: 950px;
+  margin: 0 auto;
+}
+
+.titulo {
+  color: #37474f;
+  margin-bottom: 25px;
+  font-weight: 600;
+}
+
+.admin-card {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  background-color: #f8f8f8;
+  border-bottom: 1px solid #ddd;
+}
+
+.card-header h2 {
+  margin: 0;
+  color: #37474f;
+  font-size: 1.2rem;
+}
+
+/* ==========================================
+   BOTONES Y CONTROLES
+   ========================================== */
+.btn-refresh {
+  background-color: #37474f;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.btn-refresh:hover {
+  background-color: #2c3940;
+}
+
+.btn-refresh:disabled {
+  background-color: #9e9e9e;
+  cursor: not-allowed;
+}
+
+.btn-hacer-admin,
+.btn-quitar-admin {
+  border: none;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+  width: 100px;
+  text-align: center;
+  font-size: 11px;
+  display: inline-block;
+  min-width: 110px;
+  margin: 0 auto;
+}
+
+.btn-hacer-admin {
+  background-color: #37474f;
+  color: white;
+}
+
+.btn-hacer-admin:hover {
+  background-color: #2c3940;
+  transform: translateY(-2px);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.btn-quitar-admin {
+  background-color: #e53935;
+  color: white;
+}
+
+.btn-quitar-admin:hover {
+  background-color: #c62828;
+  transform: translateY(-2px);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.btn-cancelar {
+  background-color: #9e9e9e;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.btn-cancelar:hover {
+  background-color: #757575;
+}
+
+.btn-confirmar {
+  background-color: #37474f;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.btn-confirmar:hover {
+  background-color: #2c3940;
+}
+
+.btn-peligro {
+  background-color: #e53935;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.btn-peligro:hover {
+  background-color: #c62828;
+}
+
+.cerrar-mensaje {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1.2rem;
+  cursor: pointer;
+  margin-left: 15px;
+}
+
+/* ==========================================
+   TABLA DE USUARIOS Y ELEMENTOS RELACIONADOS
+   ========================================== */
+.tabla-usuarios-container {
+  overflow-x: auto;
+  padding: 0;
+  margin: 0;
+  max-width: 100%;
+  max-height: calc(100vh - 280px); /* Ajustado para el nuevo posicionamiento */
+}
+
+.tabla-usuarios {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #ddd;
+  margin: 0;
+  font-size: 12px;
+  table-layout: fixed;
+}
+
+.tabla-usuarios th,
+.tabla-usuarios td {
+  text-align: left;
+  border: 1px solid #ddd;
+  padding: 8px 8px;
+}
+
+.tabla-usuarios th:nth-child(1),
+.tabla-usuarios td:nth-child(1) {
+  width: 25%; /* Aumentar ligeramente para acomodar el formato con correo */
+}
+
+.tabla-usuarios th:nth-child(2),
+.tabla-usuarios td:nth-child(2) {
+  width: 30%;
+}
+
+.tabla-usuarios th:nth-child(3),
+.tabla-usuarios td:nth-child(3) {
+  width: 20%;
+}
+
+.tabla-usuarios th:nth-child(4),
+.tabla-usuarios td:nth-child(4) {
+  width: 30%;
+}
+
+.tabla-usuarios td {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 6px 10px;
+  font-size: 0.9rem;
+}
+
+.tabla-usuarios td:nth-child(2) {
+  max-width: 0;
+}
+
+/* Centrar botones en la columna de acciones */
+.tabla-usuarios td:last-child {
+  text-align: center;
+}
+
+/* Asegurar que el texto "Usuario actual" también esté centrado */
+.usuario-actual {
+  display: block;
+  text-align: center;
+}
+
+.tabla-usuarios th {
+  background-color: #37474f;
+  color: white;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 11px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 8px 10px;
+}
+
+.tabla-usuarios tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+.tabla-usuarios tr:nth-child(odd) {
+  background-color: #ffffff;
+}
+
+.tabla-usuarios tbody tr:hover {
+  background-color: #eef5f9;
+}
+
+.fila-admin {
+  background-color: rgba(55, 71, 79, 0.05) !important;
+}
+
+.badge {
+  padding: 3px 8px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  display: inline-block;
+  text-align: center;
+  min-width: 80px;
+  min-width: 120px; /* Ancho fijo para ambos tipos de badge */
+}
+
+.no-usuarios {
+  text-align: center;
+  padding: 20px;
+  color: #757575;
+  font-style: italic;
+  background-color: #f5f5f5;
+  font-size: 12px;
+}
+
+/* ==========================================
+   MODAL Y NOTIFICACIONES
+   ========================================== */
+.modal-confirmacion {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-contenido {
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 400px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.modal-contenido h3 {
+  color: #37474f;
+  margin-top: 0;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 10px;
+}
+
+.modal-acciones {
+  display: flex;
+  justify-content: center; /* Centrar los botones */
+  gap: 15px; /* Espacio uniforme entre botones */
+  margin-top: 25px;
+}
+
+/* Estilos para botones simétricos en el modal */
+.modal-acciones button {
+  min-width: 120px;
+  flex: 1; /* Hacer que ambos botones ocupen el mismo espacio */
+  max-width: 150px; /* Limitar el ancho máximo */
+  padding: 10px 15px;
+  text-align: center;
+  font-size: 14px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+/* Ajustar tamaño del modal para pantallas pequeñas */
+@media (max-width: 500px) {
+  .modal-acciones {
+    flex-direction: column;
+  }
+  
+  .modal-acciones button {
+    width: 100%;
+    max-width: 100%;
+    margin-bottom: 8px;
+  }
+}
+
+.mensaje-banner {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 15px 20px;
+  border-radius: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  min-width: 300px;
+  max-width: 500px;
+}
+
+.exito {
+  background-color: #43a047;
+  color: white;
+}
+
+.error {
+  background-color: #e53935;
+  color: white;
+}
+
+.error-message {
+  background-color: #ffebee;
+  color: #e53935;
+  padding: 15px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  border-left: 4px solid #e53935;
+}
+
+/* ==========================================
+   ANIMACIONES Y ELEMENTOS DE CARGA
+   ========================================== */
+.loading-spinner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 50px;
+}
+
+.spinner {
+  border: 4px solid rgba(0, 0, 0, 0.1);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border-left-color: #37474f;
+  animation: spin 1s linear infinite;
+  margin-bottom: 15px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Si el componente está dentro de otro contenedor en HomeAdmin */
+.admin-section .seccion-container {
+  margin-top: 50px; /* Asegurar que se aplique el margen si está dentro de admin-section */
+}
+
+/* Estilos para alinear simétricamente los roles en la tabla */
+.tabla-usuarios td:nth-child(3) {
+  text-align: center; /* Centrar el contenido de la columna de Rol */
+}
+
+/* Estilos específicos para cada tipo de badge, manteniendo las mismas dimensiones */
+.badge-admin, .badge-usuario {
+  margin: 0 auto; /* Centrar los badges horizontalmente */
+}
+
+/* Opcional: ajustar la alineación del encabezado de la columna */
+.tabla-usuarios th:nth-child(3) {
+  text-align: center;
+}
+
+/* Estilos mejorados para la celda de información de usuario */
+.user-info-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 0;
+}
+
+.user-initials {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: linear-gradient(45deg, #3b82f6, #06b6d4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 16px;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
+}
+
+.user-info-text {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.user-info-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-info-email {
+  font-size: 12px;
+  color: #666;
+  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Ajuste del ancho de la primera columna */
+.tabla-usuarios th:nth-child(1),
+.tabla-usuarios td:nth-child(1) {
+  width: 25%; /* Aumentar ligeramente para acomodar el formato con correo */
+}

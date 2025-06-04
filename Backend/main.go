@@ -1,10 +1,13 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -508,6 +511,263 @@ func main() {
 	http.Handle("/api/reset-password-request", utils.EnableCors(http.HandlerFunc(handlers.ResetPasswordRequestHandler(db.GetDB()))))
 	http.Handle("/api/reset-password", utils.EnableCors(http.HandlerFunc(handlers.ResetPasswordHandler(db.GetDB()))))
 
+	// Endpoint para obtener todos los usuarios (solo para admins)
+	http.Handle("/api/usuarios", utils.EnableCors(http.HandlerFunc(handlers.GetAllUsersHandler)))
+
+	// Endpoint para actualizar el rol de un usuario
+	http.Handle("/api/usuarios/", utils.EnableCors(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		pathParts := strings.Split(r.URL.Path, "/")
+		// Verificar que la ruta sea /api/usuarios/{id}/rol
+		if len(pathParts) >= 5 && pathParts[4] == "rol" {
+			handlers.UpdateUserRoleHandler(w, r)
+			return
+		}
+		http.Error(w, "Endpoint no encontrado", http.StatusNotFound)
+	})))
+
+	// Endpoint para obtener datos fiscales
+	http.Handle("/api/datos-fiscales", utils.EnableCors(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+			return
+		}
+
+		// Obtener ID de usuario de la solicitud
+		idUsuarioStr := r.URL.Query().Get("id_usuario")
+		if idUsuarioStr == "" {
+			http.Error(w, "El parámetro id_usuario es requerido", http.StatusBadRequest)
+			return
+		}
+
+		// Convertir a entero
+		idUsuario, err := strconv.Atoi(idUsuarioStr)
+		if err != nil {
+			http.Error(w, "El parámetro id_usuario debe ser un número entero", http.StatusBadRequest)
+			return
+		}
+
+		// Verificar si el usuario es administrador
+		var isAdmin bool
+		err = db.GetDB().QueryRow("SELECT role = 'admin' FROM usuarios WHERE id = ?", idUsuario).Scan(&isAdmin)
+		if err != nil {
+			log.Printf("Error al verificar rol de usuario: %v", err)
+			http.Error(w, "Error al verificar permisos de usuario", http.StatusInternalServerError)
+			return
+		}
+
+		// Obtener datos fiscales (siempre será un solo registro)
+		query := `SELECT id, rfc, razon_social, direccion_fiscal, codigo_postal, 
+              ruta_csd_key, ruta_csd_cer, clave_csd, regimen_fiscal 
+              FROM datos_fiscales LIMIT 1`
+
+		var datosFiscales struct {
+			ID              int    `json:"id"`
+			RFC             string `json:"rfcEmisor"`
+			RazonSocial     string `json:"razonSocial"`
+			DireccionFiscal string `json:"direccionFiscal"`
+			CodigoPostal    string `json:"cp"`
+			RutaCsdKey      string `json:"rutaCsdKey"`
+			RutaCsdCer      string `json:"rutaCsdCer"`
+			ClaveCsd        string `json:"claveArchivoCSD"`
+			RegimenFiscal   string `json:"regimenFiscal"`
+		}
+
+		err = db.GetDB().QueryRow(query).Scan(
+			&datosFiscales.ID,
+			&datosFiscales.RFC,
+			&datosFiscales.RazonSocial,
+			&datosFiscales.DireccionFiscal,
+			&datosFiscales.CodigoPostal,
+			&datosFiscales.RutaCsdKey,
+			&datosFiscales.RutaCsdCer,
+			&datosFiscales.ClaveCsd,
+			&datosFiscales.RegimenFiscal,
+		)
+
+		if err != nil {
+			if err == sql.ErrNoRows {
+				// Si no hay datos, devolver objeto vacío (HTTP 200)
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(map[string]interface{}{})
+				return
+			}
+			// Otro error
+			log.Printf("Error al consultar datos fiscales: %v", err)
+			http.Error(w, "Error al consultar datos fiscales", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(datosFiscales)
+	})))
+
+	// Endpoint para actualizar datos fiscales
+	http.Handle("/api/actualizar-datos-fiscales", utils.EnableCors(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPut && r.Method != http.MethodPost {
+			http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+			return
+		}
+
+		// Procesar el formulario multipart para los archivos
+		err := r.ParseMultipartForm(10 << 20) // 10 MB max
+		if err != nil {
+			log.Printf("Error al procesar formulario: %v", err)
+			http.Error(w, "Error al procesar el formulario", http.StatusBadRequest)
+			return
+		}
+
+		// Obtener datos del formulario
+		rfc := r.FormValue("rfc")
+		razonSocial := r.FormValue("razon_social")
+		direccionFiscal := r.FormValue("direccion_fiscal")
+		codigoPostal := r.FormValue("codigo_postal")
+		claveCsd := r.FormValue("clave_csd")
+		regimenFiscal := r.FormValue("regimen_fiscal")
+
+		// Validar campos obligatorios
+		if rfc == "" || razonSocial == "" || codigoPostal == "" || regimenFiscal == "" {
+			log.Printf("Faltan campos obligatorios: RFC=%s, RazonSocial=%s, CP=%s, RegimenFiscal=%s",
+				rfc, razonSocial, codigoPostal, regimenFiscal)
+			http.Error(w, "RFC, Razón Social, Código Postal y Régimen Fiscal son obligatorios", http.StatusBadRequest)
+			return
+		}
+
+		// Crear directorio para certificados si no existe
+		certDir := "./certificados"
+		if err := utils.CreateDirectory(certDir); err != nil {
+			log.Printf("Error al crear directorio para certificados: %v", err)
+			http.Error(w, "Error al procesar los archivos", http.StatusInternalServerError)
+			return
+		}
+
+		// Variables para rutas de archivos
+		var rutaCsdKey, rutaCsdCer string
+
+		// Manejar archivo CSD Key
+		csdKeyFile, _, err := r.FormFile("csdKey")
+		if err == nil {
+			defer csdKeyFile.Close()
+
+			// Crear ruta única para el archivo
+			rutaCsdKey = fmt.Sprintf("%s/%s_key.key", certDir, rfc)
+
+			// Guardar archivo
+			keyFile, err := os.Create(rutaCsdKey)
+			if err != nil {
+				log.Printf("Error al crear archivo key: %v", err)
+				http.Error(w, "Error al guardar archivo CSD Key", http.StatusInternalServerError)
+				return
+			}
+			defer keyFile.Close()
+
+			_, err = io.Copy(keyFile, csdKeyFile)
+			if err != nil {
+				log.Printf("Error al copiar archivo key: %v", err)
+				http.Error(w, "Error al guardar archivo CSD Key", http.StatusInternalServerError)
+				return
+			}
+		}
+
+		// Manejar archivo CSD Cer
+		csdCerFile, _, err := r.FormFile("csdCer")
+		if err == nil {
+			defer csdCerFile.Close()
+
+			// Crear ruta única para el archivo
+			rutaCsdCer = fmt.Sprintf("%s/%s_cer.cer", certDir, rfc)
+
+			// Guardar archivo
+			cerFile, err := os.Create(rutaCsdCer)
+			if err != nil {
+				log.Printf("Error al crear archivo cer: %v", err)
+				http.Error(w, "Error al guardar archivo CSD Cer", http.StatusInternalServerError)
+				return
+			}
+			defer cerFile.Close()
+
+			_, err = io.Copy(cerFile, csdCerFile)
+			if err != nil {
+				log.Printf("Error al copiar archivo cer: %v", err)
+				http.Error(w, "Error al guardar archivo CSD Cer", http.StatusInternalServerError)
+				return
+			}
+		}
+
+		// Conectar a la base de datos
+		dbConn, err := db.ConnectUserDB()
+		if err != nil {
+			log.Printf("Error al conectar a la base de datos: %v", err)
+			http.Error(w, "Error al conectar a la base de datos", http.StatusInternalServerError)
+			return
+		}
+		defer dbConn.Close()
+
+		// Verificar si ya existen datos fiscales
+		var count int
+		err = dbConn.QueryRow("SELECT COUNT(*) FROM datos_fiscales").Scan(&count)
+		if err != nil {
+			log.Printf("Error al verificar datos existentes: %v", err)
+			http.Error(w, "Error al procesar la solicitud", http.StatusInternalServerError)
+			return
+		}
+
+		var query string
+		var args []interface{}
+
+		if count == 0 {
+			// Insertar nuevos datos
+			query = `INSERT INTO datos_fiscales 
+                (rfc, razon_social, direccion_fiscal, codigo_postal, 
+                ruta_csd_key, ruta_csd_cer, clave_csd, regimen_fiscal) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+			args = []interface{}{
+				rfc, razonSocial, direccionFiscal, codigoPostal,
+				rutaCsdKey, rutaCsdCer, claveCsd, regimenFiscal,
+			}
+		} else {
+			// Actualizar datos existentes
+			query = `UPDATE datos_fiscales SET 
+                rfc = ?, razon_social = ?, direccion_fiscal = ?, codigo_postal = ?,
+                regimen_fiscal = ?`
+			args = []interface{}{
+				rfc, razonSocial, direccionFiscal, codigoPostal, regimenFiscal,
+			}
+
+			// Añadir campos opcionales solo si se proporcionaron
+			if claveCsd != "" {
+				query += ", clave_csd = ?"
+				args = append(args, claveCsd)
+			}
+
+			if rutaCsdKey != "" {
+				query += ", ruta_csd_key = ?"
+				args = append(args, rutaCsdKey)
+			}
+
+			if rutaCsdCer != "" {
+				query += ", ruta_csd_cer = ?"
+				args = append(args, rutaCsdCer)
+			}
+
+			query += " WHERE id = 1"
+		}
+
+		// Ejecutar consulta
+		_, err = dbConn.Exec(query, args...)
+		if err != nil {
+			log.Printf("Error al guardar datos fiscales: %v", err)
+			http.Error(w, "Error al guardar los datos fiscales", http.StatusInternalServerError)
+			return
+		}
+
+		// Responder éxito
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{
+			"status":  "success",
+			"message": "Datos fiscales actualizados correctamente",
+		})
+	})))
+
 	// Iniciar limpieza programada de tokens de recuperación
 	go func() {
 		ticker := time.NewTicker(1 * time.Hour)
@@ -520,6 +780,83 @@ func main() {
 			}
 		}
 	}()
+
+	// Endpoint para obtener detalles de usuario por identificador (email o username)
+	http.Handle("/api/usuario", utils.EnableCors(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+			return
+		}
+
+		identifier := r.URL.Query().Get("identifier")
+		if identifier == "" {
+			http.Error(w, "Parámetro identifier requerido", http.StatusBadRequest)
+			return
+		}
+
+		// Conectar a la base de datos
+		userDB, err := db.ConnectUserDB()
+		if err != nil {
+			log.Printf("Error al conectar a la base de datos: %v", err)
+			http.Error(w, "Error al conectar a la base de datos", http.StatusInternalServerError)
+			return
+		}
+		defer userDB.Close()
+
+		// Buscar usuario por email o username
+		query := `SELECT id, username, email, phone, role FROM usuarios WHERE email = ? OR username = ?`
+		var user struct {
+			ID       int
+			Username string
+			Email    string
+			Phone    string
+			Role     string
+		}
+
+		err = userDB.QueryRow(query, identifier, identifier).Scan(&user.ID, &user.Username, &user.Email, &user.Phone, &user.Role)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				http.Error(w, "Usuario no encontrado", http.StatusNotFound)
+				return
+			}
+			log.Printf("Error al consultar usuario: %v", err)
+			http.Error(w, "Error al consultar usuario", http.StatusInternalServerError)
+			return
+		}
+
+		// Preparar respuesta
+		userData := map[string]interface{}{
+			"id":       user.ID,
+			"username": user.Username,
+			"email":    user.Email,
+			"phone":    user.Phone,
+			"role":     user.Role,
+		}
+
+		// Añadir detalles adicionales si existen
+		var direccion, codigoPostal, ciudad, estado sql.NullString
+		queryDetalles := `SELECT direccion, codigo_postal, ciudad, estado 
+                      FROM usuario_detalles WHERE usuario_id = ?`
+
+		err = userDB.QueryRow(queryDetalles, user.ID).Scan(&direccion, &codigoPostal, &ciudad, &estado)
+		if err == nil {
+			if direccion.Valid {
+				userData["direccion"] = direccion.String
+			}
+			if codigoPostal.Valid {
+				userData["codigoPostal"] = codigoPostal.String
+			}
+			if ciudad.Valid {
+				userData["ciudad"] = ciudad.String
+			}
+			if estado.Valid {
+				userData["estado"] = estado.String
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(userData)
+	})))
 
 	// Iniciar el servidor
 	fmt.Println("Servidor corriendo en http://localhost:8080")

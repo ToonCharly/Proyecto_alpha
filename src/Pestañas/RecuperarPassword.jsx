@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import '../styles/Login.css';
+import '../STYLES/RecoverPassword.css';
 
 const RecuperarPassword = () => {
   const [email, setEmail] = useState('');
@@ -44,25 +44,20 @@ const RecuperarPassword = () => {
   };
 
   return (
-    <div className="login-container">
-      <div className="login-form">
-        <div className="logo-container">
-          <div className="logo-circle"></div>
-          <h2 className="logo-text">FACTS</h2>
-        </div>
-        
-        <div className="login-form-content">
+    <div className="recover-password-container">
+      <div className="recover-password-card">
+        <div className="recover-password-content">
           {!enviado ? (
             <>
-              <h2 className="sign-in-title">Recuperar contraseña</h2>
-              <p className="login-description">
+              <h2 className="recover-password-title">Recuperar contraseña</h2>
+              <p className="recover-password-description">
                 Ingresa tu correo electrónico y te enviaremos instrucciones para restablecer tu contraseña.
               </p>
               
-              {error && <div className="error-message">{error}</div>}
+              {error && <div className="recover-password-error">{error}</div>}
               
               <form onSubmit={handleSubmit}>
-                <div className="form-group">
+                <div className="recover-password-form-group">
                   <label htmlFor="email">Correo electrónico</label>
                   <input
                     type="email"
@@ -76,21 +71,21 @@ const RecuperarPassword = () => {
                 
                 <button 
                   type="submit" 
-                  className="login-button"
+                  className="recover-password-button"
                   disabled={cargando}
                 >
-                  {cargando ? 'Enviando...' : 'Enviar instrucciones'}
+                  {cargando ? 'Enviando...' : 'Enviar'}
                 </button>
               </form>
               
-              <div className="form-footer">
-                <Link to="/login" className="register-link">
+              <div className="recover-password-footer">
+                <Link to="/login" className="recover-password-link">
                   Volver al inicio de sesión
                 </Link>
               </div>
             </>
           ) : (
-            <div className="success-message">
+            <div className="recover-password-success">
               <h2>¡Correo enviado!</h2>
               <p>
                 Hemos enviado un correo a <strong>{email}</strong> con instrucciones para restablecer tu contraseña.
@@ -98,7 +93,7 @@ const RecuperarPassword = () => {
               <p>
                 Si no encuentras el correo, revisa en tu carpeta de spam.
               </p>
-              <Link to="/login" className="login-button">
+              <Link to="/login" className="recover-password-button">
                 Volver al inicio de sesión
               </Link>
             </div>

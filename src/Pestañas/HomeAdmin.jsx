@@ -6,25 +6,27 @@ import InformacionPersonal from './InformacionPersonal';
 import HistorialFacturas from './HistorialFacturas';
 import Preferencias from './Preferencias';
 import DatosEmpresa from './DatosEmpresa';
+import AdministrarUsuarios from './AdministrarUsuarios';
 
 // iconos
-const ClockIcon = () => <img src="/icono_historial.png" alt="Historial de Facturas" className="icon" />;
+const ClockIcon = () => <img src="/transaction-history_18281961.png" alt="Historial de Facturas" className="icon" />;
 const MenuIcon = () => <img src="/icono_menu.png" alt="Menú" className="icon" />;
 const CloseIcon = () => <img src="/icono_menun.png" alt="Cerrar" className="icon" />;
-const ConfigIcon = () => <img src="settings_1550664.png" alt="Configuración" className="icon" />;
-const BackIcon = () => <img src="/left-arrow_11880191.png" alt="Regresar" className="icon" />; 
-const InfoIcon = () => <img src="/user_667429.png" alt="Información" className="icon" />; 
+const ConfigIcon = () => <img src="/cogwheel_16577871.png" alt="Configuración" className="icon" />;
+const BackIcon = () => <img src="/left_3734793.png" alt="Regresar" className="icon" />; 
+const InfoIcon = () => <img src="/user-profile_4803060.png" alt="Información" className="icon" />; 
 const LogoutIcon = () => <img src="/sign-out_6461685.png" alt="Cerrar Sesión" className="icon" />;
-const EmpresaIcon = () => <img src="/office-building_4300059.png" alt="Empresa" className="icon" />;
-const PreferenciasIcon = () => <img src="/control-panel_12765560.png" alt="Preferencias" className="icon" />;
+const EmpresaIcon = () => <img src="/information_17930919.png" alt="Empresa" className="icon" />;
+const PreferenciasIcon = () => <img src="/setting_8220652.png" alt="Preferencias" className="icon" />;
+const UsersIcon = () => <img src="/perfil.png" alt="Administrar Usuarios" className="icon" />; // Nuevo icono
 
 const HomeAdmin = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [activeSection, setActiveSection] = useState('historialFacturas');
   const [configMode, setConfigMode] = useState(false);
-  // Añadir estado para userData
   const [userData, setUserData] = useState({ username: '', email: '' });
+  const [companyLogo, setCompanyLogo] = useState(''); // Añadir estado para el logo
   
   // Usar el hook usePreferencias para obtener valores y funciones del contexto
   const { companyName, companyTextColor } = usePreferencias();
@@ -53,6 +55,12 @@ const HomeAdmin = () => {
       console.error('Error loading user data:', error);
     }
 
+    // Cargar el logo de la empresa
+    const savedLogo = localStorage.getItem('appLogo');
+    if (savedLogo) {
+      setCompanyLogo(savedLogo);
+    }
+
     return () => {
       window.removeEventListener('navigateToSection', handleNavigateEvent);
     };
@@ -69,6 +77,17 @@ const HomeAdmin = () => {
       } catch (error) {
         console.error('Error al aplicar el tema guardado:', error);
       }
+    }
+
+    // Cargar fuentes del panel admin (sin prefijo)
+    const fontFamily = localStorage.getItem('appFontFamily');
+    if (fontFamily) {
+      document.documentElement.style.setProperty('--admin-app-font-family', fontFamily);
+    }
+    
+    const headingFontFamily = localStorage.getItem('appHeadingFontFamily');
+    if (headingFontFamily) {
+      document.documentElement.style.setProperty('--admin-app-heading-font-family', headingFontFamily);
     }
   }, []);
 
@@ -102,6 +121,8 @@ const HomeAdmin = () => {
     switch (activeSection) {
       case 'historialFacturas':
         return <HistorialFacturas />;
+      case 'administrarUsuarios': // Nuevo caso
+        return <AdministrarUsuarios />;
       case 'informacionPersonal':
         return <InformacionPersonal />;
       case 'datosEmpresa': // Importante: usa exactamente este nombre
@@ -114,7 +135,7 @@ const HomeAdmin = () => {
   };
 
   return (
-    <div className="app-container">
+    <div className="app-container admin-panel">
       <header className="navbar">
         <div className="navbar-left">
           <button onClick={toggleSidebar} className="menu-button">
@@ -126,7 +147,12 @@ const HomeAdmin = () => {
         </div>
         
         <div className="navbar-right">
-          <div className="company-logo"></div>
+          {/* Logo de la empresa en el lado derecho */}
+          {companyLogo && (
+            <div className="company-logo">
+              <img src={companyLogo} alt="Logo de la empresa" style={{ height: '40px', maxWidth: '150px' }} />
+            </div>
+          )}
         </div>
       </header>
 
@@ -164,6 +190,16 @@ const HomeAdmin = () => {
                       </div>
                     </div>
                   </div>
+                  
+                  {/* Nueva sección para Administrar Usuarios */}
+                  <div className="nav-section">
+                    <div className="nav-item" onClick={() => setActiveSection('administrarUsuarios')}>
+                      <div className="nav-item-content">
+                        <UsersIcon />
+                        <span>Administrar Usuarios</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
                 
                 {/* Footer options - Configuration and Logout */}
@@ -187,22 +223,21 @@ const HomeAdmin = () => {
                   </div>
                   
                   {/* User info section - responsive version */}
-                  <div className="user-info-section">
-                    <div className={`user-info-content ${!sidebarOpen ? 'collapsed' : ''}`}>
-                      {sidebarOpen ? (
-                        // Full user info when sidebar is open
-                        <>
-                          <div className="user-name">{userData.username}</div>
-                          <div className="user-email">{userData.email}</div>
-                        </>
-                      ) : (
-                        // Compact user info (initials) when sidebar is collapsed
-                        <div className="user-initials">
-                          {userData.username ? userData.username.charAt(0).toUpperCase() : '?'}
+                  {userData && (
+                    <div className="user-info-section">
+                      <div className="user-info-content">
+                        <div className="user-avatar">
+                          {userData.username 
+                            ? userData.username.charAt(0).toUpperCase() 
+                            : (userData.email ? userData.email.charAt(0).toUpperCase() : 'A')}
                         </div>
-                      )}
+                        <div className="user-details">
+                          <div className="user-name">Administrador</div>
+                          <div className="user-email">{userData.email || ''}</div>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               </>
             ) : (

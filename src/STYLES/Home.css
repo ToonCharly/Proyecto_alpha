@@ -1,3 +1,83 @@
+/* Variables personalizables para el panel de facturación */
+:root {
+  /* Variables existentes */
+  
+  /* Variables específicas para el panel de facturación */
+  --user-sidebar-color: #334155;
+  --user-navbar-color: #ffffff;
+  --user-text-color: #333333;
+  --user-accent-color: #06b6d4;
+  --user-button-color: #1a237e;
+  --user-action-button-color: #2e7d32;
+  --user-delete-button-color: #d32f2f;
+  --user-edit-button-color: #1976d2;
+  --user-file-select-button-color: #455a64;
+  --user-app-font-family: 'Roboto', sans-serif;
+  --user-app-heading-font-family: 'Roboto', sans-serif;
+}
+
+/* Aplicar las variables específicas al panel de usuario */
+.user-panel .sidebar {
+  background-color: var(--user-sidebar-color);
+}
+
+.user-panel .navbar {
+  background-color: var(--user-navbar-color);
+}
+
+.user-panel {
+  font-family: var(--user-app-font-family);
+}
+
+.user-panel h1, 
+.user-panel h2, 
+.user-panel h3, 
+.user-panel h4, 
+.user-panel h5, 
+.user-panel h6 {
+  font-family: var(--user-app-heading-font-family);
+}
+
+/* Estilos para el elemento activo en la barra lateral */
+.user-panel .nav-item.active {
+  background-color: rgba(255, 255, 255, 0.15);
+  border-left: 3px solid var(--user-accent-color);
+}
+
+/* Logo de la empresa en el navbar */
+.company-logo {
+  display: flex;
+  align-items: center;
+}
+
+.company-logo img {
+  height: 40px;
+  max-width: 150px;
+  object-fit: contain;
+}
+
+/* Estilos para la factura-badge */
+.facturas-badge {
+  background-color: var(--user-accent-color, #4caf50);
+  color: white;
+  border-radius: 50%;
+  padding: 2px 8px;
+  font-size: 0.8rem;
+  margin-left: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Estilos para los botones en modales */
+.user-panel .modal-buttons .btn.cancel {
+  background-color: var(--user-delete-button-color);
+}
+
+.user-panel .modal-buttons .btn.confirm {
+  background-color: var(--user-action-button-color);
+}
+
 /* Estilos generales */
 * {
   margin: 0;
@@ -116,6 +196,10 @@ body {
   height: calc(100vh - 60px);
   flex-shrink: 0;
   margin-left: 0;
+  display: flex;
+  flex-direction: column;
+  -ms-overflow-style: none; /* IE y Edge */
+  scrollbar-width: none; /* Firefox */
 }
 
 .sidebar.open {
@@ -153,11 +237,27 @@ body {
 
 .sidebar-nav {
   padding: 1rem 0;
+  flex-grow: 1;
+  overflow-y: auto;
+  margin-bottom: 0; /* Eliminar el espacio inferior */
+  -ms-overflow-style: none; /* IE y Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+.sidebar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari y Opera */
+}
+
+.sidebar-nav::-webkit-scrollbar {
+  display: none; /* Chrome, Safari y Opera */
+  width: 0px;
 }
 
 .nav-section {
   padding: 0.5rem 1rem;
   margin-bottom: 0.5rem;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .icon {
@@ -350,6 +450,195 @@ body {
   overflow-y: auto;
 }
 
+/* ESTILOS MEJORADOS PARA LA INFORMACIÓN DE USUARIO */
+.user-info-section {
+  margin-top: auto;
+  padding: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  transition: all 0.3s ease;
+}
+
+.user-info-content {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: all 0.3s ease;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.user-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: linear-gradient(45deg, #3b82f6, #06b6d4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 600;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
+}
+
+.user-details {
+  flex: 1;
+  overflow: hidden;
+}
+
+.user-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: white;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-email {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-style: italic;
+}
+
+/* COMPORTAMIENTO EN BARRA LATERAL ABIERTA */
+.sidebar.open .user-info-section {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* COMPORTAMIENTO EN BARRA LATERAL CERRADA */
+.sidebar.closed .user-info-section {
+  padding: 10px 0;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.sidebar.closed .user-info-content {
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+  border: none;
+  justify-content: center;
+}
+
+.sidebar.closed .user-details {
+  display: none;
+}
+
+.sidebar.closed .user-avatar {
+  margin: 0;
+  transform: scale(0.9);
+}
+
+/* Estilos para la sección de configuración */
+.config-section {
+  padding: 10px;
+  margin-top: auto; /* Empuja hacia abajo */
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Estilos para la sección de cerrar sesión */
+.logout-section {
+  padding: 10px;
+  margin-top: 5px; /* Espacio entre la sección de info personal y cerrar sesión */
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Para la visualización del usuario en la barra superior (sin funcionalidad desplegable) */
+.user-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #333;
+}
+
+/* Ajuste para el modo cerrado del sidebar */
+.sidebar.closed .logout-section {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.sidebar.closed .logout-section .nav-item-content span {
+  display: none;
+}
+
+/* Ajustes para cuando la barra lateral está cerrada */
+.sidebar.closed .user-info-section {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding: 10px 0;
+}
+
+.sidebar.closed .user-info-content {
+  background-color: transparent;
+  box-shadow: none;
+  padding: 5px;
+  max-width: none;
+  width: auto;
+  justify-content: center;
+}
+
+.sidebar.closed .user-details {
+  display: none !important; /* Ocultar completamente nombre y correo */
+}
+
+.sidebar.closed .user-avatar {
+  margin: 0;
+  /* Opcional: ligeramente más pequeño */
+  width: 40px;
+  height: 40px;
+}
+
+/* Asegurar que otros elementos en modo cerrado no interfieran */
+.sidebar.closed .config-section,
+.sidebar.closed .logout-section {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 10px 0;
+}
+
+/* Modificar los estilos del navbar-right para el logo - COMÚN PARA AMBOS PANELES */
+.navbar-right {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+}
+
+/* Ajustar el estilo del logo en el navbar-right - COMÚN PARA AMBOS PANELES */
+.navbar-right .company-logo {
+  margin-right: 40px;
+}
+
+/* Estilos específicos para el panel de usuario */
+.user-panel .navbar-right .company-logo {
+  margin-right: 40px;
+}
+
+/* Estilos específicos para el panel de administrador */
+.admin-panel .navbar-right .company-logo {
+  margin-right: 40px;
+}
+
+/* Añadir estos estilos para asegurar que los logos se muestran correctamente */
+.company-logo img {
+  height: 40px;
+  max-width: 150px;
+  object-fit: contain;
+}
+
 /* Responsive */
 @media (max-width: 1024px) {
   .sidebar {
@@ -369,9 +658,21 @@ body {
     padding: 0.5rem 1rem;
   }
   
-  .navbar-right {
-    display: none;
-  }
+  /* Ocultar completamente el elemento navbar-right */
+.navbar-right {
+  display: none !important;
+}
+
+/* Ajustar el navbar-left para que ocupe todo el ancho */
+.navbar-left {
+  width: 100%;
+  justify-content: space-between;
+}
+
+/* Ajustar el estilo del navbar para mejor distribución del espacio */
+.navbar {
+  padding: 0.75rem 1.5rem;
+}
   
   .tabla-historial {
     width: 100%;

@@ -221,8 +221,8 @@ func sendPasswordResetEmail(email, username, token string) {
 	case 1: // Gmail
 		smtpConfig.Host = "smtp.gmail.com"
 		smtpConfig.Port = "587"
-		smtpConfig.Username = "verificadorcontra00@gmail.com" // Correo configurado
-		smtpConfig.Password = "acyhcauwbiezbiql"              // Contraseña (sin espacios)
+		smtpConfig.Username = "verificadorcontra00@gmail.com" 
+		smtpConfig.Password = "acyhcauwbiezbiql"              
 	case 2: // Dominio propio
 		smtpConfig.Host = "smtp.tudominio.com"     // CAMBIA ESTO
 		smtpConfig.Port = "587"                    // Verifica el puerto con tu proveedor
@@ -250,7 +250,7 @@ func sendPasswordResetEmail(email, username, token string) {
 		resetLink + "\n\n" +
 		"Este enlace expirará en 30 minutos.\n\n" +
 		"Si no solicitaste este cambio, puedes ignorar este correo.\n\n" +
-		"Saludos,\n" +
+		"" +
 		""
 
 	message := []byte("To: " + email + "\r\n" +

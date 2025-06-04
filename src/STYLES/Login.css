@@ -1,9 +1,11 @@
 /* Configuración base y reset */
 *, *::before, *::after {
   box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
-/* Estructura de página */
+/* Eliminar el fondo negro */
 .login-page {
   position: fixed;
   top: 0;
@@ -12,7 +14,7 @@
   bottom: 0;
   width: 100%;
   height: 100%;
-  background-color: #000;
+  background-color: #ffffff; /* Cambiado de #000 a #ffffff */
   overflow: hidden;
 }
 
@@ -21,21 +23,27 @@
   width: 100vw;
   margin: 0;
   padding: 0;
-  background-color: #000;
+  background-color: #ffffff; /* Cambiado de #000 a #ffffff */
 }
 
-/* Contenedor principal y layout */
+/* Asegurar que el contenedor principal cubra todo */
 .login-container {
-  display: flex;
-  height: 100%;
-  width: 100%;
-  background-color: #ffffff; /* Cambiado de #e6e6e6 a blanco */
+  display: flex !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  overflow: hidden !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background-color: #ffffff !important;
   color: #000;
   font-family: Arial, sans-serif;
 }
 
 .login-form-container {
-  width: 40%;
+  flex: 0 0 40% !important; /* Ancho fijo para el formulario */
+  height: 100vh !important;
+  max-width: 40% !important;
+  min-width: 40% !important;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -249,10 +257,18 @@
 
 /* Sección de imágenes */
 .pattern-container {
-  width: 60%;
-  background-color: transparent;
-  position: relative;
-  overflow: hidden;
+  flex: 0 0 60% !important; /* Cambiado: ancho fijo sin flexibilidad */
+  height: 100vh !important;
+  max-width: 60% !important;
+  min-width: 60% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  position: relative !important;
+  overflow: hidden !important;
+  display: block !important;
+  border: none !important;
+  box-shadow: none !important;
+  background-color: #ffffff !important;
 }
 
 .pattern-lines {
@@ -260,28 +276,31 @@
 }
 
 .image-carousel {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 2;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  z-index: 2 !important;
+  border: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background-color: transparent !important;
 }
 
 .carousel-slide {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-size: cover;
-  background-position: center;
-  opacity: 0;
-  transition: opacity 1s ease-in-out;
-}
-
-.carousel-slide.active {
-  opacity: 1;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  background-size: cover !important;
+  background-position: center !important;
+  border: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 /* Modal de errores */
@@ -345,6 +364,44 @@
 
 .modal-boton:hover {
   background-color: #455a64;
+}
+
+/* CORRECCIÓN PARA ELIMINAR LÍNEA SUPERIOR EN LOGIN */
+html, body {
+  margin: 0 !important;
+  padding: 0 !important;
+  background-color: #ffffff !important;
+  overflow: hidden !important;
+  border-top: none !important;
+  border: none !important;
+  outline: none !important;
+  width: 100%;
+  height: 100%;
+}
+
+/* Asegurar que no haya líneas/bordes en ningún contenedor */
+.login-page, 
+#root, 
+.login-container {
+  border: none !important;
+  border-top: none !important;
+  outline: none !important;
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+  box-shadow: none !important;
+}
+
+/* Eliminar posibles pseudoelementos que puedan crear líneas */
+.login-page::before,
+.login-page::after,
+#root::before,
+#root::after,
+.login-container::before,
+.login-container::after,
+body::before,
+body::after {
+  content: none !important;
+  display: none !important;
 }
 
 /* Responsive */

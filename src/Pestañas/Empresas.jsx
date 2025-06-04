@@ -8,7 +8,6 @@ const Empresas = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(null);
-  // Nuevo estado para confirmar edición
   const [confirmEdit, setConfirmEdit] = useState(null);
   const [formData, setFormData] = useState({
     rfc: '',

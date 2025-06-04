@@ -62,7 +62,7 @@ const Form = () => {
     const { name, value } = e.target;
 
     if (name === 'password') {
-      const limitedValue = value.slice(0, 5);
+      const limitedValue = value.slice(0, 8); // Cambiado de 5 a 8
       setFormData({ ...formData, [name]: limitedValue });
     } else {
       setFormData({ ...formData, [name]: value });
@@ -100,8 +100,8 @@ const Form = () => {
     if (!formData.password) {
       errores.push('Debe ingresar una contraseña');
       campoErrores.password = true;
-    } else if (formData.password.length !== 5) {
-      errores.push('La contraseña debe tener exactamente 5 caracteres');
+    } else if (formData.password.length !== 8) { // Cambiado de 5 a 8
+      errores.push('La contraseña debe tener exactamente 8 caracteres'); // Mensaje actualizado
       campoErrores.password = true;
     }
 
@@ -195,7 +195,7 @@ const Form = () => {
 
               <div className="form-group">
                 <label htmlFor="password" className="form-label">
-                  Contraseña (5 caracteres)
+                  Contraseña (8 caracteres) {/* Cambiado de 5 a 8 */}
                 </label>
                 <div className="input-container">
                   <input
@@ -204,7 +204,7 @@ const Form = () => {
                     name="password"
                     value={formData.password}
                     onChange={handleChange}
-                    maxLength="5"
+                    maxLength="8"
                     className={`form-input ${fieldErrors.password ? 'input-error' : ''}`}
                   />
                   <span 

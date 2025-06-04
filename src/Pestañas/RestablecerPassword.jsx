@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import '../styles/Login.css';
+import '../STYLES/RecoverPassword.css';
 
 const RestablecerPassword = () => {
   const [password, setPassword] = useState('');
@@ -10,6 +10,7 @@ const RestablecerPassword = () => {
   const [success, setSuccess] = useState(false);
   const [cargando, setCargando] = useState(false);
   const [tokenInvalido, setTokenInvalido] = useState(false);
+  const [passwordsMatch, setPasswordsMatch] = useState(true);
   
   const location = useLocation();
   const navigate = useNavigate();
@@ -28,17 +29,37 @@ const RestablecerPassword = () => {
     setToken(tokenFromUrl);
   }, [location]);
   
+  // Verificar coincidencia de contraseñas en tiempo real
+  useEffect(() => {
+    if (confirmPassword) {
+      setPasswordsMatch(password === confirmPassword);
+    } else {
+      setPasswordsMatch(true); // No mostrar error cuando el campo está vacío
+    }
+  }, [password, confirmPassword]);
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
     
     // Validaciones
-    if (password.length !== 5) { // Cambiar aquí
-      setError('La contraseña debe tener exactamente 5 caracteres');
+    if (password.length > 8) {
+      setError('La contraseña no puede tener más de 8 caracteres');
+      return;
+    }
+    
+    if (password.length === 0) {
+      setError('La contraseña no puede estar vacía');
       return;
     }
     
     if (password !== confirmPassword) {
       setError('Las contraseñas no coinciden');
+      return;
+    }
+    
+    // Validación adicional: verificar que no contenga espacios
+    if (password.includes(' ')) {
+      setError('La contraseña no puede contener espacios en blanco');
       return;
     }
     
@@ -80,16 +101,11 @@ const RestablecerPassword = () => {
   // Si el token es inválido, mostrar mensaje de error
   if (tokenInvalido) {
     return (
-      <div className="login-container">
-        <div className="login-form">
-          <div className="logo-container">
-            <div className="logo-circle"></div>
-            <h2 className="logo-text">FACTS</h2>
-          </div>
-          
-          <div className="login-form-content">
-            <div className="error-message">{error}</div>
-            <Link to="/recuperar-password" className="login-button">
+      <div className="recover-password-container">
+        <div className="recover-password-card">
+          <div className="recover-password-content">
+            <div className="recover-password-error">{error}</div>
+            <Link to="/recuperar-password" className="recover-password-button">
               Solicitar nuevo enlace
             </Link>
           </div>
@@ -99,37 +115,34 @@ const RestablecerPassword = () => {
   }
   
   return (
-    <div className="login-container">
-      <div className="login-form">
-        <div className="logo-container">
-          <div className="logo-circle"></div>
-          <h2 className="logo-text">FACTS</h2>
-        </div>
-        
-        <div className="login-form-content">
+    <div className="recover-password-container">
+      <div className="recover-password-card">
+        <div className="recover-password-content">
           {!success ? (
             <>
-              <h2 className="sign-in-title">Establecer nueva contraseña</h2>
-              <p className="login-description">
+              <h2 className="recover-password-title">Establecer nueva contraseña</h2>
+              <p className="recover-password-description">
                 Ingresa tu nueva contraseña para tu cuenta.
               </p>
               
-              {error && <div className="error-message">{error}</div>}
+              {error && <div className="recover-password-error">{error}</div>}
               
               <form onSubmit={handleSubmit}>
-                <div className="form-group">
-                  <label htmlFor="password">Nueva contraseña</label>
+                <div className="recover-password-form-group">
+                  <label htmlFor="password">Nueva contraseña <span className="password-limit">(máximo 8 caracteres)</span></label>
                   <input
                     type="password"
                     id="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Ingresa tu nueva contraseña"
+                    maxLength={8}
                     required
                   />
+                  <div className="character-count">{password.length}/8 caracteres</div>
                 </div>
                 
-                <div className="form-group">
+                <div className="recover-password-form-group">
                   <label htmlFor="confirmPassword">Confirmar contraseña</label>
                   <input
                     type="password"
@@ -137,21 +150,26 @@ const RestablecerPassword = () => {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="Confirma tu nueva contraseña"
+                    maxLength={8}
                     required
+                    className={!passwordsMatch ? "password-mismatch" : ""}
                   />
+                  {!passwordsMatch && (
+                    <div className="password-feedback">Las contraseñas no coinciden</div>
+                  )}
                 </div>
                 
                 <button 
                   type="submit" 
-                  className="login-button"
-                  disabled={cargando}
+                  className="recover-password-button"
+                  disabled={cargando || password.length === 0 || !passwordsMatch}
                 >
                   {cargando ? 'Actualizando...' : 'Guardar nueva contraseña'}
                 </button>
               </form>
             </>
           ) : (
-            <div className="success-message">
+            <div className="recover-password-success">
               <h2>¡Contraseña actualizada!</h2>
               <p>
                 Tu contraseña ha sido actualizada correctamente.

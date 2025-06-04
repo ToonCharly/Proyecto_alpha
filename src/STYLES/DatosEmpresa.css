@@ -300,6 +300,7 @@ button[type="button"].file-input-button:hover {
   display: flex;
   align-items: center;
   gap: 10px;
+  margin-top: 20px !important; /* Aumentar espacio superior */
 }
 
 .header-icon {
@@ -310,6 +311,7 @@ button[type="button"].file-input-button:hover {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
+  margin-top: 5px !important;
 }
 
 /* Estructura del formulario */
@@ -393,4 +395,33 @@ button[type="button"].file-input-button:hover {
     align-items: flex-start;
     gap: 8px;
   }
+}
+
+/* AJUSTE PARA BAJAR EL TÍTULO DE INFORMACIÓN FISCAL */
+.form-header {
+  margin-top: 20px !important; /* Aumentar espacio superior */
+}
+
+/* Si el título está en un h2 dentro del encabezado */
+.form-header h2 {
+  margin-top: 5px !important;
+}
+
+/* En caso de que esté usando la clase titulo */
+h1.titulo, 
+h2.titulo {
+  margin-top: 30px !important; /* Aumentar de lo actual */
+  margin-bottom: 20px !important;
+}
+
+/* Si tiene un contenedor específico para el título de información fiscal */
+.info-fiscal-title,
+.info-fiscal-header,
+[data-title="Información Fiscal"] {
+  margin-top: 25px !important;
+}
+
+/* Para los otros títulos de sección dentro del formulario */
+.form-section-title {
+  margin-top: 20px !important;
 }

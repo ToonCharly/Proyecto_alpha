@@ -223,6 +223,159 @@
   background-color: var(--file-select-button-color-dark, #37474f) !important;
 }
 
+/* Añadir estos estilos para las pestañas */
+.tabs-container {
+  display: flex;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.tab {
+  padding: 10px 20px;
+  cursor: pointer;
+  border-radius: 4px 4px 0 0;
+  margin-right: 5px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.tab:hover {
+  background-color: #f5f5f9;
+}
+
+.tab.active {
+  background-color: #f0f0f8;
+  border: 1px solid #e0e0e0;
+  border-bottom: 2px solid #3b82f6;
+  color: #3b82f6;
+}
+
+/* Estilos para la sección de tema */
+.user-theme-section,
+.admin-theme-section {
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* Estilos para las opciones de tema */
+.theme-option {
+  margin-bottom: 15px;
+}
+
+.theme-option label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 500;
+}
+
+.color-picker-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.color-picker-container input[type="color"] {
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.save-button {
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  margin-top: 20px;
+  transition: background-color 0.2s;
+}
+
+.save-button:hover {
+  background-color: #2563eb;
+}
+
+.success-message {
+  background-color: #d1fae5;
+  color: #065f46;
+  padding: 10px 15px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  font-weight: 500;
+  animation: fadeIn 0.3s, fadeOut 0.3s 2.7s;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* Añade estos estilos para el selector de paneles */
+
+.panel-selector-container {
+  margin-bottom: 30px;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.panel-selector-container h2 {
+  margin-bottom: 15px;
+  font-size: 18px;
+  color: #333;
+}
+
+.panel-selector-tabs {
+  display: flex;
+  border-bottom: 1px solid #dee2e6;
+  margin-bottom: 15px;
+}
+
+.panel-tab {
+  padding: 10px 20px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+  background-color: #f1f3f5;
+  margin-right: 5px;
+  transition: all 0.2s ease;
+}
+
+.panel-tab:hover {
+  background-color: #e9ecef;
+}
+
+.panel-tab.active {
+  background-color: #fff;
+  border-color: #dee2e6;
+  border-bottom-color: #fff;
+  margin-bottom: -1px;
+  color: #1976d2;
+}
+
+.panel-indicator {
+  padding: 10px 15px;
+  background-color: #e3f2fd;
+  border-radius: 4px;
+  color: #0d47a1;
+  font-size: 14px;
+  margin-top: 15px;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .theme-preview-flex {
