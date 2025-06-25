@@ -1,0 +1,25 @@
+<Factura version="1.0">
+  <FechaEmision>2025-06-05T11:23:35</FechaEmision>
+  <Emisor>
+    <RFC></RFC>
+    <RazonSocial></RazonSocial>
+    <RegimenFiscal></RegimenFiscal>
+  </Emisor>
+  <Receptor>
+    <RFC></RFC>
+    <RazonSocial>Receptor: </RazonSocial>
+    <Direccion></Direccion>
+    <CodigoPostal>00000</CodigoPostal>
+    <UsoCFDI>G03</UsoCFDI>
+  </Receptor>
+  <Conceptos>
+    <Concepto>
+      <Descripcion>Venta general</Descripcion>
+      <Cantidad>1</Cantidad>
+      <ValorUnitario>0</ValorUnitario>
+      <Importe>0</Importe>
+    </Concepto>
+  </Conceptos>
+  <Total>0</Total>
+  <ClaveTicket>19a5a142aca218a7ff5deec2831d6834</ClaveTicket>
+</Factura>

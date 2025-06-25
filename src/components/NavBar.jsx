@@ -10,7 +10,7 @@ const NavBar = () => {
   useEffect(() => {
     const getUserData = () => {
       try {
-        const userData = JSON.parse(localStorage.getItem('userData'));
+        const userData = JSON.parse(sessionStorage.getItem('userData')); // Migrado a sessionStorage para evitar conflictos
         if (userData && userData.username) {
           setUsername(userData.username);
         }

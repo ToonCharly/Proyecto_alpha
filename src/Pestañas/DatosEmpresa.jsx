@@ -30,7 +30,7 @@ function DatosEmpresa() {
   const [isAdmin, setIsAdmin] = useState(false); // Añadir este estado después de tus declaraciones de estado existentes
 
   useEffect(() => {
-    const storedUserData = localStorage.getItem('userData');
+    const storedUserData = sessionStorage.getItem('userData'); // Migrado a sessionStorage para evitar conflictos
     if (storedUserData) {
       try {
         const parsedUserData = JSON.parse(storedUserData);

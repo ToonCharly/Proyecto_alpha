@@ -72,10 +72,12 @@
 /* Estilos para los botones en modales */
 .user-panel .modal-buttons .btn.cancel {
   background-color: var(--user-delete-button-color);
+  color: white !important; /* Asegurar texto blanco */
 }
 
 .user-panel .modal-buttons .btn.confirm {
   background-color: var(--user-action-button-color);
+  color: white !important; /* Asegurar texto blanco */
 }
 
 /* Estilos generales */

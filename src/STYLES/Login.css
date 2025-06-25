@@ -86,10 +86,12 @@
 }
 
 .sign-in-title {
-  font-size: 1.875rem;
-  font-weight: 700;
+  font-size: 2.2rem; /* Aumentado de 1.875rem */
+  font-weight: 800; /* Aumentado de 700 para más impacto */
   margin-bottom: 2rem;
   color: #000;
+  letter-spacing: -0.5px; /* Espaciado de letras más ajustado */
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Sombra sutil para profundidad */
 }
 
 .login-form {
@@ -107,17 +109,19 @@
 
 .form-label {
   display: inline-block;
-  font-size: 0.7rem;
-  color: #333;
+  font-size: 0.8rem; /* Aumentado de 0.7rem */
+  color: #1a1a1a; /* Color más oscuro para mayor contraste */
   position: absolute;
   top: -0.5rem;
   left: 0.7rem;
-  background-color: #ffffff; /* Cambiado de #e6e6e6 a blanco */
+  background-color: #ffffff;
   padding: 0 0.4rem;
   z-index: 2;
-  font-weight: 500;
+  font-weight: 600; /* Aumentado de 500 a 600 para más énfasis */
   text-align: left;
   order: 1;
+  letter-spacing: 0.5px; /* Mejor legibilidad */
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1); /* Sutil sombra para resaltar */
 }
 
 .input-container {
@@ -130,21 +134,27 @@
   width: 100%;
   height: 50px;
   background-color: transparent;
-  border: 1px solid #333;
+  border: 2px solid #333; /* Borde más grueso para mayor definición */
   border-radius: 4px;
   padding: 0.75rem 1rem;
   color: #000;
   box-sizing: border-box;
   margin-top: 0.25rem;
+  font-size: 1rem; /* Tamaño de fuente ligeramente mayor */
+  font-weight: 500; /* Peso de fuente más consistente */
+  transition: all 0.3s ease; /* Transición suave */
 }
 
 .form-input:focus {
   outline: none;
-  border-color: #546e7a;
+  border-color: #1a1a1a; /* Border más oscuro en focus */
+  box-shadow: 0 0 0 3px rgba(26, 26, 26, 0.1); /* Ring effect en focus */
+  transform: scale(1.01); /* Ligero aumento en focus */
 }
 
 .form-input.input-error {
-  border-color: #ff4c4c;
+  border-color: #e53e3e; /* Color de error más vibrante */
+  box-shadow: 0 0 0 3px rgba(229, 62, 62, 0.1);
 }
 
 /* Iconos y elementos decorativos */
@@ -199,19 +209,24 @@
 }
 
 .forgot-password {
-  font-size: 0.75rem;
-  color: #333;
+  font-size: 0.85rem; /* Aumentado de 0.75rem */
+  color: #1a1a1a; /* Color más oscuro para mayor contraste */
   cursor: pointer;
   text-decoration: none;
-  border-bottom: 1px solid #666;
-  padding-bottom: 2px;
+  border-bottom: 2px solid #333; /* Borde más grueso */
+  padding-bottom: 3px; /* Más espacio para el borde */
   display: inline-block;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
+  font-weight: 600; /* Peso de fuente más alto */
+  letter-spacing: 0.3px; /* Mejor legibilidad */
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1); /* Sutil sombra */
 }
 
 .forgot-password:hover {
   color: #000;
   border-bottom-color: #000;
+  transform: translateY(-1px); /* Efecto de elevación al hover */
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); /* Sombra más pronunciada en hover */
 }
 
 /* Botones de acción */

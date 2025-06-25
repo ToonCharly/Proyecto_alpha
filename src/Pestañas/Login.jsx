@@ -139,7 +139,8 @@ const Form = () => {
         const userData = await response.json();
         console.log('Datos del usuario:', userData);
         
-        localStorage.setItem('userData', JSON.stringify(userData));
+        // CAMBIO: Usar sessionStorage en lugar de localStorage para evitar conflictos entre ventanas
+        sessionStorage.setItem('userData', JSON.stringify(userData));
         
         // Redireccionar según el rol
         if (userData.role === 'admin') {
@@ -174,7 +175,7 @@ const Form = () => {
           <div className="login-logo"></div> {/* Este div mostrará el logo */}
 
           <div className="login-form-content">
-            <h1 className="sign-in-title">Inicio de Sesion</h1>
+            <h1 className="sign-in-title">Inicio de Sesión</h1>
             
             <div className="login-form">
               <div className="form-group">
@@ -228,9 +229,7 @@ const Form = () => {
                 >
                   Recuperar Contraseña
                 </span>
-              </div>
-
-              <button
+              </div>              <button
                 onClick={handleSubmit}
                 className="sign-in-button"
                 disabled={isSubmitting}
@@ -242,7 +241,7 @@ const Form = () => {
 
           <div className="signup-container">
             <p className="signup-text">
-              No Tienes Una Cuenta? <span className="signup-link" onClick={() => navigate('/register')}>Registrate</span>
+              ¿No Tienes Una Cuenta? <span className="signup-link" onClick={() => navigate('/register')}>Registrate</span>
             </p>
           </div>
         </div>

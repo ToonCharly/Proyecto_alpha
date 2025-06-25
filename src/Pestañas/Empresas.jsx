@@ -24,7 +24,7 @@ const Empresas = () => {
 
   // Obtener usuario del objeto userData almacenado en localStorage
   const getUserId = () => {
-    const userDataString = localStorage.getItem('userData');
+    const userDataString = sessionStorage.getItem('userData'); // Migrado a sessionStorage para evitar conflictos
     if (!userDataString) return null;
     
     try {

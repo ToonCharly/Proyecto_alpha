@@ -37,6 +37,10 @@
   --app-heading-font-family: 'Roboto', sans-serif;
   --app-font-size-base: 16px;
   --app-line-height-base: 1.5;
+  
+  /* Variables para tamaños de fuente globales */
+  --base-font-size: 16px;
+  --heading-font-size: 24px;
 }
 
 #root {
@@ -174,15 +178,15 @@ body, html {
   background-color: #4c6075;
 }
 
-/* Aplicar fuentes a elementos globales */
+/* Aplicar fuentes a elementos globales - con prioridad para configuraciones específicas */
 body {
-  font-family: var(--app-font-family);
-  font-size: var(--app-font-size-base);
-  line-height: var(--app-line-height-base);
+  font-family: var(--admin-app-font-family, var(--user-app-font-family, var(--app-font-family, 'Roboto', sans-serif)));
+  font-size: var(--base-font-size, var(--app-font-size-base, 16px));
+  line-height: var(--app-line-height-base, 1.5);
 }
 
 h1, h2, h3, h4, h5, h6 {
-  font-family: var(--app-heading-font-family);
+  font-family: var(--admin-app-heading-font-family, var(--user-app-heading-font-family, var(--app-heading-font-family, 'Roboto', sans-serif)));
 }
 
 /* Asegurarse de que los selectores sean específicos para el panel administrativo */
@@ -197,4 +201,53 @@ h1, h2, h3, h4, h5, h6 {
 .admin-panel h5, 
 .admin-panel h6 {
   font-family: var(--admin-app-heading-font-family, 'Roboto', sans-serif);
+}
+
+.admin-panel h6 {
+  font-family: var(--admin-app-heading-font-family, 'Roboto', sans-serif);
+}
+
+/* ESTILOS GLOBALES PARA TAMAÑOS DE FUENTE DINÁMICOS */
+/* Aplicar SOLO tamaño de fuente base a elementos de texto - sin !important para permitir override */
+body, p, span, div, input, textarea, select, button, label {
+  font-size: var(--base-font-size);
+}
+
+/* Aplicar tamaño de fuente de títulos - manteniendo la familia de fuente original */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--app-heading-font-family);
+  font-size: var(--heading-font-size);
+}
+
+/* Ajustar tamaños relativos para diferentes tipos de títulos - sin !important */
+h1 { font-size: calc(var(--heading-font-size) * 1.4); }
+h2 { font-size: calc(var(--heading-font-size) * 1.2); }
+h3 { font-size: var(--heading-font-size); }
+h4 { font-size: calc(var(--heading-font-size) * 0.9); }
+h5 { font-size: calc(var(--heading-font-size) * 0.8); }
+h6 { font-size: calc(var(--heading-font-size) * 0.7); }
+
+/* Aplicar solo tamaños a elementos específicos de formularios */
+.form-input, .theme-select, .modal-boton, .btn-guardar, .btn-eliminar {
+  font-size: var(--base-font-size);
+}
+
+/* Aplicar solo tamaños a elementos de navegación */
+.navbar, .sidebar, .menu-item, .nav-link {
+  font-size: var(--base-font-size);
+}
+
+/* Aplicar solo tamaños a elementos de tabla */
+table, th, td {
+  font-size: var(--base-font-size);
+}
+
+/* Aplicar solo tamaños a textos pequeños como ayuda y descripciones */
+.field-help, .file-requirements, small {
+  font-size: calc(var(--base-font-size) * 0.85);
+}
+
+/* Aplicar solo tamaños a elementos de card y contenedores */
+.info-card, .card-header, .info-group {
+  font-size: var(--base-font-size);
 }

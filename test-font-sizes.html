@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Tamaños y Fuentes</title>
+    <style>
+        :root {
+            --base-font-size: 16px;
+            --heading-font-size: 24px;
+            --app-font-family: 'Roboto', sans-serif;
+            --app-heading-font-family: 'Roboto', sans-serif;
+            --admin-app-font-family: 'Roboto', sans-serif;
+            --admin-app-heading-font-family: 'Roboto', sans-serif;
+        }
+
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Lato:wght@300;400;700&family=Montserrat:wght@400;500;600;700&display=swap');
+
+        body {
+            font-family: var(--admin-app-font-family, var(--app-font-family, 'Roboto', sans-serif));
+            font-size: var(--base-font-size);
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            font-family: var(--admin-app-heading-font-family, var(--app-heading-font-family, 'Roboto', sans-serif));
+        }
+
+        h1 { font-size: calc(var(--heading-font-size) * 1.4); }
+        h2 { font-size: calc(var(--heading-font-size) * 1.2); }
+        h3 { font-size: var(--heading-font-size); }
+
+        .controls {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+        
+        .preview {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #eee;
+            border-radius: 8px;
+        }
+
+        .control-group {
+            margin: 15px 0;
+        }
+
+        label {
+            display: inline-block;
+            width: 150px;
+            font-weight: 500;
+        }
+
+        input[type="range"] {
+            width: 200px;
+            margin: 0 10px;
+        }
+
+        select {
+            padding: 5px;
+            margin: 0 10px;
+        }
+
+        .value-display {
+            display: inline-block;
+            min-width: 60px;
+            padding: 3px 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="controls">
+        <h2>Controles de Tipografía</h2>
+        
+        <div class="control-group">
+            <label for="base-size">Tamaño Base:</label>
+            <input type="range" id="base-size" min="12" max="24" value="16" oninput="updateBaseFontSize(this.value)">
+            <span id="base-value" class="value-display">16px</span>
+        </div>
+        
+        <div class="control-group">
+            <label for="heading-size">Tamaño Títulos:</label>
+            <input type="range" id="heading-size" min="18" max="36" value="24" oninput="updateHeadingFontSize(this.value)">
+            <span id="heading-value" class="value-display">24px</span>
+        </div>
+        
+        <div class="control-group">
+            <label for="font-family">Fuente Principal:</label>
+            <select id="font-family" onchange="updateFontFamily(this.value)">
+                <option value="'Roboto', sans-serif">Roboto</option>
+                <option value="'Lato', sans-serif">Lato</option>
+                <option value="'Montserrat', sans-serif">Montserrat</option>
+                <option value="'Arial', sans-serif">Arial</option>
+                <option value="'Georgia', serif">Georgia</option>
+            </select>
+        </div>
+        
+        <div class="control-group">
+            <label for="heading-font-family">Fuente Títulos:</label>
+            <select id="heading-font-family" onchange="updateHeadingFontFamily(this.value)">
+                <option value="'Roboto', sans-serif">Roboto</option>
+                <option value="'Lato', sans-serif">Lato</option>
+                <option value="'Montserrat', sans-serif">Montserrat</option>
+                <option value="'Arial', sans-serif">Arial</option>
+                <option value="'Georgia', serif">Georgia</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="preview">
+        <h1>Título H1 Principal</h1>
+        <h2>Título H2 Secundario</h2>
+        <h3>Título H3 Terciario</h3>
+        <p>Este es un párrafo de ejemplo con texto normal para ver cómo se ve con el tamaño de fuente y familia seleccionados. Aquí puedes probar diferentes combinaciones.</p>
+        <p><strong>Texto en negrita</strong> y <em>texto en cursiva</em> para ver cómo se comportan los diferentes pesos de fuente.</p>
+        <button>Botón de ejemplo</button>
+        <input type="text" placeholder="Campo de entrada" style="margin-left: 10px; padding: 8px;">
+        
+        <div style="margin-top: 20px;">
+            <label>Etiqueta de formulario:</label>
+            <input type="email" placeholder="correo@ejemplo.com" style="margin-left: 10px; padding: 6px;">
+        </div>
+    </div>
+
+    <script>
+        function updateBaseFontSize(value) {
+            document.documentElement.style.setProperty('--base-font-size', value + 'px');
+            document.getElementById('base-value').textContent = value + 'px';
+        }
+
+        function updateHeadingFontSize(value) {
+            document.documentElement.style.setProperty('--heading-font-size', value + 'px');
+            document.getElementById('heading-value').textContent = value + 'px';
+        }
+
+        function updateFontFamily(family) {
+            document.documentElement.style.setProperty('--admin-app-font-family', family);
+            document.documentElement.style.setProperty('--app-font-family', family);
+        }
+
+        function updateHeadingFontFamily(family) {
+            document.documentElement.style.setProperty('--admin-app-heading-font-family', family);
+            document.documentElement.style.setProperty('--app-heading-font-family', family);
+        }
+    </script>
+</body>
+</html>

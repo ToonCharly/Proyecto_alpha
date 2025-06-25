@@ -230,7 +230,7 @@ func generarXMLFactura(factura *models.HistorialFactura) ([]byte, error) {
 func generarPDFFactura(factura *models.HistorialFactura) ([]byte, error) {
 	// Convertir HistorialFactura a la estructura Factura que espera el generador de PDF
 	facturaParaPDF := models.Factura{
-		IdFactura:   int64(factura.ID),
+		ID:          strconv.Itoa(factura.ID), // Convertir int a string
 		RFC:         factura.RFCReceptor,
 		RazonSocial: factura.RazonSocialReceptor,
 		ClaveTicket: factura.ClaveTicket,

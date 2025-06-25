@@ -23,8 +23,6 @@ func Connect() (*sql.DB, error) {
     return db, nil
 }
 
-// ConnectToOptimus establece una conexión a la base de datos optimus.
-// Reutiliza la función Connect ya que apunta a la misma base de datos.
 func ConnectToOptimus() (*sql.DB, error) {
     return Connect() // Ya conecta a optimus por defecto
 }

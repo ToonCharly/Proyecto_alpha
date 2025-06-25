@@ -28,11 +28,10 @@ const Home = () => {
   const { companyName, companyTextColor, navbarBgColor } = usePreferencias();
 
   const { historialFacturas } = useContext(FacturaContext);
-  
-  // Función para cargar el nombre de usuario desde localStorage
+    // Función para cargar el nombre de usuario desde sessionStorage (migrado para evitar conflictos)
   const loadUserData = () => {
     try {
-      const userData = JSON.parse(localStorage.getItem('userData'));
+      const userData = JSON.parse(sessionStorage.getItem('userData'));
       if (userData && userData.username) {
         setUsername(userData.username);
       }
@@ -156,13 +155,12 @@ const Home = () => {
           if (response.ok) {
             const data = await response.json();
             setUserData(data);
-            
-            // Opcional: guardar en localStorage para acceso rápido
-            localStorage.setItem('userData', JSON.stringify(data));
+              // Opcional: guardar en sessionStorage para acceso rápido (evita conflictos entre ventanas)
+            sessionStorage.setItem('userData', JSON.stringify(data));
           }
         } else {
-          // Alternativamente, intenta obtener del localStorage si ya existe
-          const cachedUserData = localStorage.getItem('userData');
+          // Alternativamente, intenta obtener del sessionStorage si ya existe
+          const cachedUserData = sessionStorage.getItem('userData');
           if (cachedUserData) {
             setUserData(JSON.parse(cachedUserData));
           }
@@ -315,18 +313,23 @@ const Home = () => {
           <div className="modal">
             <h2>¿Cerrar Sesión?</h2>
             <p>¿Estás seguro de que deseas cerrar sesión?</p>
-            <div className="modal-buttons">
-              <button 
+            <div className="modal-buttons">              <button 
                 className="btn cancel" 
                 onClick={() => setShowLogoutModal(false)}
-                style={{ backgroundColor: 'var(--user-delete-button-color, #d32f2f)' }}
+                style={{ 
+                  backgroundColor: 'var(--user-delete-button-color, #d32f2f)',
+                  color: 'white' // Asegurar que el texto sea blanco
+                }}
               >
                 Cancelar
               </button>
               <button 
                 className="btn confirm" 
                 onClick={handleLogout}
-                style={{ backgroundColor: 'var(--user-action-button-color, #2e7d32)' }}
+                style={{ 
+                  backgroundColor: 'var(--user-action-button-color, #2e7d32)',
+                  color: 'white' // Asegurar que el texto sea blanco
+                }}
               >
                 Cerrar Sesión
               </button>

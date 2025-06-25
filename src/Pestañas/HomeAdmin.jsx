@@ -44,7 +44,7 @@ const HomeAdmin = () => {
     
     // Load user data
     try {
-      const storedUserData = JSON.parse(localStorage.getItem('userData'));
+      const storedUserData = JSON.parse(sessionStorage.getItem('userData')); // Migrado a sessionStorage
       if (storedUserData) {
         setUserData({
           username: storedUserData.username || '',
@@ -59,10 +59,46 @@ const HomeAdmin = () => {
     const savedLogo = localStorage.getItem('appLogo');
     if (savedLogo) {
       setCompanyLogo(savedLogo);
-    }
-
-    return () => {
+    }    return () => {
       window.removeEventListener('navigateToSection', handleNavigateEvent);
+    };
+  }, []);
+
+  // Listener para actualización automática del logo
+  useEffect(() => {
+    // Función para manejar cambios en localStorage
+    const handleStorageChange = (e) => {
+      if (e.key === 'appLogo') {
+        setCompanyLogo(e.newValue || '');
+      }
+    };
+
+    // Escuchar cambios desde otras ventanas/pestañas
+    window.addEventListener('storage', handleStorageChange);
+
+    // Para cambios en la misma ventana, interceptar setItem
+    const originalSetItem = localStorage.setItem;
+    localStorage.setItem = function(key, value) {
+      originalSetItem.apply(this, arguments);
+      if (key === 'appLogo') {
+        setCompanyLogo(value || '');
+      }
+    };
+
+    // Para cambios en la misma ventana, interceptar removeItem
+    const originalRemoveItem = localStorage.removeItem;
+    localStorage.removeItem = function(key) {
+      originalRemoveItem.apply(this, arguments);
+      if (key === 'appLogo') {
+        setCompanyLogo('');
+      }
+    };
+
+    // Cleanup al desmontar el componente
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      localStorage.setItem = originalSetItem;
+      localStorage.removeItem = originalRemoveItem;
     };
   }, []);
 

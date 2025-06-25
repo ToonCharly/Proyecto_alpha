@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import '../STYLES/RecoverPassword.css';
 
@@ -7,6 +7,15 @@ const RecuperarPassword = () => {
   const [enviado, setEnviado] = useState(false);
   const [error, setError] = useState('');
   const [cargando, setCargando] = useState(false);
+  const [companyLogo, setCompanyLogo] = useState(''); // Estado para el logo
+
+  // Cargar logo de la empresa
+  useEffect(() => {
+    const savedLogo = localStorage.getItem('appLogo');
+    if (savedLogo) {
+      setCompanyLogo(savedLogo);
+    }
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -43,10 +52,16 @@ const RecuperarPassword = () => {
     }
   };
 
-  return (
-    <div className="recover-password-container">
+  return (    <div className="recover-password-container">
       <div className="recover-password-card">
         <div className="recover-password-content">
+          {/* Logo de la empresa */}
+          {companyLogo && (
+            <div className="recover-password-logo">
+              <img src={companyLogo} alt="Logo de la empresa" style={{ maxHeight: '60px', maxWidth: '200px', marginBottom: '20px' }} />
+            </div>
+          )}
+          
           {!enviado ? (
             <>
               <h2 className="recover-password-title">Recuperar contraseña</h2>

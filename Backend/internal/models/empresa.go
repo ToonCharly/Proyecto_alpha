@@ -164,6 +164,38 @@ func ActualizarEmpresa(empresa Empresa) error {
 	return nil
 }
 
+// ObtenerEmpresas devuelve todas las empresas
+func ObtenerEmpresas() ([]Empresa, error) {
+	query := `
+        SELECT id, id_usuario, rfc, razon_social, regimen_fiscal, direccion,
+               codigo_postal, pais, estado, localidad, municipio, colonia, created_at
+        FROM empresas
+    `
+
+	rows, err := db.GetDB().Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("error al obtener las empresas: %w", err)
+	}
+	defer rows.Close()
+
+	var empresas []Empresa
+	for rows.Next() {
+		var empresa Empresa
+		err := rows.Scan(
+			&empresa.ID, &empresa.IdUsuario, &empresa.RFC, &empresa.RazonSocial,
+			&empresa.RegimenFiscal, &empresa.Direccion, &empresa.CodigoPostal,
+			&empresa.Pais, &empresa.Estado, &empresa.Localidad,
+			&empresa.Municipio, &empresa.Colonia, &empresa.CreatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error al escanear las empresas: %w", err)
+		}
+		empresas = append(empresas, empresa)
+	}
+
+	return empresas, nil
+}
+
 // Obtiene todas las empresas asociadas a un usuario por su ID
 func ObtenerEmpresasPorUsuario(idUsuario int) ([]Empresa, error) {
 	query := `

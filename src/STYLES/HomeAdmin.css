@@ -430,12 +430,9 @@ body {
 
 /* Añadir estos estilos para el logo en el navbar */
 .company-logo {
-  width: 80px;
+  width: auto;
   height: 40px;
-  background-image: var(--app-logo);
-  background-size: contain;
-  background-position: center;
-  background-repeat: no-repeat;
+  /* Eliminado background-image que causaba duplicación con la imagen HTML */
   margin-left: 15px; /* Margen a la izquierda en lugar de a la derecha */
 }
 

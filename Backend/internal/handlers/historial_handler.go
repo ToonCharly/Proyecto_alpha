@@ -1,116 +1,98 @@
 package handlers
 
 import (
-    "database/sql"
-    "encoding/json"
-    "log"
-    "net/http"
+	"database/sql"
+	"encoding/json"
+	"log"
+	"net/http"
+	"strconv"
 
-    "carlos/Facts/Backend/internal/models"
+	"carlos/Facts/Backend/internal/models"
 )
 
 // HistorialFactura representa los datos para crear un registro en el historial
 type HistorialFactura struct {
-    IDUsuario           int     `json:"id_usuario"`
-    RFCReceptor         string  `json:"rfc_receptor"`
-    RazonSocialReceptor string  `json:"razon_social_receptor"`
-    ClaveTicket         string  `json:"clave_ticket"`
-    Total               float64 `json:"total"`
-    UsoCFDI             string  `json:"uso_cfdi"`
-    Observaciones       string  `json:"observaciones"`
-    Estado              string  `json:"estado"`
+	IDUsuario           int     `json:"id_usuario"`
+	RFCReceptor         string  `json:"rfc_receptor"`
+	RazonSocialReceptor string  `json:"razon_social_receptor"`
+	ClaveTicket         string  `json:"clave_ticket"`
+	Total               float64 `json:"total"`
+	UsoCFDI             string  `json:"uso_cfdi"`
+	Observaciones       string  `json:"observaciones"`
+	Estado              string  `json:"estado"`
 }
 
-// HistorialFacturasHandler obtiene el historial de facturas
-func HistorialFacturasHandler(db *sql.DB) http.HandlerFunc {
-    return func(w http.ResponseWriter, r *http.Request) {
-        if r.Method != http.MethodGet {
-            http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
-            return
-        }
+// HistorialFacturasHandler maneja las peticiones relacionadas con el historial de facturas
+func HistorialFacturasHandler(db *sql.DB) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 
-        query := `SELECT idfactura, idempresa, rfc, razon_social, subtotal, impuestos, total, fecha_emision, estatus FROM adm_efacturas ORDER BY fecha_emision DESC`
-        rows, err := db.Query(query)
-        if err != nil {
-            log.Printf("Error al consultar el historial de facturas: %v", err)
-            http.Error(w, "Error al consultar el historial de facturas", http.StatusInternalServerError)
-            return
-        }
-        defer rows.Close()
+		// Manejar solicitudes GET (obtener facturas)
+		if r.Method == http.MethodGet {
+			idUsuarioStr := r.URL.Query().Get("id_usuario")
+			if idUsuarioStr == "" {
+				http.Error(w, "Se requiere id_usuario", http.StatusBadRequest)
+				return
+			}
 
-        var facturas []models.Factura
-        for rows.Next() {
-            var factura models.Factura
-            err := rows.Scan(&factura.IdFactura, &factura.IdEmpresa, &factura.RFC, &factura.RazonSocial, &factura.Subtotal, &factura.Impuestos, &factura.Total, &factura.FechaEmision, &factura.Estatus)
-            if err != nil {
-                log.Printf("Error al escanear los resultados: %v", err)
-                http.Error(w, "Error al procesar los datos", http.StatusInternalServerError)
-                return
-            }
-            facturas = append(facturas, factura)
-        }
+			idUsuario, err := strconv.Atoi(idUsuarioStr)
+			if err != nil {
+				http.Error(w, "id_usuario debe ser un número", http.StatusBadRequest)
+				return
+			}
 
-        w.Header().Set("Content-Type", "application/json")
-        json.NewEncoder(w).Encode(map[string]interface{}{
-            "facturas": facturas,
-            "total":    len(facturas),
-        })
-    }
-}
+			facturas, err := models.ObtenerHistorialFacturasPorUsuario(idUsuario)
+			if err != nil {
+				log.Printf("Error al obtener facturas: %v", err)
+				http.Error(w, "Error al obtener facturas", http.StatusInternalServerError)
+				return
+			}
 
-// CreateHistorialFacturaHandler maneja la creación de registros en el historial
-func CreateHistorialFacturaHandler(db *sql.DB) http.HandlerFunc {
-    return func(w http.ResponseWriter, r *http.Request) {
-        if r.Method != http.MethodPost {
-            http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
-            return
-        }
+			// Importante: Devolver directamente el array, no un objeto que lo contenga
+			json.NewEncoder(w).Encode(facturas)
+			return
+		}
 
-        var historial HistorialFactura
-        if err := json.NewDecoder(r.Body).Decode(&historial); err != nil {
-            log.Printf("Error al decodificar la petición: %v", err)
-            http.Error(w, "Error al procesar la petición", http.StatusBadRequest)
-            return
-        }
+		// Manejar solicitudes POST (guardar nueva factura)
+		if r.Method == http.MethodPost {
+			var factura struct {
+				IDUsuario           int     `json:"id_usuario"`
+				RFCReceptor         string  `json:"rfc_receptor"`
+				RazonSocialReceptor string  `json:"razon_social_receptor"`
+				ClaveTicket         string  `json:"clave_ticket"`
+				Total               float64 `json:"total"`
+				UsoCFDI             string  `json:"uso_cfdi"`
+				Observaciones       string  `json:"observaciones"`
+			}
 
-        // Antes de ejecutar la consulta, verifica si el usuario existe:
-        var exists bool
-        err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM usuarios WHERE id = ?)", historial.IDUsuario).Scan(&exists)
-        if err != nil {
-            log.Printf("Error al verificar si el usuario existe: %v", err)
-        }
-        if !exists {
-            log.Printf("ADVERTENCIA: El usuario con ID %d no existe en la base de datos", historial.IDUsuario)
-            http.Error(w, "El usuario no existe", http.StatusBadRequest)
-            return
-        }
+			if err := json.NewDecoder(r.Body).Decode(&factura); err != nil {
+				http.Error(w, "Error al decodificar datos", http.StatusBadRequest)
+				return
+			}
 
-        // Añade logs detallados antes de la ejecución
-        log.Printf("Intentando guardar historial para usuario ID: %d", historial.IDUsuario)
+			id, err := models.InsertarHistorialFactura(
+				factura.IDUsuario,
+				factura.RFCReceptor,
+				factura.RazonSocialReceptor,
+				factura.ClaveTicket,
+				factura.Total,
+				factura.UsoCFDI,
+				factura.Observaciones,
+			)
 
-        // Consulta de inserción con todos los campos
-        query := `INSERT INTO historial_facturas (id_usuario, rfc_receptor, razon_social_receptor, clave_ticket, total, uso_cfdi, observaciones, estado) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+			if err != nil {
+				log.Printf("Error al insertar en historial: %v", err)
+				http.Error(w, "Error al guardar factura en historial", http.StatusInternalServerError)
+				return
+			}
 
-        // Ejecutar la consulta en una sola línea para evitar problemas de sintaxis
-        _, err = db.Exec(query,
-            historial.IDUsuario,
-            historial.RFCReceptor,
-            historial.RazonSocialReceptor,
-            historial.ClaveTicket,
-            historial.Total,
-            historial.UsoCFDI,
-            historial.Observaciones,
-            historial.Estado)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"id":      id,
+				"mensaje": "Factura guardada correctamente en el historial",
+			})
+			return
+		}
 
-        if err != nil {
-            log.Printf("Error al insertar en el historial: %v", err)
-            http.Error(w, "Error al guardar en el historial", http.StatusInternalServerError)
-            return
-        }
-
-        w.WriteHeader(http.StatusCreated)
-        json.NewEncoder(w).Encode(map[string]string{
-            "message": "Registro guardado correctamente en el historial",
-        })
-    }
+		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+	}
 }

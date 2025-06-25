@@ -8,11 +8,10 @@ function AdministrarUsuarios() {
   const [mensaje, setMensaje] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [confirmAction, setConfirmAction] = useState(null);
-
   // Depurar al inicio del componente
   useEffect(() => {
     console.log("Componente AdministrarUsuarios iniciado");
-    const storedUserData = localStorage.getItem('userData');
+    const storedUserData = sessionStorage.getItem('userData'); // Cambiado a sessionStorage
     console.log("Datos almacenados:", storedUserData);
     
     if (storedUserData) {
@@ -30,7 +29,7 @@ function AdministrarUsuarios() {
         setIsLoading(false);
       }
     } else {
-      console.error("No hay datos de usuario en localStorage");
+      console.error("No hay datos de usuario en sessionStorage"); // Actualizado mensaje
       setError("No has iniciado sesión o tus credenciales han expirado");
       setIsLoading(false);
     }

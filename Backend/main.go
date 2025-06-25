@@ -38,6 +38,10 @@ func main() {
 		}
 	}
 
+	// Configurar FileServer para archivos estáticos
+	fs := http.FileServer(http.Dir("./public/assets"))
+	http.Handle("/assets/", http.StripPrefix("/assets/", fs))
+
 	// Definir endpoints
 	http.Handle("/api/factura", utils.EnableCors(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
@@ -52,20 +56,35 @@ func main() {
 		handlers.BuscarFactura(db.GetDB(), w, criterio)
 	})))
 
+	http.Handle("/api/generar-factura-db", utils.EnableCors(http.HandlerFunc(handlers.GenerarFacturaDesdeDB)))
+
+	http.Handle("/api/generar-factura", utils.EnableCors(http.HandlerFunc(handlers.GenerarFacturaHandler)))
+
+	// Añadir endpoint adicional con guion bajo para compatibilidad
 	http.Handle("/api/generar_factura", utils.EnableCors(http.HandlerFunc(handlers.GenerarFacturaHandler)))
 
+	http.Handle("/api/plantillas/subir", utils.EnableCors(http.HandlerFunc(handlers.SubirPlantillaHandler)))
+	http.Handle("/api/plantillas/listar", utils.EnableCors(http.HandlerFunc(handlers.ListarPlantillasHandler)))
+	http.Handle("/api/plantillas/activar", utils.EnableCors(http.HandlerFunc(handlers.ActivarPlantillaHandler)))
+	http.Handle("/api/plantillas/eliminar", utils.EnableCors(http.HandlerFunc(handlers.EliminarPlantillaHandler)))
 	http.Handle("/api/plantillas", utils.EnableCors(http.HandlerFunc(handlers.BuscarPlantillasHandler)))
 
 	// Usar la conexión a optimus para los handlers que la necesitan
 	http.Handle("/api/ventas", utils.EnableCors(http.HandlerFunc(handlers.VentasHandler(optimusDB))))
 
+	// Endpoint para guardar ventas en la tabla ventas_det
+	http.Handle("/api/ventas/guardar", utils.EnableCors(http.HandlerFunc(handlers.GuardarVentasHandler(db.GetDB()))))
+
 	http.Handle("/api/historial_facturas", utils.EnableCors(http.HandlerFunc(handlers.HistorialFacturasHandler(db.GetDB()))))
 
 	// Endpoint para obtener regímenes fiscales
 	http.Handle("/api/regimenes-fiscales", utils.EnableCors(http.HandlerFunc(handlers.GetRegimenesFiscales)))
-
 	// Usar la conexión a optimus para el diagnóstico
 	http.Handle("/api/optimus/diagnostico", utils.EnableCors(http.HandlerFunc(handlers.DiagnosticoVentasHandler(optimusDB))))
+
+	// Endpoints para impuestos
+	http.Handle("/api/impuestos", utils.EnableCors(http.HandlerFunc(handlers.ImpuestosHandler(optimusDB))))
+	http.Handle("/api/productos-con-impuestos", utils.EnableCors(http.HandlerFunc(handlers.ProductosConImpuestosHandler(optimusDB))))
 
 	// Endpoint para registrar usuarios
 	http.Handle("/api/registrar_usuario", utils.EnableCors(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -857,6 +876,97 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(userData)
 	})))
+
+	// Añadir este nuevo endpoint para diagnóstico del historial
+
+	// Endpoint para diagnosticar problemas con el historial
+	http.Handle("/api/diagnostico-historial", utils.EnableCors(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+			return
+		}
+
+		// Verificar estructura de la tabla
+		var tablaInfo struct {
+			Columnas []string                 `json:"columnas"`
+			Filas    int                      `json:"filas"`
+			Muestra  []map[string]interface{} `json:"muestra"`
+		}
+
+		// Obtener columnas
+		columnas, err := db.GetDB().Query("SHOW COLUMNS FROM historial_facturas")
+		if err != nil {
+			log.Printf("Error al obtener estructura: %v", err)
+			http.Error(w, "Error al verificar estructura de tabla", http.StatusInternalServerError)
+			return
+		}
+		defer columnas.Close()
+
+		for columnas.Next() {
+			var field, tipo, nulo, key, default_val, extra string
+			if err := columnas.Scan(&field, &tipo, &nulo, &key, &default_val, &extra); err != nil {
+				continue
+			}
+			tablaInfo.Columnas = append(tablaInfo.Columnas, field)
+		}
+
+		// Contar filas
+		var count int
+		err = db.GetDB().QueryRow("SELECT COUNT(*) FROM historial_facturas").Scan(&count)
+		if err != nil {
+			log.Printf("Error al contar filas: %v", err)
+			tablaInfo.Filas = -1
+		} else {
+			tablaInfo.Filas = count
+		}
+
+		// Obtener muestra de hasta 5 filas
+		if count > 0 {
+			rows, err := db.GetDB().Query("SELECT * FROM historial_facturas ORDER BY fecha_emision DESC LIMIT 5")
+			if err == nil {
+				defer rows.Close()
+
+				// Obtener nombres de columnas
+				cols, err := rows.Columns()
+				if err == nil {
+					for rows.Next() {
+						// Crear slice para almacenar valores de columnas
+						values := make([]interface{}, len(cols))
+						valuePtrs := make([]interface{}, len(cols))
+						for i := range values {
+							valuePtrs[i] = &values[i]
+						}
+
+						if err := rows.Scan(valuePtrs...); err != nil {
+							continue
+						}
+
+						// Crear mapa para esta fila
+						fila := make(map[string]interface{})
+						for i, col := range cols {
+							var v interface{}
+							val := values[i]
+
+							b, ok := val.([]byte)
+							if ok {
+								v = string(b)
+							} else {
+								v = val
+							}
+							fila[col] = v
+						}
+						tablaInfo.Muestra = append(tablaInfo.Muestra, fila)
+					}
+				}
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(tablaInfo)
+	})))
+
+	// En main.go asegúrate de tener esta ruta
+	http.HandleFunc("/api/plantillas/ejemplo", handlers.PlantillaEjemploHandler)
 
 	// Iniciar el servidor
 	fmt.Println("Servidor corriendo en http://localhost:8080")

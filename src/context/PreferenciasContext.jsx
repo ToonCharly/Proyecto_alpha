@@ -9,7 +9,10 @@ export const PreferenciasProvider = ({ children }) => {
   const [companyTextColor, setCompanyTextColor] = useState('#000000');
   const [navbarBgColor, setNavbarBgColor] = useState('#ffffff');
   
-  // Cargar preferencias guardadas
+  // Estados para tamaños de fuente globales
+  const [baseFontSize, setBaseFontSize] = useState(16); // Tamaño base en px
+  const [headingFontSize, setHeadingFontSize] = useState(24); // Tamaño de títulos en px
+    // Cargar preferencias guardadas
   useEffect(() => {
     const savedCompanyName = localStorage.getItem('companyName');
     if (savedCompanyName) {
@@ -27,6 +30,25 @@ export const PreferenciasProvider = ({ children }) => {
       setNavbarBgColor(savedNavbarBgColor);
       document.documentElement.style.setProperty('--navbar-bg-color', savedNavbarBgColor);
     }
+    
+    // Cargar tamaños de fuente guardados
+    const savedBaseFontSize = localStorage.getItem('baseFontSize');
+    if (savedBaseFontSize) {
+      const size = parseInt(savedBaseFontSize);
+      setBaseFontSize(size);
+      document.documentElement.style.setProperty('--base-font-size', `${size}px`);
+    } else {
+      document.documentElement.style.setProperty('--base-font-size', '16px');
+    }
+    
+    const savedHeadingFontSize = localStorage.getItem('headingFontSize');
+    if (savedHeadingFontSize) {
+      const size = parseInt(savedHeadingFontSize);
+      setHeadingFontSize(size);
+      document.documentElement.style.setProperty('--heading-font-size', `${size}px`);
+    } else {
+      document.documentElement.style.setProperty('--heading-font-size', '24px');
+    }
   }, []);
   
   // Función para actualizar el nombre
@@ -41,15 +63,27 @@ export const PreferenciasProvider = ({ children }) => {
     localStorage.setItem('companyTextColor', newColor);
     document.documentElement.style.setProperty('--company-text-color', newColor);
   };
-  
-  // Función para actualizar el color de fondo del navbar
+    // Función para actualizar el color de fondo del navbar
   const updateNavbarBgColor = (newColor) => {
     setNavbarBgColor(newColor);
     localStorage.setItem('navbarBgColor', newColor);
     document.documentElement.style.setProperty('--navbar-bg-color', newColor);
   };
   
-  return (
+  // Función para actualizar el tamaño base de fuente
+  const updateBaseFontSize = (newSize) => {
+    setBaseFontSize(newSize);
+    localStorage.setItem('baseFontSize', newSize.toString());
+    document.documentElement.style.setProperty('--base-font-size', `${newSize}px`);
+  };
+  
+  // Función para actualizar el tamaño de fuente de títulos
+  const updateHeadingFontSize = (newSize) => {
+    setHeadingFontSize(newSize);
+    localStorage.setItem('headingFontSize', newSize.toString());
+    document.documentElement.style.setProperty('--heading-font-size', `${newSize}px`);
+  };
+    return (
     <PreferenciasContext.Provider 
       value={{ 
         companyName, 
@@ -57,7 +91,11 @@ export const PreferenciasProvider = ({ children }) => {
         companyTextColor, 
         updateCompanyTextColor,
         navbarBgColor,
-        updateNavbarBgColor
+        updateNavbarBgColor,
+        baseFontSize,
+        updateBaseFontSize,
+        headingFontSize,
+        updateHeadingFontSize
       }}
     >
       {children}

@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import '../styles/HistorialFacturas.css';
+import '../styles/Notificaciones.css'; 
 
 function HistorialFacturas() {
   const [facturas, setFacturas] = useState([]);
@@ -7,6 +8,68 @@ function HistorialFacturas() {
   const [error, setError] = useState(null);
   const [usuarioNoAutenticado, setUsuarioNoAutenticado] = useState(false);
   const [success, setSuccess] = useState('');
+  
+  // Añadir estados para las notificaciones
+  const [notificaciones, setNotificaciones] = useState([]);
+  const notificacionIdRef = useRef(1);
+  
+  // Definir la función mostrarNotificacion
+  const mostrarNotificacion = (mensaje, tipo = 'info') => {
+    const id = notificacionIdRef.current++;
+    const nuevaNotificacion = {
+      id,
+      mensaje,
+      tipo, // 'success', 'error', 'info'
+    };
+    
+    setNotificaciones(prev => [...prev, nuevaNotificacion]);
+    
+    // Auto-eliminar después de 5 segundos
+    setTimeout(() => {
+      setNotificaciones(prev => prev.filter(n => n.id !== id));
+    }, 5000);
+  };
+  
+  // Extraer cargarFacturas fuera del useEffect para que sea accesible
+  const cargarFacturas = async () => {
+    setCargando(true);
+    setError(null);
+    
+    try {      // Obtener ID del usuario desde sessionStorage (migrado para evitar conflictos entre ventanas)
+      const userData = JSON.parse(sessionStorage.getItem('userData'));
+      if (!userData || !userData.id) {
+        setUsuarioNoAutenticado(true);
+        setCargando(false);
+        return;
+      }
+      
+      console.log("Cargando facturas para usuario ID:", userData.id);
+      
+      const response = await fetch(`http://localhost:8080/api/historial_facturas?id_usuario=${userData.id}`);
+      
+      if (!response.ok) {
+        throw new Error(`Error al cargar facturas: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log("Datos de facturas recibidos:", data);
+      
+      // Verificar la estructura de los datos
+      if (Array.isArray(data)) {
+        setFacturas(data);
+      } else if (data && Array.isArray(data.facturas)) {
+        setFacturas(data.facturas);
+      } else {
+        console.warn("Formato de respuesta inesperado:", data);
+        setFacturas([]);
+      }
+    } catch (error) {
+      console.error("Error al cargar facturas:", error);
+      setError(`Error al cargar facturas: ${error.message}`);
+    } finally {
+      setCargando(false);
+    }
+  };
 
   // Función para obtener el estado formateado para mostrar
   const getEstadoDisplay = (estadoCodigo) => {
@@ -31,10 +94,9 @@ function HistorialFacturas() {
     if (!estado) return 'estado-g'; // Default for NULL values
     return `estado-${estado.toLowerCase()}`;
   };
-
-  // Obtiene ID de usuario del localStorage
+  // Obtiene ID de usuario del sessionStorage (migrado para evitar conflictos)
   const getUserId = () => {
-    const userDataString = localStorage.getItem('userData');
+    const userDataString = sessionStorage.getItem('userData');
     if (!userDataString) return null;
     
     try {
@@ -161,8 +223,35 @@ function HistorialFacturas() {
     }
   }
 
+  // Modificar el useEffect para usar la función cargarFacturas
+  useEffect(() => {
+    cargarFacturas();
+    
+    // Actualizar facturas cada 30 segundos
+    const intervalo = setInterval(cargarFacturas, 30000);
+    return () => clearInterval(intervalo);
+  }, []);
+
   return (
     <div className="empresas-container" style={{ marginTop: '60px', marginLeft: '230px' }}>
+      {/* Añadir componente de notificaciones */}
+      <div className="notificaciones-container">
+        {notificaciones.map(notif => (
+          <div 
+            key={notif.id} 
+            className={`notificacion notificacion-${notif.tipo}`}
+            onClick={() => setNotificaciones(prev => prev.filter(n => n.id !== notif.id))}
+          >
+            <div className="notificacion-contenido">
+              <span className="notificacion-icono">
+                {notif.tipo === 'success' ? '✓' : notif.tipo === 'error' ? '✕' : 'ℹ️'}
+              </span>
+              <span className="notificacion-mensaje">{notif.mensaje}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+      
       {error && <div className="error-message">{error}</div>}
       {success && <div className="success-message">{success}</div>}
 
@@ -174,7 +263,53 @@ function HistorialFacturas() {
         </div>
       ) : (
         <>
-          <h1 className="titulo">Facturas Generadas</h1>
+          {/* Header con título centrado y botón de actualizar con color */}
+          <div style={{ 
+            marginBottom: '20px',
+            position: 'relative',
+            textAlign: 'center'
+          }}>
+            <h1 className="titulo" style={{ 
+              textAlign: 'center', 
+              marginBottom: '10px',
+              position: 'relative',
+              display: 'inline-block'
+            }}>
+              Facturas Generadas
+            </h1>
+            
+            <div style={{
+              height: '2px',
+              backgroundColor: '#1890ff',
+              width: '100%',
+              marginBottom: '20px'
+            }}></div>
+            
+            <button
+              onClick={() => {
+                mostrarNotificacion('Actualizando lista de facturas...', 'info');
+                cargarFacturas();
+              }}
+              style={{
+                position: 'absolute',
+                right: '0',
+                top: '0',
+                padding: '8px 16px',
+                backgroundColor: '#1890ff',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                boxShadow: '0 2px 0 rgba(0,0,0,0.045)'
+              }}
+            >
+              <span style={{ transform: 'rotate(90deg)' }}>↻</span>
+              Actualizar
+            </button>
+          </div>
           
           {facturas.length === 0 ? (
             <div className="table-card">

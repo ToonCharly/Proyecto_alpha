@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import '../styles/Pantalla_Principal.css';
+import '../styles/Notificaciones.css'; // Si ya existe este archivo de estilos
 
 const formatCurrency = (amount) => {
   // Si no hay valor o es 0, mostrar $0.00
@@ -22,7 +23,6 @@ function InicioFacturacion() {
   const [generando, setGenerando] = useState(false);
   const [buscandoVentas, setBuscandoVentas] = useState(false);
   const [usoCfdi, setUsoCfdi] = useState('');
-  const [modalError, setModalError] = useState('');
   const [ventas, setVentas] = useState([]);
   const [usuarioNoAutenticado, setUsuarioNoAutenticado] = useState(false);
   
@@ -58,9 +58,9 @@ function InicioFacturacion() {
 
   const camposObligatoriosTicket = ['claveTicket', 'totalTicket'];
 
-  // Obtiene ID de usuario del localStorage
+  // Obtiene ID de usuario del sessionStorage (evita conflictos entre ventanas)
   const getUserId = () => {
-    const userDataString = localStorage.getItem('userData');
+    const userDataString = sessionStorage.getItem('userData');
     if (!userDataString) return null;
     
     try {
@@ -157,9 +157,9 @@ function InicioFacturacion() {
       // Actualizar datos originales
       setOriginalFormData({...formData});
       setIsEditing(false);
-      setModalError(['Datos actualizados correctamente']);
+      mostrarNotificacion('Datos actualizados correctamente', 'success');
     } catch (error) {
-      setModalError(['Error al actualizar los datos: ' + error.message]);
+      mostrarNotificacion('Error al actualizar los datos: ' + error.message, 'error');
     }
   };
 
@@ -170,33 +170,6 @@ function InicioFacturacion() {
       <p>{mensaje}</p>
     </div>
   );
-
-  const ModalError = ({ texto, onClose }) => {
-    if (!texto || texto.length === 0) return null;
-  
-    return (
-      <div className="modal-overlay">
-        <div className="modal-contenido">
-          <ul className="lista-errores">
-            {Array.isArray(texto) ? (
-              texto.map((error, index) => (
-                <li key={index}>
-                  <span className="punto-error">•</span> {error}
-                </li>
-              ))
-            ) : (
-              <li>
-                <span className="punto-error">•</span> {texto}
-              </li>
-            )}
-          </ul>
-          <button className="modal-boton" onClick={onClose}>
-            Cerrar
-          </button>
-        </div>
-      </div>
-    );
-  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -209,7 +182,7 @@ function InicioFacturacion() {
   // Buscar ventas en la base de datos optimus
   const buscarVentas = async (claveTicket) => {
     if (!claveTicket || claveTicket.length < 30 || !/^[a-zA-Z0-9]+$/.test(claveTicket)) {
-      setModalError(['La clave del ticket debe tener al menos 32 caracteres alfanuméricos.']);
+      mostrarNotificacion('La clave del ticket debe tener al menos 32 caracteres alfanuméricos.', 'error');
       return;
     }
     
@@ -225,31 +198,30 @@ function InicioFacturacion() {
     
       const data = await response.json();
       console.log("Datos de ventas recibidos:", data);
-      setVentas(data.ventas || []);
+      
+      // Mapear los datos para incluir información de impuestos más detallada
+      const ventasConImpuestos = data.ventas || [];
+      setVentas(ventasConImpuestos);
       
       // Si no hay ventas, mostrar mensaje
       if (!data.ventas || data.ventas.length === 0) {
-        setModalError(['No se encontraron ventas para la clave de ticket proporcionada']);
-      }
-
-      console.log("Datos completos:", data);
-      if (data.ventas && data.ventas.length > 0) {
-        console.log("Ejemplo de venta:", data.ventas[0]);
-        console.log("Propiedades disponibles:", Object.keys(data.ventas[0]));
-        console.log("Valor de clave_producto:", data.ventas[0].clave_producto);
-        console.log("Valor de claveProducto:", data.ventas[0].claveProducto);
-      }
-
-      // En la función buscarVentas, después de recibir la respuesta:
-      console.log("Datos de ventas completos:", data.ventas);
-      if (data.ventas && data.ventas.length > 0) {
-        console.log("Primera venta - propiedades:", Object.keys(data.ventas[0]));
-        console.log("Primera venta - sat_clave:", data.ventas[0].sat_clave);
-        console.log("Primera venta - sat_medida:", data.ventas[0].sat_medida);
+        mostrarNotificacion('No se encontraron ventas para la clave de ticket proporcionada', 'error');
+      } else {
+        // Mostrar información detallada de impuestos si está disponible
+        console.log("Datos de impuestos en las ventas:", {
+          primeraVenta: data.ventas[0],
+          propiedadesDisponibles: Object.keys(data.ventas[0]),
+          datosImpuestos: {
+            iva: data.ventas[0].iva,
+            ieps1: data.ventas[0].ieps1,
+            ieps2: data.ventas[0].ieps2,
+            ieps3: data.ventas[0].ieps3
+          }
+        });
       }
     } catch (err) {
       console.error('Error al buscar ventas:', err);
-      setModalError(['Error al buscar ventas: ' + err.message]);
+      mostrarNotificacion('Error al buscar ventas: ' + err.message, 'error');
       setVentas([]);
     } finally {
       setBuscandoVentas(false); // Ocultar pantalla de carga
@@ -298,13 +270,67 @@ const handleTicketChange = (e) => {
   const handleBuscarVenta = () => {
     const claveTicket = ticketData.claveTicket;
     if (!claveTicket) {
-      setModalError(['Por favor, ingrese una clave de ticket válida.']);
+      mostrarNotificacion('Por favor, ingrese una clave de ticket válida.', 'error');
       return;
     }
     
     buscarVentas(claveTicket);
   };
 
+  // Añadir estos nuevos estados para las notificaciones toast
+  const [notificaciones, setNotificaciones] = useState([]);
+  const notificacionIdRef = useRef(1);
+  
+  // Función para mostrar notificaciones estilo toast
+  const mostrarNotificacion = (mensaje, tipo = 'error') => {
+    const id = notificacionIdRef.current++;
+    const nuevaNotificacion = {
+      id,
+      mensaje,
+      tipo, // 'success' o 'error'
+    };
+    
+    setNotificaciones(prev => [...prev, nuevaNotificacion]);
+    
+    // Auto-eliminar después de 5 segundos
+    setTimeout(() => {
+      setNotificaciones(prev => prev.filter(n => n.id !== id));
+    }, 5000);
+  };
+  
+  // Función para resetear el formulario después de facturar
+  const resetearFormulario = () => {
+    // Mantener la lista de empresas y el usuario seleccionado
+    // pero resetear todo lo demás
+    setEmpresaSeleccionadaId('');
+    setEmpresa(null);
+    setShowDatosPrincipales(false);
+    setShowDatosAdicionales(false);
+    setIsEditing(false);
+    setVentas([]);
+    
+    setFormData({
+      razonSocial: '',
+      direccion: '',
+      codigoPostal: '',
+      pais: '',
+      estado: '',
+      localidad: '',
+      municipio: '',
+      colonia: '',
+      observaciones: '',
+      rfc: '',
+    });
+    
+    setTicketData({
+      claveTicket: '',
+      totalTicket: '',
+    });
+    
+    setUsoCfdi('');
+  };
+  
+  // Modificar la función handleFacturar
   const handleFacturar = async () => {
     const errores = [];
   
@@ -320,12 +346,12 @@ const handleTicketChange = (e) => {
     }
   
     if (errores.length > 0) {
-      setModalError(errores);
+      // Mostrar errores con el nuevo sistema de notificaciones
+      errores.forEach(error => mostrarNotificacion(error, 'error'));
       return;
     }
   
     setGenerando(true);
-    setModalError([]);
 
     try {
       const formDataToSend = new FormData();
@@ -335,7 +361,7 @@ const handleTicketChange = (e) => {
         direccion: formData.direccion,
         codigo_postal: formData.codigoPostal,
         pais: formData.pais,
-        estado: formData.estado,
+        estado: formData.estado ? parseInt(formData.estado, 10) : 0,
         localidad: formData.localidad,
         municipio: formData.municipio,
         colonia: formData.colonia,
@@ -348,7 +374,7 @@ const handleTicketChange = (e) => {
 
       formDataToSend.append('datos', JSON.stringify(facturaData));
 
-      const response = await fetch('http://localhost:8080/api/generar_factura', {
+      const response = await fetch('http://localhost:8080/api/generar-factura', {
         method: 'POST',
         body: formDataToSend,
       });
@@ -379,88 +405,172 @@ const handleTicketChange = (e) => {
       }, 100);
 
       // Guardar en el historial después de generar la factura exitosamente
-      await guardarEnHistorial(facturaData);
+      const guardadoExitoso = await guardarEnHistorial(facturaData);
       
-      // Mensaje de éxito
-      setModalError(['Factura generada correctamente y guardada en el historial']);
+      // NUEVO: Guardar las ventas en la base de datos automáticamente
+      if (ventas && ventas.length > 0) {
+        try {
+          await guardarVentasEnBD();
+          mostrarNotificacion('Factura generada y ventas guardadas en BD correctamente', 'success');
+        } catch (ventasError) {
+          console.error('Error al guardar ventas en BD:', ventasError);
+          mostrarNotificacion('Factura generada correctamente, pero error al guardar ventas en BD', 'warning');
+        }
+      } else {
+        if (guardadoExitoso) {
+          mostrarNotificacion('Factura generada correctamente y guardada en el historial', 'success');
+        } else {
+          mostrarNotificacion('Factura generada correctamente, pero hubo un problema al guardarla en el historial', 'warning');
+        }
+      }
+      
+      // NUEVO: Resetear el formulario después de facturar exitosamente
+      resetearFormulario();
       
     } catch (error) {
-      setModalError(['Error al generar la factura: ' + error.message]);
+      // Mostrar error con el nuevo sistema de notificaciones
+      mostrarNotificacion('Error al generar la factura: ' + error.message, 'error');
     } finally {
       setGenerando(false);
     }
   };
 
-  // Función para guardar la factura en el historial
-  const guardarEnHistorial = async (facturaData) => {
-    try {
-      let userId = getUserId();
+  // Reemplaza la función guardarEnHistorial
 
-      // Verificar que el usuario existe en la base de datos
-      try {
-        const userResponse = await fetch(`http://localhost:8080/api/usuarios/${userId}`);
-        if (!userResponse.ok) {
-          console.error(`El usuario con ID ${userId} no existe en la base de datos`);
-          // Usar un ID de usuario por defecto que sepas que existe
-          userId = 1; // O cualquier ID que sepas que existe
-        }
-      } catch (error) {
-        console.error("Error al verificar usuario:", error);
-      }
-      
-      // Versión mejorada con verificación
-      let descripcionProductos = "";
-if (ventas && ventas.length > 0) {
-  // Solo incluir los nombres de los productos, nada más
-  descripcionProductos = ventas.map(venta => 
-    venta.producto || 'Producto sin nombre'
-  ).join('; ');
-  console.log("DESCRIPCIÓN GENERADA: " + descripcionProductos);
-} else {
-  descripcionProductos = "No hay detalle de productos disponible";
-  console.log("NO HAY VENTAS PARA DESCRIPCIÓN");
-}
-      
-      console.log("Descripción generada:", descripcionProductos);
-      
-      const historialData = {
-        id_usuario: userId,
-        rfc_receptor: facturaData.rfc,
-        razon_social_receptor: facturaData.razon_social,
-        clave_ticket: facturaData.clave_ticket,
-        total: facturaData.total,
-        uso_cfdi: facturaData.uso_cfdi,
-        observaciones: facturaData.observaciones || '',
-        estado: 'G'
-      };
-      
-      console.log("Enviando datos al historial:", historialData);
-      console.log("JSON a enviar:", JSON.stringify(historialData, null, 2));
-      
-      const response = await fetch('http://localhost:8080/api/historial-facturas', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(historialData),
-      });
-      
-      const respuestaTexto = await response.text();
-      console.log("Respuesta del servidor:", respuestaTexto);
-      
-      if (!response.ok) {
-        console.error('Error al guardar en historial:', respuestaTexto);
-      }
-    } catch (error) {
-      console.error('Error al guardar en historial:', error);
+const guardarEnHistorial = async (facturaData) => {
+  try {
+    const userId = getUserId();
+    console.log("Guardando factura en historial para usuario:", userId);
+    
+    // Datos para el historial con exactamente los campos que espera el backend
+    const historialData = {
+      id_usuario: userId,
+      rfc_receptor: facturaData.rfc,
+      razon_social_receptor: facturaData.razon_social,
+      clave_ticket: facturaData.clave_ticket,
+      total: facturaData.total,
+      uso_cfdi: facturaData.uso_cfdi,
+      observaciones: facturaData.observaciones || ''
+      // El estado y fecha_generacion se establecerán automáticamente en el servidor
+    };
+    
+    console.log("Enviando datos al historial:", historialData);
+    
+    const response = await fetch('http://localhost:8080/api/historial_facturas', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(historialData),
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Error al guardar en historial: ${errorText}`);
     }
-  };
+    
+    const result = await response.json();
+    console.log("Factura guardada en historial:", result);
+    return true;
+  } catch (error) {
+    console.error("Error al guardar en historial:", error);
+    mostrarNotificacion(`Error al guardar en historial: ${error.message}`, 'error');
+    return false;
+  }
+};
+
+// Función para guardar ventas en la base de datos
+const guardarVentasEnBD = async (mostrarNotif = false) => {
+  if (!ventas || ventas.length === 0) {
+    if (mostrarNotif) {
+      mostrarNotificacion('No hay ventas para guardar', 'error');
+    }
+    throw new Error('No hay ventas para guardar');
+  }
+
+  // Solo mostrar loading si se llama manualmente
+  if (mostrarNotif) {
+    setGenerando(true);
+  }
+  
+  try {
+    const datosParaGuardar = {
+      serie: ticketData.claveTicket,
+      ventas: ventas.map(venta => ({
+        clave_producto: (venta.codigo_producto || '').toString(),
+        descripcion: venta.producto || '',
+        clave_sat: venta.sat_clave || '',
+        unidad_sat: venta.sat_medida || '',
+        cantidad: Math.floor(venta.cantidad) || 0, // Convertir a entero
+        precio_unitario: parseFloat(venta.precio) || 0,
+        descuento: parseFloat(venta.descuento) || 0,
+        total: parseFloat(venta.total) || 0
+      }))
+    };
+
+    console.log('Datos a enviar a BD:', datosParaGuardar);
+
+    const response = await fetch('http://localhost:8080/api/ventas/guardar', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(datosParaGuardar)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Error ${response.status}: ${errorText}`);
+    }
+
+    const resultado = await response.json();
+    console.log('Respuesta del servidor BD:', resultado);
+
+    if (mostrarNotif) {
+      mostrarNotificacion(
+        `✅ ${resultado.insertados} ventas guardadas correctamente en la base de datos`, 
+        'success'
+      );
+    }
+
+    return resultado;
+
+  } catch (error) {
+    console.error('Error al guardar ventas:', error);
+    if (mostrarNotif) {
+      mostrarNotificacion('Error al guardar ventas: ' + error.message, 'error');
+    }
+    throw error; // Re-lanzar el error para que lo maneje handleFacturar
+  } finally {
+    if (mostrarNotif) {
+      setGenerando(false);
+    }
+  }
+};
 
   return (
     <div className="empresa-container" style={{ marginTop: '60px', marginLeft: '290px' }}>
       {generando && <PantallaDeCarga mensaje="Generando factura, por favor espera..." />}
       {buscandoVentas && <PantallaDeCarga mensaje="Buscando ventas, por favor espera..." />}
-      <ModalError texto={modalError} onClose={() => setModalError('')} />
+      
+      {/* Componente de notificaciones estilo toast */}
+      <div className="notificaciones-container">
+        {notificaciones.map(notif => (
+          <div 
+            key={notif.id} 
+            className={`notificacion notificacion-${notif.tipo}`}
+            onClick={() => setNotificaciones(prev => prev.filter(n => n.id !== notif.id))}
+          >
+            <div className="notificacion-contenido">
+              <span className="notificacion-icono">
+                {notif.tipo === 'success' ? '✓' : '✕'}
+              </span>
+              <span className="notificacion-mensaje">{notif.mensaje}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+      
       <h1 className="titulo">Panel de Facturación</h1>
       
       {/* Selector de empresas */}
@@ -737,25 +847,225 @@ if (ventas && ventas.length > 0) {
       <th>Unidad SAT</th> 
       <th>Cantidad</th>
       <th>Precio</th>
+      <th>IVA (%)</th>
+      <th>IEPS (%)</th>
       <th>Descuento</th>
-      <th>Total</th>
     </tr>
   </thead>
   <tbody>
-    {ventas.map((venta, index) => (
-      <tr key={index}>
-        <td>{venta.codigo_producto || 'N/A'}</td>  
-        <td>{venta.producto}</td>                  
-        <td>{venta.sat_clave || 'No disponible'}</td>     
-        <td>{venta.sat_medida || 'No disponible'}</td>
-        <td>{venta.cantidad}</td>
-        <td>${venta.precio.toFixed(2)}</td>
-        <td>${venta.descuento.toFixed(2)}</td>
-        <td>${venta.total.toFixed(2)}</td>
-      </tr>
-    ))}
+    {ventas.map((venta, index) => {
+      // Obtener los valores de impuestos del producto
+      const ivaProducto = venta.iva || 0;
+      const ieps1Producto = venta.ieps1 || 0;
+      const ieps2Producto = venta.ieps2 || 0;
+      const ieps3Producto = venta.ieps3 || 0;
+      const totalIEPS = ieps1Producto + ieps2Producto + ieps3Producto;
+      
+      return (
+        <tr key={index}>
+          <td>{venta.codigo_producto || 'N/A'}</td>  
+          <td>{venta.producto}</td>                  
+          <td>{venta.sat_clave || 'No disponible'}</td>     
+          <td>{venta.sat_medida || 'No disponible'}</td>
+          <td>{venta.cantidad}</td>
+          <td>${venta.precio.toFixed(2)}</td>
+          <td style={{
+            backgroundColor: ivaProducto > 0 ? '#e8f5e8' : '#fff3cd',
+            fontWeight: 'bold',
+            color: ivaProducto > 0 ? '#2d5016' : '#856404'
+          }}>
+            {ivaProducto > 0 ? `${ivaProducto.toFixed(1)}%` : '0.0%'}
+          </td>
+          <td style={{
+            backgroundColor: totalIEPS > 0 ? '#e1f5fe' : '#f5f5f5',
+            fontWeight: totalIEPS > 0 ? 'bold' : 'normal',
+            color: totalIEPS > 0 ? '#01579b' : '#666'
+          }}>
+            {totalIEPS > 0 ? `${totalIEPS.toFixed(1)}%` : '0.0%'}
+          </td>
+          <td>${venta.descuento.toFixed(2)}</td>
+        </tr>
+      );
+    })}
+    {/* Fila del total */}
+    <tr style={{ backgroundColor: '#f8f9fa', fontWeight: 'bold', borderTop: '2px solid #dee2e6' }}>
+      <td colSpan="8" style={{ textAlign: 'right', padding: '12px' }}>
+        TOTAL DE TODOS LOS PRODUCTOS:
+      </td>
+      <td style={{ fontSize: '16px', color: '#28a745' }}>
+        ${ventas.reduce((total, venta) => total + venta.total, 0).toFixed(2)}
+      </td>
+    </tr>
   </tbody>
 </table>
+
+{/* Tabla de diagnóstico temporal - solo visible cuando hay datos */}
+{ventas.length > 0 && (
+  <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#f8f9fa', borderRadius: '5px' }}>
+    <h4 style={{ color: '#6c757d', marginBottom: '15px' }}>🔍 Diagnóstico de Configuración</h4>
+    <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+      <table style={{ width: '100%', fontSize: '12px', border: '1px solid #dee2e6' }}>
+        <thead>
+          <tr style={{ backgroundColor: '#e9ecef' }}>
+            <th style={{ padding: '8px', border: '1px solid #dee2e6' }}>Producto</th>
+            <th style={{ padding: '8px', border: '1px solid #dee2e6' }}>Estado Config</th>
+            <th style={{ padding: '8px', border: '1px solid #dee2e6' }}>Configs Imp</th>
+            <th style={{ padding: '8px', border: '1px solid #dee2e6' }}>Empresa Prod</th>
+            <th style={{ padding: '8px', border: '1px solid #dee2e6' }}>Empresa Imp</th>
+            <th style={{ padding: '8px', border: '1px solid #dee2e6' }}>IVA</th>
+            <th style={{ padding: '8px', border: '1px solid #dee2e6' }}>IEPS Total</th>
+            <th style={{ padding: '8px', border: '1px solid #dee2e6' }}>SAT Clave</th>
+            <th style={{ padding: '8px', border: '1px solid #dee2e6' }}>SAT Medida</th>
+          </tr>
+        </thead>
+        <tbody>
+          {ventas.map((venta, index) => {
+            const totalIEPS = (venta.ieps1 || 0) + (venta.ieps2 || 0) + (venta.ieps3 || 0);
+            const tieneProblema = venta.diagnostico_config !== 'Configuración completa';
+            const tieneMultiplesConfigs = venta.cantidad_configs > 1;
+            
+            return (
+              <tr key={index} style={{ 
+                backgroundColor: tieneProblema ? '#fff3cd' : (tieneMultiplesConfigs ? '#e1f5fe' : '#d4edda')
+              }}>
+                <td style={{ padding: '6px', border: '1px solid #dee2e6', fontSize: '11px' }}>
+                  {venta.producto.substring(0, 30)}...
+                </td>
+                <td style={{ 
+                  padding: '6px', 
+                  border: '1px solid #dee2e6',
+                  fontWeight: 'bold',
+                  color: tieneProblema ? '#856404' : (tieneMultiplesConfigs ? '#0c5460' : '#155724')
+                }}>
+                  {venta.diagnostico_config || 'N/A'}
+                </td>
+                <td style={{ 
+                  padding: '6px', 
+                  border: '1px solid #dee2e6',
+                  fontWeight: tieneMultiplesConfigs ? 'bold' : 'normal',
+                  color: tieneMultiplesConfigs ? '#d32f2f' : '#333'
+                }}>
+                  {venta.cantidad_configs || 0}
+                  {tieneMultiplesConfigs && ' ⚠️'}
+                </td>
+                <td style={{ padding: '6px', border: '1px solid #dee2e6' }}>
+                  {venta.empresa_producto || 'N/A'}
+                </td>
+                <td style={{ padding: '6px', border: '1px solid #dee2e6' }}>
+                  {venta.empresa_impuesto || 'N/A'}
+                </td>
+                <td style={{ padding: '6px', border: '1px solid #dee2e6' }}>
+                  {(venta.iva || 0).toFixed(1)}%
+                </td>
+                <td style={{ padding: '6px', border: '1px solid #dee2e6' }}>
+                  {totalIEPS.toFixed(1)}%
+                </td>
+                <td style={{ padding: '6px', border: '1px solid #dee2e6' }}>
+                  {venta.sat_clave || 'No config'}
+                </td>
+                <td style={{ padding: '6px', border: '1px solid #dee2e6' }}>
+                  {venta.sat_medida || 'No config'}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+    <div style={{ marginTop: '10px', fontSize: '11px', color: '#6c757d' }}>
+      <strong>Leyenda:</strong> 
+      <span style={{ backgroundColor: '#d4edda', padding: '2px 6px', marginLeft: '5px' }}>Verde = Configuración completa</span>
+      <span style={{ backgroundColor: '#e1f5fe', padding: '2px 6px', marginLeft: '5px' }}>Azul = Múltiples configuraciones (se usa MAX)</span>
+      <span style={{ backgroundColor: '#fff3cd', padding: '2px 6px', marginLeft: '5px' }}>Amarillo = Problemas de configuración</span>
+    </div>
+  </div>
+)}
+              
+              {/* Información sobre productos para facturar */}
+              <div className="info-guardado-automatico" style={{
+                marginTop: '15px',
+                textAlign: 'center',
+                padding: '10px',
+                backgroundColor: '#e7f3ff',
+                border: '1px solid #b3d7ff',
+                borderRadius: '8px',
+                fontSize: '0.9em',
+                color: '#0066cc'
+              }}>
+                <span style={{ fontSize: '0.8em', color: '#666' }}>
+                  {ventas.length} producto{ventas.length !== 1 ? 's' : ''} listo{ventas.length !== 1 ? 's' : ''} para facturar
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Tabla de diagnóstico temporal - solo visible cuando hay datos */}
+          {ventas.length > 0 && (
+            <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#f8f9fa', borderRadius: '5px' }}>
+              <h4 style={{ color: '#6c757d', marginBottom: '15px' }}>🔍 Diagnóstico de Configuración</h4>
+              <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                <table style={{ width: '100%', fontSize: '12px', border: '1px solid #dee2e6' }}>
+                  <thead>
+                    <tr style={{ backgroundColor: '#e9ecef' }}>
+                      <th style={{ padding: '8px', border: '1px solid #dee2e6' }}>Producto</th>
+                      <th style={{ padding: '8px', border: '1px solid #dee2e6' }}>Estado Config</th>
+                      <th style={{ padding: '8px', border: '1px solid #dee2e6' }}>Empresa Prod</th>
+                      <th style={{ padding: '8px', border: '1px solid #dee2e6' }}>Empresa Imp</th>
+                      <th style={{ padding: '8px', border: '1px solid #dee2e6' }}>IVA</th>
+                      <th style={{ padding: '8px', border: '1px solid #dee2e6' }}>IEPS Total</th>
+                      <th style={{ padding: '8px', border: '1px solid #dee2e6' }}>SAT Clave</th>
+                      <th style={{ padding: '8px', border: '1px solid #dee2e6' }}>SAT Medida</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ventas.map((venta, index) => {
+                      const totalIEPS = (venta.ieps1 || 0) + (venta.ieps2 || 0) + (venta.ieps3 || 0);
+                      const tieneProblema = venta.diagnostico_config !== 'Configuración completa';
+                      
+                      return (
+                        <tr key={index} style={{ 
+                          backgroundColor: tieneProblema ? '#fff3cd' : '#d4edda' 
+                        }}>
+                          <td style={{ padding: '6px', border: '1px solid #dee2e6', fontSize: '11px' }}>
+                            {venta.producto.substring(0, 30)}...
+                          </td>
+                          <td style={{ 
+                            padding: '6px', 
+                            border: '1px solid #dee2e6',
+                            fontWeight: 'bold',
+                            color: tieneProblema ? '#856404' : '#155724'
+                          }}>
+                            {venta.diagnostico_config || 'N/A'}
+                          </td>
+                          <td style={{ padding: '6px', border: '1px solid #dee2e6' }}>
+                            {venta.empresa_producto || 'N/A'}
+                          </td>
+                          <td style={{ padding: '6px', border: '1px solid #dee2e6' }}>
+                            {venta.empresa_impuesto || 'N/A'}
+                          </td>
+                          <td style={{ padding: '6px', border: '1px solid #dee2e6' }}>
+                            {(venta.iva || 0).toFixed(1)}%
+                          </td>
+                          <td style={{ padding: '6px', border: '1px solid #dee2e6' }}>
+                            {totalIEPS.toFixed(1)}%
+                          </td>
+                          <td style={{ padding: '6px', border: '1px solid #dee2e6' }}>
+                            {venta.sat_clave || 'No config'}
+                          </td>
+                          <td style={{ padding: '6px', border: '1px solid #dee2e6' }}>
+                            {venta.sat_medida || 'No config'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <div style={{ marginTop: '10px', fontSize: '11px', color: '#6c757d' }}>
+                <strong>Leyenda:</strong> 
+                <span style={{ backgroundColor: '#d4edda', padding: '2px 6px', marginLeft: '5px' }}>Verde = Configuración completa</span>
+                <span style={{ backgroundColor: '#fff3cd', padding: '2px 6px', marginLeft: '5px' }}>Amarillo = Problemas de configuración</span>
+              </div>
             </div>
           )}
         </div>
@@ -772,6 +1082,7 @@ if (ventas && ventas.length > 0) {
           </button>
         </div>
       )}
+
     </div>
   );
 }

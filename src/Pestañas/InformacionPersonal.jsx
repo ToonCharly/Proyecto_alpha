@@ -16,7 +16,8 @@ const InformacionPersonal = () => {
   const [fieldErrors, setFieldErrors] = useState({});
 
   useEffect(() => {
-    const storedUserData = localStorage.getItem('userData');
+    // CAMBIO: Usar sessionStorage en lugar de localStorage para evitar conflictos entre ventanas
+    const storedUserData = sessionStorage.getItem('userData');
     if (!storedUserData) {
       navigate('/login');
       return;
@@ -209,7 +210,7 @@ const InformacionPersonal = () => {
               className="btn-cancelar" 
               onClick={() => {
                 setIsEditing(false);
-                const storedData = JSON.parse(localStorage.getItem('userData'));
+                const storedData = JSON.parse(sessionStorage.getItem('userData')); // Migrado a sessionStorage
                 setFormData({
                   username: storedData.username || '',
                   email: storedData.email || '',

@@ -1,0 +1,159 @@
+/* Estilos para las subsecciones de Preferencias */
+
+.subseccion-nav-container {
+  margin-bottom: 30px;
+  padding: 20px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.subseccion-nav-title {
+  margin: 0 0 20px 0;
+  color: #2c3e50;
+  font-size: 1.3rem;
+  font-weight: 600;
+  text-align: center;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.subseccion-nav-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 15px;
+  padding: 10px 0;
+}
+
+.subseccion-card {
+  background: white;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  text-align: left;
+  position: relative;
+  overflow: hidden;
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+}
+
+.subseccion-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  border-color: #2196f3;
+}
+
+.subseccion-card.activa {
+  border-color: #2196f3;
+  border-width: 3px;
+}
+
+.subseccion-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #2196f3, #21cbf3);
+  transform: scaleX(0);
+  transition: transform 0.3s ease;
+}
+
+.subseccion-card.activa::before {
+  transform: scaleX(1);
+}
+
+.subseccion-content {
+  width: 100%;
+}
+
+.subseccion-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.subseccion-nombre {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 1.1rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.check-icon {
+  color: #4caf50;
+  font-size: 1.2rem;
+  font-weight: bold;
+  background: #e8f5e8;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.subseccion-descripcion {
+  margin: 0;
+  color: #666;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.subseccion-card.activa .subseccion-nombre {
+  color: #1976d2;
+}
+
+.subseccion-card.activa .subseccion-descripcion {
+  color: #424242;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .subseccion-nav-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .subseccion-card {
+    padding: 15px;
+    min-height: 100px;
+  }
+  
+  .subseccion-nombre {
+    font-size: 1rem;
+  }
+  
+  .subseccion-descripcion {
+    font-size: 0.85rem;
+  }
+}
+
+/* Animación de entrada */
+.subseccion-card {
+  animation: slideInUp 0.5s ease-out forwards;
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Delay escalonado para las tarjetas */
+.subseccion-card:nth-child(1) { animation-delay: 0.1s; }
+.subseccion-card:nth-child(2) { animation-delay: 0.2s; }
+.subseccion-card:nth-child(3) { animation-delay: 0.3s; }
+.subseccion-card:nth-child(4) { animation-delay: 0.4s; }
+.subseccion-card:nth-child(5) { animation-delay: 0.5s; }

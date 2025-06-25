@@ -1,4 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
+import { migrationComplete } from '../utils/migrationUtils.jsx';
 
 // Crear el contexto de autenticación
 const AuthContext = createContext();
@@ -6,20 +7,26 @@ const AuthContext = createContext();
 // Hook personalizado para usar el contexto de autenticación
 export const useAuth = () => useContext(AuthContext);
 
-export const AuthProvider = ({ children }) => {
+export const AuthProvider = ({ children }) => {  // Migración automática al inicializar
+  useEffect(() => {
+    migrationComplete();
+  }, []);
+
   const [user, setUser] = useState(() => {
     try {
-      const savedUser = localStorage.getItem('user');
+      // CAMBIO: Usar sessionStorage en lugar de localStorage para evitar conflictos entre ventanas
+      const savedUser = sessionStorage.getItem('user');
       return savedUser ? JSON.parse(savedUser) : null;
     } catch (error) {
-      console.error('Error al recuperar usuario de localStorage:', error);
-      localStorage.removeItem('user'); // Limpiar datos corruptos
+      console.error('Error al recuperar usuario de sessionStorage:', error);
+      sessionStorage.removeItem('user'); // Limpiar datos corruptos
       return null;
     }
   });
   
   const [authToken, setAuthToken] = useState(() => {
-    return localStorage.getItem('authToken') || '';
+    // CAMBIO: Usar sessionStorage en lugar de localStorage
+    return sessionStorage.getItem('authToken') || '';
   });
 
   // Función para iniciar sesión
@@ -66,21 +73,20 @@ export const AuthProvider = ({ children }) => {
       throw error;
     }
   };
-
-  // Sincronizar con localStorage
+  // Sincronizar con sessionStorage (aislado por ventana/pestaña)
   useEffect(() => {
     if (user) {
-      localStorage.setItem('user', JSON.stringify(user));
+      sessionStorage.setItem('user', JSON.stringify(user));
     } else {
-      localStorage.removeItem('user');
+      sessionStorage.removeItem('user');
     }
   }, [user]);
   
   useEffect(() => {
     if (authToken) {
-      localStorage.setItem('authToken', authToken);
+      sessionStorage.setItem('authToken', authToken);
     } else {
-      localStorage.removeItem('authToken');
+      sessionStorage.removeItem('authToken');
     }
   }, [authToken]);
 
