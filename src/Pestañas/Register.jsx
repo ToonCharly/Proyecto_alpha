@@ -359,13 +359,13 @@ const RegisterForm = () => {
               >
                 {isSubmitting ? 'Registrando...' : 'Registrarse'}
               </button>
-            </form>
-          </div>
 
-          <div className="signup-container">
-            <p className="signup-text">
-              ¿Ya tienes una cuenta? <span className="signup-link" onClick={() => navigate('/login')}>Iniciar Sesión</span>
-            </p>
+              <div className="signup-container" style={{ marginTop: '20px' }}>
+                <p className="signup-text">
+                  ¿Ya tienes una cuenta? <span className="signup-link" onClick={() => navigate('/login')}>Iniciar Sesión</span>
+                </p>
+              </div>
+            </form>
           </div>
         </div>
 
