@@ -122,7 +122,7 @@ function AdministrarUsuarios() {
   };
 
   return (
-    <div className="seccion-container">
+    <div className="admin-usuarios-container" style={{ marginTop: '60px', marginLeft: '290px' }}>
       {/* Mensaje de éxito o error */}
       {mensaje && (
         <div className={`mensaje-banner ${mensaje.tipo}`}>
@@ -160,72 +160,76 @@ function AdministrarUsuarios() {
         </div>
       )}
 
-      <div className="seccion-header">
-        <h2>Administración de Usuarios</h2>
-        <button 
-          className="btn-refresh" 
-          onClick={() => fetchUsuarios()} // Sin pasar currentUser
-          disabled={isLoading}
-        >
-          <i className="fas fa-sync-alt"></i> Actualizar
-        </button>
-      </div>
-      
-      {error && <div className="error-message">{error}</div>}
-      
-      <div className="seccion-content">
-        {isLoading && usuarios.length === 0 ? (
-          <div className="loading-spinner">
-            <div className="spinner"></div>
-            <p>Cargando usuarios...</p>
-          </div>
-        ) : (
-          <div className="tabla-usuarios-container">
-            <table className="tabla-usuarios">
-              <thead>
-                <tr>
-                  <th>Nombre</th>
-                  <th>Correo Electrónico</th>
-                  <th>Rol</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {usuarios.length === 0 ? (
+      <h1 className="titulo">Administración de Usuarios</h1>
+
+      <div className="info-card">
+        <div className="card-header">
+          <h2>Gestión de Usuarios del Sistema</h2>
+          <button 
+            className="btn-refresh" 
+            onClick={() => fetchUsuarios()} // Sin pasar currentUser
+            disabled={isLoading}
+          >
+            <i className="fas fa-sync-alt"></i> Actualizar
+          </button>
+        </div>
+        
+        {error && <div className="error-message">{error}</div>}
+        
+        <div className="card-content">
+          {isLoading && usuarios.length === 0 ? (
+            <div className="loading-spinner">
+              <div className="spinner"></div>
+              <p>Cargando usuarios...</p>
+            </div>
+          ) : (
+            <div className="tabla-usuarios-container">
+              <table className="tabla-usuarios">
+                <thead>
                   <tr>
-                    <td colSpan="4" className="no-usuarios">No hay usuarios registrados</td>
+                    <th>Nombre</th>
+                    <th>Correo Electrónico</th>
+                    <th>Rol</th>
+                    <th>Acciones</th>
                   </tr>
-                ) : (
-                  usuarios.map(usuario => (
-                    <tr key={usuario.id} className={usuario.isAdmin ? 'fila-admin' : ''}>
-                      <td>{usuario.nombre || '(Sin nombre)'}</td>
-                      <td>{usuario.email}</td>
-                      <td>
-                        <span className={`badge ${usuario.isAdmin ? 'badge-admin' : 'badge-usuario'}`}>
-                          {usuario.isAdmin ? 'Administrador' : 'Usuario'}
-                        </span>
-                      </td>
-                      <td>
-                        {currentUser?.id !== usuario.id && (
-                          <button 
-                            className={usuario.isAdmin ? "btn-quitar-admin" : "btn-hacer-admin"}
-                            onClick={() => mostrarConfirmacion(usuario, !usuario.isAdmin)}
-                            disabled={isLoading}
-                          >
-                            {usuario.isAdmin ? 'Quitar Admin' : 'Hacer Admin'}
-                          </button>
-                        )}
-                        {currentUser?.id === usuario.id && (
-                          <span className="usuario-actual">Usuario actual</span>
-                        )}
-                      </td>
+                </thead>
+                <tbody>
+                  {usuarios.length === 0 ? (
+                    <tr>
+                      <td colSpan="4" className="no-usuarios">No hay usuarios registrados</td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
+                  ) : (
+                    usuarios.map(usuario => (
+                      <tr key={usuario.id} className={usuario.isAdmin ? 'fila-admin' : ''}>
+                        <td>{usuario.nombre || '(Sin nombre)'}</td>
+                        <td>{usuario.email}</td>
+                        <td>
+                          <span className={`badge ${usuario.isAdmin ? 'badge-admin' : 'badge-usuario'}`}>
+                            {usuario.isAdmin ? 'Administrador' : 'Usuario'}
+                          </span>
+                        </td>
+                        <td>
+                          {currentUser?.id !== usuario.id && (
+                            <button 
+                              className={usuario.isAdmin ? "btn-quitar-admin" : "btn-hacer-admin"}
+                              onClick={() => mostrarConfirmacion(usuario, !usuario.isAdmin)}
+                              disabled={isLoading}
+                            >
+                              {usuario.isAdmin ? 'Quitar Admin' : 'Hacer Admin'}
+                            </button>
+                          )}
+                          {currentUser?.id === usuario.id && (
+                            <span className="usuario-actual">Usuario actual</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -63,6 +63,9 @@ func main() {
 	// Añadir endpoint adicional con guion bajo para compatibilidad
 	http.Handle("/api/generar_factura", utils.EnableCors(http.HandlerFunc(handlers.GenerarFacturaHandler)))
 
+	// Endpoint que devuelve información sobre la factura generada
+	http.Handle("/api/generar-factura-info", utils.EnableCors(http.HandlerFunc(handlers.GenerarFacturaConInfoHandler)))
+
 	http.Handle("/api/plantillas/subir", utils.EnableCors(http.HandlerFunc(handlers.SubirPlantillaHandler)))
 	http.Handle("/api/plantillas/listar", utils.EnableCors(http.HandlerFunc(handlers.ListarPlantillasHandler)))
 	http.Handle("/api/plantillas/activar", utils.EnableCors(http.HandlerFunc(handlers.ActivarPlantillaHandler)))
@@ -77,6 +80,9 @@ func main() {
 
 	http.Handle("/api/historial_facturas", utils.EnableCors(http.HandlerFunc(handlers.HistorialFacturasHandler(db.GetDB()))))
 
+	// Endpoint para búsqueda en historial de facturas
+	http.Handle("/api/buscar-facturas", utils.EnableCors(http.HandlerFunc(handlers.BuscarHistorialFacturasHandler(db.GetDB()))))
+
 	// Endpoint para obtener regímenes fiscales
 	http.Handle("/api/regimenes-fiscales", utils.EnableCors(http.HandlerFunc(handlers.GetRegimenesFiscales)))
 	// Usar la conexión a optimus para el diagnóstico
@@ -85,6 +91,13 @@ func main() {
 	// Endpoints para impuestos
 	http.Handle("/api/impuestos", utils.EnableCors(http.HandlerFunc(handlers.ImpuestosHandler(optimusDB))))
 	http.Handle("/api/productos-con-impuestos", utils.EnableCors(http.HandlerFunc(handlers.ProductosConImpuestosHandler(optimusDB))))
+
+	// Endpoints para gestión de folios basados en archivos
+	// TODO: Implementar handlers de folios basados en archivos
+	// http.Handle("/api/folios", utils.EnableCors(http.HandlerFunc(handlers.FolioFileHandler)))
+	// http.Handle("/api/folios/crear-serie", utils.EnableCors(http.HandlerFunc(handlers.CrearSerieFileHandler)))
+	// http.Handle("/api/folios/resetear", utils.EnableCors(http.HandlerFunc(handlers.ResetearSerieHandler)))
+	// http.Handle("/api/folios/stats", utils.EnableCors(http.HandlerFunc(handlers.EstadisticasFoliosHandler)))
 
 	// Endpoint para registrar usuarios
 	http.Handle("/api/registrar_usuario", utils.EnableCors(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -456,6 +469,7 @@ func main() {
 				RFCReceptor         string  `json:"rfc_receptor"`
 				RazonSocialReceptor string  `json:"razon_social_receptor"`
 				ClaveTicket         string  `json:"clave_ticket"`
+				Folio               string  `json:"folio"`
 				Total               float64 `json:"total"`
 				UsoCFDI             string  `json:"uso_cfdi"`
 				Observaciones       string  `json:"observaciones"`
@@ -482,6 +496,7 @@ func main() {
 				historialData.RFCReceptor,
 				historialData.RazonSocialReceptor,
 				historialData.ClaveTicket,
+				historialData.Folio, // Incluir el folio
 				historialData.Total,
 				historialData.UsoCFDI,
 				historialData.Observaciones,
@@ -532,6 +547,180 @@ func main() {
 
 	// Endpoint para obtener todos los usuarios (solo para admins)
 	http.Handle("/api/usuarios", utils.EnableCors(http.HandlerFunc(handlers.GetAllUsersHandler)))
+
+	// Endpoint temporal para verificar tablas disponibles
+	http.Handle("/api/verificar-tablas", utils.EnableCors(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+			return
+		}
+
+		// Conectar a la base de datos
+		database, err := db.ConnectToAlpha()
+		if err != nil {
+			log.Printf("Error al conectar a la base de datos: %v", err)
+			http.Error(w, "Error interno del servidor", http.StatusInternalServerError)
+			return
+		}
+		defer database.Close()
+
+		// Consultar las tablas disponibles
+		rows, err := database.Query("SHOW TABLES")
+		if err != nil {
+			log.Printf("Error al consultar tablas: %v", err)
+			http.Error(w, "Error interno del servidor", http.StatusInternalServerError)
+			return
+		}
+		defer rows.Close()
+
+		var tablas []string
+		for rows.Next() {
+			var tabla string
+			if err := rows.Scan(&tabla); err != nil {
+				log.Printf("Error al escanear tabla: %v", err)
+				continue
+			}
+			tablas = append(tablas, tabla)
+		}
+
+		utils.RespondWithJSON(w, http.StatusOK, map[string]interface{}{
+			"tablas": tablas,
+		})
+	})))
+
+	// Endpoint para buscar empresa por RFC en adm_empresas_rfc
+	http.Handle("/api/buscar-empresa-rfc", utils.EnableCors(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+			return
+		}
+
+		rfc := r.URL.Query().Get("rfc")
+		if rfc == "" {
+			http.Error(w, "El parámetro RFC es requerido", http.StatusBadRequest)
+			return
+		}
+
+		// Buscar en la tabla adm_empresas_rfc con JOIN a adm_metodopago y efac_regimenfiscal
+		var result struct {
+			IDEmpresa          int    `json:"idempresa"`
+			IDRFC              int    `json:"idrfc"`
+			IDMetodo           int    `json:"idmetodo"`
+			MetodoPago         string `json:"metodo_pago"`
+			IDRegimenFiscal    int    `json:"idregimenfiscal"`
+			CRegimenFiscal     string `json:"c_regimenfiscal"`
+			DescripcionRegimen string `json:"descripcion_regimen"`
+		}
+
+		// Conectar a la base de datos Alpha
+		alphaDB, err := db.ConnectToAlpha()
+		if err != nil {
+			log.Printf("Error al conectar a la base de datos Alpha: %v", err)
+			http.Error(w, "Error interno del servidor", http.StatusInternalServerError)
+			return
+		}
+		defer alphaDB.Close()
+
+		query := `SELECT er.idempresa, er.idrfc, er.idmetodo, 
+                  COALESCE(mp.metodo, 'No disponible') AS metodo_pago,
+                  er.idregimenfiscal,
+                  COALESCE(rf.c_regimenfiscal, 'No disponible') AS c_regimenfiscal,
+                  COALESCE(rf.descripcion, 'No disponible') AS descripcion_regimen
+                  FROM adm_empresas_rfc er
+                  LEFT JOIN adm_metodopago mp ON er.idmetodo = mp.idmetodo
+                  LEFT JOIN efac_regimenfiscal rf ON er.idregimenfiscal = rf.idregimenfiscal
+                  WHERE er.rfc = ?`
+		err = alphaDB.QueryRow(query, rfc).Scan(&result.IDEmpresa, &result.IDRFC, &result.IDMetodo, &result.MetodoPago, &result.IDRegimenFiscal, &result.CRegimenFiscal, &result.DescripcionRegimen)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				http.Error(w, "RFC no encontrado", http.StatusNotFound)
+				return
+			}
+			log.Printf("Error al buscar RFC: %v", err)
+			http.Error(w, "Error interno del servidor", http.StatusInternalServerError)
+			return
+		}
+
+		utils.RespondWithJSON(w, http.StatusOK, result)
+	})))
+
+	// Endpoint para obtener detalles de empresa por ID desde adm_empresa
+	http.Handle("/api/empresa-detalle", utils.EnableCors(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+			return
+		}
+
+		idEmpresaStr := r.URL.Query().Get("idempresa")
+		if idEmpresaStr == "" {
+			http.Error(w, "El parámetro idempresa es requerido", http.StatusBadRequest)
+			return
+		}
+
+		idEmpresa, err := strconv.Atoi(idEmpresaStr)
+		if err != nil {
+			http.Error(w, "El parámetro idempresa debe ser un número", http.StatusBadRequest)
+			return
+		}
+
+		// Conectar a la base de datos Alpha
+		alphaDB, err := db.ConnectToAlpha()
+		if err != nil {
+			log.Printf("Error al conectar a la base de datos Alpha: %v", err)
+			http.Error(w, "Error interno del servidor", http.StatusInternalServerError)
+			return
+		}
+		defer alphaDB.Close()
+
+		var empresa struct {
+			IDEmpresa       int    `json:"idempresa"`
+			NombreComercial string `json:"nombre_comercial"`
+			RazonSocial     string `json:"razon_social"`
+			RFC             string `json:"rfc"`
+			Direccion1      string `json:"direccion1"`
+			Colonia         string `json:"colonia"`
+			CP              string `json:"cp"`
+			Ciudad          string `json:"ciudad"`
+			Estado          string `json:"estado"`
+		}
+
+		query := `SELECT e.idempresa, 
+              COALESCE(e.nombre_comercial, 'No disponible') AS nombre_comercial,
+              COALESCE(e.razon_social, 'No disponible') AS razon_social,
+              COALESCE(e.rfc, 'No disponible') AS rfc,
+              COALESCE(e.direccion1, 'No disponible') AS direccion1,
+              COALESCE(e.colonia, 'No disponible') AS colonia,
+              COALESCE(e.cp, 'No disponible') AS cp,
+              COALESCE(e.ciudad, 'No disponible') AS ciudad,
+              COALESCE(est.estado, 'No disponible') AS estado
+              FROM adm_empresas e
+              LEFT JOIN adm_estados_mex est ON e.estado = est.idestado
+              WHERE e.idempresa = ?`
+
+		err = alphaDB.QueryRow(query, idEmpresa).Scan(
+			&empresa.IDEmpresa,
+			&empresa.NombreComercial,
+			&empresa.RazonSocial,
+			&empresa.RFC,
+			&empresa.Direccion1,
+			&empresa.Colonia,
+			&empresa.CP,
+			&empresa.Ciudad,
+			&empresa.Estado,
+		)
+
+		if err != nil {
+			if err == sql.ErrNoRows {
+				http.Error(w, "Empresa no encontrada", http.StatusNotFound)
+				return
+			}
+			log.Printf("Error al obtener detalles de empresa: %v", err)
+			http.Error(w, "Error interno del servidor", http.StatusInternalServerError)
+			return
+		}
+
+		utils.RespondWithJSON(w, http.StatusOK, empresa)
+	})))
 
 	// Endpoint para actualizar el rol de un usuario
 	http.Handle("/api/usuarios/", utils.EnableCors(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

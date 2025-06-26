@@ -2,12 +2,14 @@ package models
 
 import (
 	"encoding/xml"
+	"fmt"
+	"log"
 	"time"
 )
 
 type Factura struct {
 	ID                 string      `json:"id"`
-	EmpresaID          interface{} `json:"empresa_id"` 
+	EmpresaID          interface{} `json:"empresa_id"`
 	RFC                string      `json:"rfc"`
 	RazonSocial        string      `json:"razon_social"`
 	Direccion          string      `json:"direccion"`
@@ -50,8 +52,9 @@ type Factura struct {
 	RegimenFiscalReceptor string `json:"regimen_fiscal_receptor"`
 
 	// Campos específicos para la base de datos
-	IdFactura int    `json:"idfactura"` // Para compatibilidad con la BD
-	IdEmpresa int    `json:"idempresa"` // Para compatibilidad con la BD
+	IdFactura int    `json:"idfactura"`  // Para compatibilidad con la BD
+	IdEmpresa int    `json:"idempresa"`  // Para compatibilidad con la BD
+	IdUsuario int    `json:"id_usuario"` // ID del usuario que genera la factura
 	Estatus   int    `json:"estatus"`
 	Pagado    int    `json:"pagado"`
 	FechaPago string `json:"fecha_pago"`
@@ -67,7 +70,7 @@ type Concepto struct {
 	Importe       float64 `json:"importe"`
 }
 
-// CFDI representa la estructura del Comprobante Fiscal Digital 
+// CFDI representa la estructura del Comprobante Fiscal Digital
 type CFDI struct {
 	XMLName           xml.Name `xml:"cfdi:Comprobante"`
 	XmlnsCfdi         string   `xml:"xmlns:cfdi,attr"`
@@ -118,4 +121,32 @@ type CFDI struct {
 			Importe    string `xml:"Importe,attr"`
 		} `xml:"cfdi:Traslados>cfdi:Traslado"`
 	} `xml:"cfdi:Impuestos,omitempty"`
+}
+
+// GenerarFolioAutomatico genera automáticamente el folio para la factura SIN usar base de datos
+func (f *Factura) GenerarFolioAutomatico() error {
+	// Usar serie por defecto "F" si no se especifica
+	serie := "F"
+
+	// Usar el nuevo generador simple que NO depende de la base de datos
+	folioGen := GetFolioGenerator()
+	folioGenerado, err := folioGen.GenerarFolioSimple(serie)
+	if err != nil {
+		return fmt.Errorf("error al generar folio: %v", err)
+	}
+
+	f.NumeroFolio = folioGenerado
+	log.Printf("Folio generado automáticamente (sin BD): %s", folioGenerado)
+	return nil
+}
+
+// ValidarFolio verifica que el folio de la factura esté presente (no verifica BD)
+func (f *Factura) ValidarFolio() error {
+	if f.NumeroFolio == "" {
+		return fmt.Errorf("número de folio requerido")
+	}
+
+	// Ya no validamos en BD porque cada folio generado es único por diseño
+	log.Printf("Folio válido: %s", f.NumeroFolio)
+	return nil
 }

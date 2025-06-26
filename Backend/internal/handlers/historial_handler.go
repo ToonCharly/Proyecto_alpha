@@ -16,6 +16,7 @@ type HistorialFactura struct {
 	RFCReceptor         string  `json:"rfc_receptor"`
 	RazonSocialReceptor string  `json:"razon_social_receptor"`
 	ClaveTicket         string  `json:"clave_ticket"`
+	Folio               string  `json:"folio"`
 	Total               float64 `json:"total"`
 	UsoCFDI             string  `json:"uso_cfdi"`
 	Observaciones       string  `json:"observaciones"`
@@ -60,6 +61,7 @@ func HistorialFacturasHandler(db *sql.DB) func(http.ResponseWriter, *http.Reques
 				RFCReceptor         string  `json:"rfc_receptor"`
 				RazonSocialReceptor string  `json:"razon_social_receptor"`
 				ClaveTicket         string  `json:"clave_ticket"`
+				Folio               string  `json:"folio"`
 				Total               float64 `json:"total"`
 				UsoCFDI             string  `json:"uso_cfdi"`
 				Observaciones       string  `json:"observaciones"`
@@ -75,6 +77,7 @@ func HistorialFacturasHandler(db *sql.DB) func(http.ResponseWriter, *http.Reques
 				factura.RFCReceptor,
 				factura.RazonSocialReceptor,
 				factura.ClaveTicket,
+				factura.Folio,
 				factura.Total,
 				factura.UsoCFDI,
 				factura.Observaciones,
@@ -94,5 +97,66 @@ func HistorialFacturasHandler(db *sql.DB) func(http.ResponseWriter, *http.Reques
 		}
 
 		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+	}
+}
+
+// BuscarHistorialFacturasHandler maneja las búsquedas en el historial de facturas
+func BuscarHistorialFacturasHandler(db *sql.DB) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		if r.Method != http.MethodGet {
+			http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+			return
+		}
+
+		// Obtener parámetros de la URL
+		idUsuarioStr := r.URL.Query().Get("id_usuario")
+		if idUsuarioStr == "" {
+			log.Printf("Error: Se requiere id_usuario")
+			http.Error(w, "Se requiere id_usuario", http.StatusBadRequest)
+			return
+		}
+
+		idUsuario, err := strconv.Atoi(idUsuarioStr)
+		if err != nil {
+			log.Printf("Error: id_usuario debe ser un número: %v", err)
+			http.Error(w, "id_usuario debe ser un número", http.StatusBadRequest)
+			return
+		}
+
+		// Obtener criterios de búsqueda opcionales
+		folio := r.URL.Query().Get("folio")
+		rfcReceptor := r.URL.Query().Get("rfc_receptor")
+		razonSocial := r.URL.Query().Get("razon_social_receptor")
+
+		log.Printf("Búsqueda de facturas - Usuario: %d, Folio: '%s', RFC: '%s', Razón Social: '%s'",
+			idUsuario, folio, rfcReceptor, razonSocial)
+
+		// Si no hay criterios de búsqueda, devolver todas las facturas del usuario
+		if folio == "" && rfcReceptor == "" && razonSocial == "" {
+			log.Printf("Sin criterios de búsqueda, obteniendo todas las facturas del usuario %d", idUsuario)
+			facturas, err := models.ObtenerHistorialFacturasPorUsuario(idUsuario)
+			if err != nil {
+				log.Printf("Error al obtener facturas: %v", err)
+				http.Error(w, "Error al obtener facturas", http.StatusInternalServerError)
+				return
+			}
+			log.Printf("Se encontraron %d facturas", len(facturas))
+			json.NewEncoder(w).Encode(facturas)
+			return
+		}
+
+		// Buscar facturas con criterios específicos
+		log.Printf("Buscando facturas con criterios específicos")
+		facturas, err := models.BuscarHistorialFacturas(idUsuario, folio, rfcReceptor, razonSocial)
+		if err != nil {
+			log.Printf("Error al buscar facturas: %v", err)
+			http.Error(w, "Error al buscar facturas", http.StatusInternalServerError)
+			return
+		}
+
+		log.Printf("Búsqueda completada, se encontraron %d facturas", len(facturas))
+		json.NewEncoder(w).Encode(facturas)
 	}
 }

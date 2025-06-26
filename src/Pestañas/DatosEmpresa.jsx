@@ -15,6 +15,13 @@ function DatosEmpresa() {
     regimenFiscal: ''
   });
   
+  // Estados para el buscador de empresas
+  const [rfcBusqueda, setRfcBusqueda] = useState('');
+  const [empresaEncontrada, setEmpresaEncontrada] = useState(null);
+  const [mostrarModalEmpresa, setMostrarModalEmpresa] = useState(false);
+  const [buscandoEmpresa, setBuscandoEmpresa] = useState(false);
+  const [errorBusqueda, setErrorBusqueda] = useState('');
+  
   // Estados para manejar los archivos
   const [csdKey, setCsdKey] = useState(null);
   const [csdCer, setCsdCer] = useState(null);
@@ -323,6 +330,59 @@ function DatosEmpresa() {
     return regimenes[clave] || '';
   };
 
+  // Función para buscar empresa por RFC
+  const buscarEmpresaPorRFC = async () => {
+    if (!rfcBusqueda.trim()) {
+      setErrorBusqueda('Por favor ingresa un RFC');
+      return;
+    }
+
+    setBuscandoEmpresa(true);
+    setErrorBusqueda('');
+
+    try {
+      // Paso 1: Buscar en adm_empresas_rfc para obtener el idempresa
+      const responseRFC = await fetch(`http://localhost:8080/api/buscar-empresa-rfc?rfc=${rfcBusqueda.trim()}`);
+      
+      if (!responseRFC.ok) {
+        throw new Error('RFC no encontrado en el sistema');
+      }
+
+      const dataRFC = await responseRFC.json();
+      
+      if (!dataRFC.idempresa) {
+        throw new Error('No se encontró una empresa asociada a este RFC');
+      }
+
+      // Paso 2: Buscar en adm_empresa usando el idempresa
+      const responseEmpresa = await fetch(`http://localhost:8080/api/empresa-detalle?idempresa=${dataRFC.idempresa}`);
+      
+      if (!responseEmpresa.ok) {
+        throw new Error('No se pudieron obtener los detalles de la empresa');
+      }
+
+      const empresaData = await responseEmpresa.json();
+      
+      // Guardar la información de la empresa encontrada
+      setEmpresaEncontrada({
+        ...empresaData,
+        rfc: rfcBusqueda.trim(), // Incluir el RFC buscado
+        metodo_pago: dataRFC.metodo_pago, // Incluir el método de pago del RFC
+        c_regimenfiscal: dataRFC.c_regimenfiscal, // Incluir la clave del régimen fiscal
+        descripcion_regimen: dataRFC.descripcion_regimen // Incluir la descripción del régimen fiscal
+      });
+      
+      // Mostrar el modal con la información
+      setMostrarModalEmpresa(true);
+
+    } catch (error) {
+      console.error('Error al buscar empresa:', error);
+      setErrorBusqueda(error.message || 'Error al buscar la empresa');
+    } finally {
+      setBuscandoEmpresa(false);
+    }
+  };
+
   return (
 <div className="info-personal-container" style={{ marginTop: '0px', marginLeft: '290px' }}>      {modalErrores.length > 0 && (
         <div className="modal-errores">
@@ -352,6 +412,114 @@ function DatosEmpresa() {
       )}
 
       <h1 className="titulo">Información Fiscal</h1>
+
+      {/* Buscador de Empresas por RFC */}
+      <div className="buscador-card">
+        <div className="card-header">
+          <h2>Buscar Empresa por RFC</h2>
+        </div>
+        <div className="buscador-content">
+          <div className="buscador-grupo">
+            <label htmlFor="rfcBusqueda">RFC de la Empresa:</label>
+            <div className="buscador-input-group">
+              <input
+                type="text"
+                id="rfcBusqueda"
+                value={rfcBusqueda}
+                onChange={(e) => setRfcBusqueda(e.target.value.toUpperCase())}
+                placeholder="Ej: ABC123456DE7"
+                maxLength="13"
+                disabled={buscandoEmpresa}
+              />
+              <button
+                type="button"
+                className="btn-buscar"
+                onClick={buscarEmpresaPorRFC}
+                disabled={buscandoEmpresa || !rfcBusqueda.trim()}
+              >
+                {buscandoEmpresa ? 'Buscando...' : 'Buscar'}
+              </button>
+            </div>
+            {errorBusqueda && (
+              <div className="error-busqueda">{errorBusqueda}</div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Modal de Información de la Empresa */}
+      {mostrarModalEmpresa && empresaEncontrada && (
+        <div className="modal-overlay">
+          <div className="modal-empresa">
+            <div className="modal-header">
+              <h3>Información de la Empresa</h3>
+              <button 
+                className="btn-cerrar-modal"
+                onClick={() => setMostrarModalEmpresa(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="empresa-info-grid">
+                <div className="info-item">
+                  <label>RFC:</label>
+                  <span>{empresaEncontrada.rfc}</span>
+                </div>
+                <div className="info-item">
+                  <label>Nombre Comercial:</label>
+                  <span>{empresaEncontrada.nombre_comercial || 'No disponible'}</span>
+                </div>
+                <div className="info-item">
+                  <label>Razón Social:</label>
+                  <span>{empresaEncontrada.razon_social || 'No disponible'}</span>
+                </div>
+                <div className="info-item">
+                  <label>Dirección:</label>
+                  <span>{empresaEncontrada.direccion1 || 'No disponible'}</span>
+                </div>
+                <div className="info-item">
+                  <label>Colonia:</label>
+                  <span>{empresaEncontrada.colonia || 'No disponible'}</span>
+                </div>
+                <div className="info-item">
+                  <label>Código Postal:</label>
+                  <span>{empresaEncontrada.cp || 'No disponible'}</span>
+                </div>
+                <div className="info-item">
+                  <label>Ciudad:</label>
+                  <span>{empresaEncontrada.ciudad || 'No disponible'}</span>
+                </div>
+                <div className="info-item">
+                  <label>Estado:</label>
+                  <span>{empresaEncontrada.estado || 'No disponible'}</span>
+                </div>
+                <div className="info-item">
+                  <label>Método de Pago:</label>
+                  <span>{empresaEncontrada.metodo_pago || 'No disponible'}</span>
+                </div>
+                <div className="info-item">
+                  <label>Régimen Fiscal:</label>
+                  <span>
+                    {empresaEncontrada.c_regimenfiscal && empresaEncontrada.descripcion_regimen 
+                      ? `${empresaEncontrada.c_regimenfiscal} - ${empresaEncontrada.descripcion_regimen}`
+                      : 'No disponible'
+                    }
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button 
+                className="btn-cerrar"
+                onClick={() => setMostrarModalEmpresa(false)}
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="info-card">
         <div className="card-header">

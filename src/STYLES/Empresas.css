@@ -4,7 +4,7 @@
   background-color: transparent; /* Quita el fondo */
   min-height: 100vh;
   font-family: 'Segoe UI', sans-serif;
-  max-width: 900px; /* Reduce el ancho máximo */
+  max-width: 1000px; /* Aumentado de 900px a 1000px */
   margin: 0 auto; /* Centra el contenido */
 }
 
@@ -135,7 +135,7 @@ button:hover {
   border-radius: 10px;
   margin-top: 1.5rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  max-width: 90%; /* Hacer la tabla menos ancha */
+  max-width: 100%; /* Cambiado de 90% a 100% para usar todo el ancho disponible */
   margin-left: auto;
   margin-right: auto;
 }

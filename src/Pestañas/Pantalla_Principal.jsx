@@ -355,9 +355,12 @@ const handleTicketChange = (e) => {
 
     try {
       const formDataToSend = new FormData();
+      const userId = getUserId(); // Obtener el ID del usuario actual
       const facturaData = {
-        rfc: formData.rfc,
-        razon_social: formData.razonSocial,
+        idempresa: empresa?.id || 0, // ID de la empresa (puede ser 0 si no hay empresa)
+        id_usuario: userId, // ID del usuario que está generando la factura
+        receptor_rfc: formData.rfc,
+        receptor_razon_social: formData.razonSocial,
         direccion: formData.direccion,
         codigo_postal: formData.codigoPostal,
         pais: formData.pais,
@@ -404,8 +407,7 @@ const handleTicketChange = (e) => {
         document.body.removeChild(link);
       }, 100);
 
-      // Guardar en el historial después de generar la factura exitosamente
-      const guardadoExitoso = await guardarEnHistorial(facturaData);
+      // El backend ya guarda automáticamente en el historial al generar la factura
       
       // NUEVO: Guardar las ventas en la base de datos automáticamente
       if (ventas && ventas.length > 0) {
@@ -417,11 +419,7 @@ const handleTicketChange = (e) => {
           mostrarNotificacion('Factura generada correctamente, pero error al guardar ventas en BD', 'warning');
         }
       } else {
-        if (guardadoExitoso) {
-          mostrarNotificacion('Factura generada correctamente y guardada en el historial', 'success');
-        } else {
-          mostrarNotificacion('Factura generada correctamente, pero hubo un problema al guardarla en el historial', 'warning');
-        }
+        mostrarNotificacion('Factura generada correctamente', 'success');
       }
       
       // NUEVO: Resetear el formulario después de facturar exitosamente
@@ -436,48 +434,6 @@ const handleTicketChange = (e) => {
   };
 
   // Reemplaza la función guardarEnHistorial
-
-const guardarEnHistorial = async (facturaData) => {
-  try {
-    const userId = getUserId();
-    console.log("Guardando factura en historial para usuario:", userId);
-    
-    // Datos para el historial con exactamente los campos que espera el backend
-    const historialData = {
-      id_usuario: userId,
-      rfc_receptor: facturaData.rfc,
-      razon_social_receptor: facturaData.razon_social,
-      clave_ticket: facturaData.clave_ticket,
-      total: facturaData.total,
-      uso_cfdi: facturaData.uso_cfdi,
-      observaciones: facturaData.observaciones || ''
-      // El estado y fecha_generacion se establecerán automáticamente en el servidor
-    };
-    
-    console.log("Enviando datos al historial:", historialData);
-    
-    const response = await fetch('http://localhost:8080/api/historial_facturas', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(historialData),
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Error al guardar en historial: ${errorText}`);
-    }
-    
-    const result = await response.json();
-    console.log("Factura guardada en historial:", result);
-    return true;
-  } catch (error) {
-    console.error("Error al guardar en historial:", error);
-    mostrarNotificacion(`Error al guardar en historial: ${error.message}`, 'error');
-    return false;
-  }
-};
 
 // Función para guardar ventas en la base de datos
 const guardarVentasEnBD = async (mostrarNotif = false) => {

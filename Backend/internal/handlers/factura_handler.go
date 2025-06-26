@@ -18,17 +18,19 @@ func BuscarFactura(db *sql.DB, w http.ResponseWriter, criterio string) {
 	log.Println("Criterio recibido:", criterio)
 	query := `SELECT id as idfactura, id_usuario as idempresa, rfc_receptor as rfc, razon_social_receptor as razon_social, 
 total as subtotal, 0 as impuestos, estado as estatus, '' as pagado, fecha_generacion as fecha_pago 
-FROM historial_facturas WHERE rfc_receptor LIKE ? OR razon_social_receptor LIKE ? LIMIT 1`
+FROM historial_facturas WHERE rfc_receptor LIKE ? OR razon_social_receptor LIKE ? OR folio LIKE ? LIMIT 1`
 	likeCriterio := "%" + criterio + "%"
-	row := db.QueryRow(query, likeCriterio, likeCriterio)
+	row := db.QueryRow(query, likeCriterio, likeCriterio, likeCriterio)
 
 	var f models.Factura
 	err := row.Scan(&f.IdFactura, &f.IdEmpresa, &f.RFC, &f.RazonSocial, &f.Subtotal, &f.Impuestos, &f.Estatus, &f.Pagado, &f.FechaPago)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		if err == sql.ErrNoRows {
+			log.Printf("No se encontró factura con criterio: %s", criterio)
 			json.NewEncoder(w).Encode(map[string]string{"error": "Empresa no encontrada"})
 		} else {
+			log.Printf("Error al buscar factura con criterio '%s': %v", criterio, err)
 			json.NewEncoder(w).Encode(map[string]string{"error": "Error al consultar la base de datos"})
 		}
 		return

@@ -32,208 +32,97 @@ h1 {
 
 h1.titulo {
   margin-bottom: 30px;
+  text-align: center;
 }
 
-/* Form layout */
-.form-group,
-.info-group {
-  margin-bottom: 15px;
-}
-
-.info-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 20px;
-}
-
-.form-actions {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 20px;
-}
-
-/* Form elements */
-label {
-  display: block;
-  margin-bottom: 5px;
-  font-weight: 600;
-}
-
-.data-display,
-.read-only-field {
-  width: 100%;
-  padding: 10px;
-  border-radius: 4px;
-  font-size: 16px;
-  min-height: 41px;
-  line-height: 21px;
-}
-
-.data-display {
-  border: 1px solid transparent;
-  background-color: transparent;
-}
-
-.read-only-field {
-  border: 1px solid #eee;
-  background-color: #f9f9f9;
-  padding: 8px 10px; /* Reducir el padding vertical */
-  min-height: 16px; /* Reducir la altura mínima si corresponde */
-}
-
-input[type="text"],
-input[type="password"],
-textarea,
-select {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  font-size: 16px;
+/* ==========================================
+   BUSCADOR DE EMPRESAS
+   ========================================== */
+.buscador-card {
   background-color: #fff;
-  padding-top: 8px;
-  padding-bottom: 8px;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-bottom: 25px;
 }
 
-textarea {
-  height: 80px;
-  resize: vertical;
+.buscador-content {
+  padding: 15px 0;
 }
 
-.input-error {
-  border-color: #a94442;
+.buscador-grupo {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-.required {
-  color: #a94442;
+.buscador-grupo label {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 5px;
 }
 
-/* Buttons */
-button {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 16px;
-  transition: background-color 0.3s;
+.buscador-input-group {
+  display: flex;
+  gap: 10px;
+  align-items: center;
 }
 
-button:disabled {
-  background-color: #cccccc;
+.buscador-input-group input {
+  flex: 1;
+  padding: 10px 12px;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: border-color 0.2s;
+}
+
+.buscador-input-group input:focus {
+  outline: none;
+  border-color: #37474f;
+}
+
+.buscador-input-group input:disabled {
+  background-color: #f5f5f5;
   cursor: not-allowed;
 }
 
-/* Button colors */
-button[type="submit"] {
-  background-color: #4caf50;
-  color: white;
-}
-
-button[type="submit"]:hover {
-  background-color: #45a049;
-}
-
-button[type="button"] {
-  background-color: #f44336;
-  color: white;
-}
-
-button[type="button"]:hover {
-  background-color: #d32f2f;
-}
-
-.btn-editar {
-  background-color: #455a64; /* Dark blue-gray */
-  color: white;
-}
-
-.btn-editar:hover {
+.btn-buscar {
   background-color: #37474f;
-}
-
-.btn-cancelar {
-  background-color: #d32f2f; /* Strong red */
   color: white;
-}
-
-.btn-cancelar:hover {
-  background-color: #b71c1c;
-}
-
-.btn-guardar {
-  background-color: #2e7d32; /* Strong green */
-  color: white;
-}
-
-.btn-guardar:hover {
-  background-color: #1b5e20;
-}
-
-/* File inputs */
-.file-input-button {
-  background-color: #455a64;
-  color: white;
-  padding: 10px;
-  width: 100%;
-  text-align: center;
   border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 16px;
-  transition: background-color 0.3s;
-}
-
-.file-input-button:hover {
-  background-color: #37474f;
-}
-
-.file-selected {
-  margin-top: 5px;
+  padding: 10px 20px;
+  border-radius: 6px;
   font-size: 14px;
-  color: #666;
-}
-
-/* Messages */
-.mensaje,
-.mensaje-banner {
-  padding: 10px;
-  margin-bottom: 15px;
-  border-radius: 4px;
-}
-
-.mensaje-banner {
-  position: relative;
-  padding: 15px;
-  margin-bottom: 20px;
-}
-
-.mensaje.exito,
-.mensaje-banner.exito {
-  background-color: #dff0d8;
-  color: #3c763d;
-  border: 1px solid #d6e9c6;
-}
-
-.mensaje.error,
-.mensaje-banner.error {
-  background-color: #f2dede;
-  color: #a94442;
-  border: 1px solid #ebccd1;
-}
-
-.cerrar-mensaje {
-  position: absolute;
-  top: 5px;
-  right: 10px;
-  background: none;
-  border: none;
-  font-size: 20px;
+  font-weight: 600;
   cursor: pointer;
-  color: inherit;
+  transition: background-color 0.2s;
+  white-space: nowrap;
 }
 
-/* Modal */
-.modal-errores {
+.btn-buscar:hover:not(:disabled) {
+  background-color: #2c3e50;
+}
+
+.btn-buscar:disabled {
+  background-color: #bdc3c7;
+  cursor: not-allowed;
+}
+
+.error-busqueda {
+  color: #e74c3c;
+  font-size: 13px;
+  margin-top: 5px;
+  padding: 5px;
+  background-color: #fdf2f2;
+  border-radius: 4px;
+  border-left: 3px solid #e74c3c;
+}
+
+/* ==========================================
+   MODAL DE INFORMACIÓN DE EMPRESA
+   ========================================== */
+.modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -246,32 +135,116 @@ button[type="button"]:hover {
   z-index: 1000;
 }
 
-.modal-contenido {
-  background-color: #fff;
-  padding: 20px;
-  border-radius: 8px;
-  max-width: 500px;
-  width: 100%;
-  max-height: 80vh;
+.modal-empresa {
+  background-color: white;
+  border-radius: 12px;
+  max-width: 800px;
+  max-height: 90vh;
+  width: 90%;
   overflow-y: auto;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
 }
 
-/* Add this rule with higher specificity to override the button[type="button"] style */
-button[type="button"].file-input-button {
-  background-color: #455a64 !important;
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 25px;
+  border-bottom: 1px solid #ddd;
+  background-color: #f8f9fa;
+  border-radius: 12px 12px 0 0;
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: #333;
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+.btn-cerrar-modal {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color 0.2s;
+}
+
+.btn-cerrar-modal:hover {
+  background-color: #e9ecef;
+  color: #333;
+}
+
+.modal-body {
+  padding: 25px;
+}
+
+.empresa-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid #37474f;
+}
+
+.info-item label {
+  font-weight: 600;
+  color: #37474f;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.info-item span {
+  color: #333;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 8px 12px;
+  background-color: white;
+  border-radius: 4px;
+  border: 1px solid #e9ecef;
+}
+
+.modal-footer {
+  padding: 20px 25px;
+  border-top: 1px solid #ddd;
+  display: flex;
+  justify-content: flex-end;
+  background-color: #f8f9fa;
+  border-radius: 0 0 12px 12px;
+}
+
+.btn-cerrar {
+  background-color: #6c757d;
   color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
 }
 
-button[type="button"].file-input-button:hover {
-  background-color: #37474f !important;
+.btn-cerrar:hover {
+  background-color: #5a6268;
 }
-
-/* Optional: Add this if you need the field to be taller than other inputs */
-#direccionFiscal {
-  height: 38px; /* Match the height of your other inputs */
-}
-
-/* Mantén los estilos existentes y añade estos nuevos */
 
 /* Container principal */
 .datos-empresa-container {
@@ -395,6 +368,24 @@ button[type="button"].file-input-button:hover {
     align-items: flex-start;
     gap: 8px;
   }
+  
+  .buscador-input-group {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .btn-buscar {
+    width: 100%;
+  }
+  
+  .empresa-info-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .modal-empresa {
+    width: 95%;
+    margin: 20px;
+  }
 }
 
 /* AJUSTE PARA BAJAR EL TÍTULO DE INFORMACIÓN FISCAL */
@@ -412,6 +403,7 @@ h1.titulo,
 h2.titulo {
   margin-top: 30px !important; /* Aumentar de lo actual */
   margin-bottom: 20px !important;
+  text-align: center;
 }
 
 /* Si tiene un contenedor específico para el título de información fiscal */
