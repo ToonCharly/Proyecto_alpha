@@ -281,6 +281,10 @@ const handleTicketChange = (e) => {
   const [notificaciones, setNotificaciones] = useState([]);
   const notificacionIdRef = useRef(1);
   
+  // Nuevo estado para el modal de éxito
+  const [mostrarModalExito, setMostrarModalExito] = useState(false);
+  const [mensajeModalExito, setMensajeModalExito] = useState('');
+  
   // Función para mostrar notificaciones estilo toast
   const mostrarNotificacion = (mensaje, tipo = 'error') => {
     const id = notificacionIdRef.current++;
@@ -296,6 +300,24 @@ const handleTicketChange = (e) => {
     setTimeout(() => {
       setNotificaciones(prev => prev.filter(n => n.id !== id));
     }, 5000);
+  };
+  
+  // Función para mostrar modal de éxito (centrado)
+  const mostrarModalExitoFactura = (mensaje) => {
+    setMensajeModalExito(mensaje);
+    setMostrarModalExito(true);
+    
+    // Auto-cerrar después de 5 segundos
+    setTimeout(() => {
+      setMostrarModalExito(false);
+      setMensajeModalExito('');
+    }, 5000);
+  };
+  
+  // Función para cerrar modal de éxito
+  const cerrarModalExito = () => {
+    setMostrarModalExito(false);
+    setMensajeModalExito('');
   };
   
   // Función para resetear el formulario después de facturar
@@ -353,9 +375,30 @@ const handleTicketChange = (e) => {
   
     setGenerando(true);
 
+    // AGREGAR LOG PARA DEBUG
+    console.log('🔍 FRONTEND DEBUG - Datos antes de enviar:');
+    console.log('  ticketData.claveTicket:', ticketData.claveTicket);
+    console.log('  ticketData.totalTicket:', ticketData.totalTicket);
+    console.log('  ticketData completo:', ticketData);
+
     try {
+      // PASO 1: Primero guardar las ventas en la base de datos
+      if (ventas && ventas.length > 0) {
+        console.log('🔄 PASO 1: Guardando ventas en BD...');
+        try {
+          await guardarVentasEnBD();
+          console.log('✅ Ventas guardadas correctamente, procediendo a generar factura...');
+        } catch (ventasError) {
+          console.error('❌ Error al guardar ventas en BD:', ventasError);
+          throw new Error('Error al guardar ventas en la base de datos: ' + ventasError.message);
+        }
+      }
+
+      // PASO 2: Ahora generar la factura (las ventas ya están en BD)
+      console.log('🔄 PASO 2: Generando factura...');
       const formDataToSend = new FormData();
       const userId = getUserId(); // Obtener el ID del usuario actual
+      
       const facturaData = {
         idempresa: empresa?.id || 0, // ID de la empresa (puede ser 0 si no hay empresa)
         id_usuario: userId, // ID del usuario que está generando la factura
@@ -364,16 +407,24 @@ const handleTicketChange = (e) => {
         direccion: formData.direccion,
         codigo_postal: formData.codigoPostal,
         pais: formData.pais,
-        estado: formData.estado ? parseInt(formData.estado, 10) : 0,
+        estado: 0, // Mantener por compatibilidad
+        estado_nombre: formData.estado || '', // Enviar nombre del estado directamente
         localidad: formData.localidad,
         municipio: formData.municipio,
         colonia: formData.colonia,
         observaciones: formData.observaciones,
         uso_cfdi: usoCfdi,
         regimen_fiscal: empresa?.regimen_fiscal || '',
-        clave_ticket: ticketData.claveTicket,
+        clave_ticket: ticketData.claveTicket, // <-- CAMBIO CLAVE: usar snake_case para que coincida con el JSON tag del backend
+        serie: '', // La serie se obtendrá de los datos fiscales de la empresa en el backend
         total: parseFloat(ticketData.totalTicket || 0),
       };
+
+      // LOG PARA VERIFICAR QUE SE ENVÍA CORRECTAMENTE
+      console.log('🔍 FRONTEND DEBUG - facturaData que se enviará:');
+      console.log('  clave_ticket:', facturaData.clave_ticket);
+      console.log('  total:', facturaData.total);
+      console.log('  facturaData completo:', facturaData);
 
       formDataToSend.append('datos', JSON.stringify(facturaData));
 
@@ -407,25 +458,14 @@ const handleTicketChange = (e) => {
         document.body.removeChild(link);
       }, 100);
 
-      // El backend ya guarda automáticamente en el historial al generar la factura
-      
-      // NUEVO: Guardar las ventas en la base de datos automáticamente
-      if (ventas && ventas.length > 0) {
-        try {
-          await guardarVentasEnBD();
-          mostrarNotificacion('Factura generada y ventas guardadas en BD correctamente', 'success');
-        } catch (ventasError) {
-          console.error('Error al guardar ventas en BD:', ventasError);
-          mostrarNotificacion('Factura generada correctamente, pero error al guardar ventas en BD', 'warning');
-        }
-      } else {
-        mostrarNotificacion('Factura generada correctamente', 'success');
-      }
+      console.log('✅ Factura generada correctamente');
+      mostrarModalExitoFactura('✅ Factura generada correctamente con productos de la base de datos');
       
       // NUEVO: Resetear el formulario después de facturar exitosamente
       resetearFormulario();
       
     } catch (error) {
+      console.error('❌ Error en el proceso de facturación:', error);
       // Mostrar error con el nuevo sistema de notificaciones
       mostrarNotificacion('Error al generar la factura: ' + error.message, 'error');
     } finally {
@@ -453,7 +493,7 @@ const guardarVentasEnBD = async (mostrarNotif = false) => {
     const datosParaGuardar = {
       serie: ticketData.claveTicket,
       ventas: ventas.map(venta => ({
-        clave_producto: (venta.codigo_producto || '').toString(),
+        clave_producto: venta.codigo_producto ? venta.codigo_producto.toString() : 'N/A',
         descripcion: venta.producto || '',
         clave_sat: venta.sat_clave || '',
         unidad_sat: venta.sat_medida || '',
@@ -508,6 +548,25 @@ const guardarVentasEnBD = async (mostrarNotif = false) => {
     <div className="empresa-container" style={{ marginTop: '60px', marginLeft: '290px' }}>
       {generando && <PantallaDeCarga mensaje="Generando factura, por favor espera..." />}
       {buscandoVentas && <PantallaDeCarga mensaje="Buscando ventas, por favor espera..." />}
+      
+      {/* Modal de éxito para facturas */}
+      {mostrarModalExito && (
+        <div className="modal-overlay">
+          <div className="modal-exito-factura">
+            <div className="icono-exito">✓</div>
+            <h2>¡Factura Generada!</h2>
+            <p>{mensajeModalExito}</p>
+            <div className="modal-buttons">
+              <button 
+                className="btn btn-primary" 
+                onClick={cerrarModalExito}
+              >
+                Continuar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Componente de notificaciones estilo toast */}
       <div className="notificaciones-container">

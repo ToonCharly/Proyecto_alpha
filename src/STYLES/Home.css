@@ -303,7 +303,7 @@ body {
   border-radius: 8px;
   text-align: center;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  width: 280px;
+  width: 380px;
   animation: slideIn 0.3s ease-in-out;
 }
 

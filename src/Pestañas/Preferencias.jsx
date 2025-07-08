@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { usePreferencias } from '../context/PreferenciasContext';
 import PreferenciasNavegacion from '../components/PreferenciasNavegacion';
 import '../STYLES/Preferencias.css';
 import '../STYLES/PreferenciasSubsecciones.css';
@@ -22,22 +21,12 @@ function Preferencias() {
   // Estado para gestión de logo (compartido)
   const [logoImage, setLogoImage] = useState(null);
   const [logoPreview, setLogoPreview] = useState('');
-    // Usar el contexto para obtener los valores necesarios
-  const { 
-    companyName, 
-    updateCompanyName, 
-    companyTextColor, 
-    updateCompanyTextColor,
-    navbarBgColor,
-    updateNavbarBgColor,
-    baseFontSize,
-    updateBaseFontSize,
-    headingFontSize,
-    updateHeadingFontSize
-  } = usePreferencias();
-  
-  // Estados locales para editar
-  const [localCompanyName, setLocalCompanyName] = useState(companyName);
+  // Estados para información de la empresa
+  const [localCompanyName, setLocalCompanyName] = useState('Mi Empresa');
+  const [companyTextColor, setCompanyTextColor] = useState('#000000');
+  const [navbarBgColor, setNavbarBgColor] = useState('#ffffff');
+  const [baseFontSize, setBaseFontSize] = useState(16);
+  const [headingFontSize, setHeadingFontSize] = useState(24);
   
   // Estados para colores de botones - Panel Admin
   const [actionButtonsColor, setActionButtonsColor] = useState('#2e7d32');
@@ -59,13 +48,34 @@ function Preferencias() {
   const [selectedFontFactura, setSelectedFontFactura] = useState('roboto');
   const [selectedHeadingFontFactura, setSelectedHeadingFontFactura] = useState('roboto');
   
-  // Actualizar estado local cuando cambien los valores del contexto
-  useEffect(() => {
-    setLocalCompanyName(companyName);
-  }, [companyName]);
-
   // Cargar configuraciones guardadas
   useEffect(() => {
+    // Cargar configuraciones de la empresa
+    const savedCompanyName = localStorage.getItem('companyName');
+    if (savedCompanyName) {
+      setLocalCompanyName(savedCompanyName);
+    }
+    
+    const savedCompanyTextColor = localStorage.getItem('companyTextColor');
+    if (savedCompanyTextColor) {
+      setCompanyTextColor(savedCompanyTextColor);
+    }
+    
+    const savedNavbarBgColor = localStorage.getItem('navbarBgColor');
+    if (savedNavbarBgColor) {
+      setNavbarBgColor(savedNavbarBgColor);
+    }
+    
+    const savedBaseFontSize = localStorage.getItem('baseFontSize');
+    if (savedBaseFontSize) {
+      setBaseFontSize(parseInt(savedBaseFontSize));
+    }
+    
+    const savedHeadingFontSize = localStorage.getItem('headingFontSize');
+    if (savedHeadingFontSize) {
+      setHeadingFontSize(parseInt(savedHeadingFontSize));
+    }
+    
     // Cargar tema del panel admin
     const savedTheme = localStorage.getItem('sidebarTheme');
     if (savedTheme) {
@@ -194,17 +204,23 @@ function Preferencias() {
   const handleCompanyNameChange = (e) => {
     const newName = e.target.value;
     setLocalCompanyName(newName);
-    updateCompanyName(newName); // Actualiza inmediatamente el contexto
+    localStorage.setItem('companyName', newName);
   };
   
   // Función para manejar cambios en el color del texto
   const handleTextColorChange = (e) => {
-    updateCompanyTextColor(e.target.value); // Actualiza inmediatamente el contexto
+    const newColor = e.target.value;
+    setCompanyTextColor(newColor);
+    localStorage.setItem('companyTextColor', newColor);
+    document.documentElement.style.setProperty('--company-text-color', newColor);
   };
   
   // Añadir el manejador para el color del navbar
   const handleNavbarBgColorChange = (e) => {
-    updateNavbarBgColor(e.target.value);
+    const newColor = e.target.value;
+    setNavbarBgColor(newColor);
+    localStorage.setItem('navbarBgColor', newColor);
+    document.documentElement.style.setProperty('--navbar-bg-color', newColor);
   };
 
   // Aplicar tema a la aplicación según el panel seleccionado
@@ -252,21 +268,24 @@ function Preferencias() {
   // Función para seleccionar un archivo de imagen (logo compartido)
   const handleLogoChange = (e) => {
     const file = e.target.files[0];
-    
     if (file) {
       if (file.size > 1024 * 1024) { // 1MB límite
         showErrorMessage('La imagen es demasiado grande. Tamaño máximo: 1MB');
         return;
       }
-      
-      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml'];
+
+      // Solo permitir PNG y SVG (puedes agregar más si el backend lo soporta)
+      const allowedTypes = ['image/png', 'image/svg+xml'];
       if (!allowedTypes.includes(file.type)) {
-        showErrorMessage('Formato no soportado. Use: JPG, PNG, GIF o SVG');
+        // Mostrar ventana emergente personalizada
+        window.alert('Formato de imagen NO permitido. Solo se aceptan: PNG y SVG.');
+        // También mostrar el mensaje de error en la UI
+        showErrorMessage('Formato de imagen NO permitido. Solo se aceptan: PNG y SVG.');
         return;
       }
-      
+
       setLogoImage(file);
-      
+
       // Crear vista previa
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -607,14 +626,18 @@ function Preferencias() {
   // Función para cambiar el tamaño de fuente base
   const handleBaseFontSizeChange = (e) => {
     const newSize = parseInt(e.target.value);
-    updateBaseFontSize(newSize);
+    setBaseFontSize(newSize);
+    localStorage.setItem('baseFontSize', newSize.toString());
+    document.documentElement.style.setProperty('--base-font-size', `${newSize}px`);
     showSuccessMessage(`Tamaño de fuente base actualizado a ${newSize}px`);
   };
 
   // Función para cambiar el tamaño de fuente de títulos
   const handleHeadingFontSizeChange = (e) => {
     const newSize = parseInt(e.target.value);
-    updateHeadingFontSize(newSize);
+    setHeadingFontSize(newSize);
+    localStorage.setItem('headingFontSize', newSize.toString());
+    document.documentElement.style.setProperty('--heading-font-size', `${newSize}px`);
     showSuccessMessage(`Tamaño de fuente de títulos actualizado a ${newSize}px`);
   };
 
@@ -627,13 +650,19 @@ function Preferencias() {
   const [loading, setLoading] = useState(false);
   const [descripcionPlantilla, setDescripcionPlantilla] = useState("");
 
+  // Estados para logo de plantillas
+  const [logoPlantilla, setLogoPlantilla] = useState(null);
+  const [logoPlantillaPreview, setLogoPlantillaPreview] = useState('');
+  const [logoPlantillaId, setLogoPlantillaId] = useState(null);
+
   // Cargar plantillas del usuario
   useEffect(() => {
     const cargarPlantillas = async () => {
       try {
         setLoading(true);
         // Obtener ID de usuario del almacenamiento local o contexto
-        const idUsuario = localStorage.getItem('userId') || "1"; // Valor por defecto si no hay usuario
+        const rawUserId = localStorage.getItem('userId') || "1"; // Valor por defecto si no hay usuario
+        const idUsuario = limpiarUserId(rawUserId);
         
         const response = await fetch(`http://localhost:8080/api/plantillas/listar?id_usuario=${idUsuario}`);
         
@@ -694,7 +723,8 @@ function Preferencias() {
       setLoading(true);
       
       // Obtener ID de usuario
-      const idUsuario = localStorage.getItem('userId') || "1";
+      const rawUserId = localStorage.getItem('userId') || "1";
+      const idUsuario = limpiarUserId(rawUserId);
       
       // Crear FormData
       const formData = new FormData();
@@ -750,7 +780,8 @@ await response.json();
       setLoading(true);
       
       // Obtener ID de usuario
-      const idUsuario = localStorage.getItem('userId') || "1";
+      const rawUserId = localStorage.getItem('userId') || "1";
+      const idUsuario = limpiarUserId(rawUserId);
       
       const response = await fetch('http://localhost:8080/api/plantillas/activar', {
         method: 'POST',
@@ -798,7 +829,8 @@ await response.json();
       setLoading(true);
       
       // Obtener ID de usuario
-      const idUsuario = localStorage.getItem('userId') || "1";
+      const rawUserId = localStorage.getItem('userId') || "1";
+      const idUsuario = limpiarUserId(rawUserId);
       
       const response = await fetch('http://localhost:8080/api/plantillas/eliminar', {
         method: 'POST',
@@ -924,6 +956,197 @@ const descargarPlantillaEjemploDirecto = () => {
   }
 };
 
+  // Función para cargar el logo de plantilla desde la base de datos y forzar recarga (anti-cache)
+  const cargarLogoPlantilla = async () => {
+    try {
+      let rawUserId = localStorage.getItem('userId') || '1';
+      const idUsuario = limpiarUserId(rawUserId);
+      const idUsuarioNum = parseInt(idUsuario) || 1;
+      // Agregar timestamp para evitar cache
+      const url = `http://localhost:8080/api/logos/obtener-activo-json?id_usuario=${idUsuarioNum}&t=${Date.now()}`;
+      const response = await fetch(url);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.exists && data.imagen_base64) {
+          // Forzar recarga agregando timestamp
+          const logoDataUrl = `data:${data.tipo};base64,${data.imagen_base64}`;
+          setLogoPlantillaPreview(logoDataUrl + `?t=${Date.now()}`);
+          if (data.id) {
+            setLogoPlantillaId(data.id);
+          }
+          // Limpia localStorage si usabas alguna clave antigua
+          localStorage.removeItem('logoPlantillaPreview');
+        } else {
+          // Si no hay logo, limpiar estado y localStorage
+          setLogoPlantillaPreview('');
+          setLogoPlantillaId(null);
+          localStorage.removeItem('logoPlantillaPreview');
+        }
+      } else {
+        setLogoPlantillaPreview('');
+        setLogoPlantillaId(null);
+        localStorage.removeItem('logoPlantillaPreview');
+      }
+    } catch (error) {
+      setLogoPlantillaPreview('');
+      setLogoPlantillaId(null);
+      localStorage.removeItem('logoPlantillaPreview');
+      console.error('Error al cargar logo desde la base de datos:', error);
+    }
+  };
+
+  // Funciones para manejar el logo de plantillas
+  const handleLogoPlantillaChange = async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) { // 2MB límite
+        showErrorMessage('La imagen del logo es demasiado grande. Tamaño máximo: 2MB');
+        return;
+      }
+      // Solo permitir PNG y SVG (puedes agregar más si el backend lo soporta)
+      const allowedTypes = ['image/png', 'image/svg+xml'];
+      if (!allowedTypes.includes(file.type)) {
+        window.alert('Formato de imagen NO permitido. Solo se aceptan: PNG y SVG.');
+        showErrorMessage('Formato de imagen NO permitido. Solo se aceptan: PNG y SVG.');
+        return;
+      }
+      setLogoPlantilla(file);
+      // Crear vista previa
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        setLogoPlantillaPreview(reader.result);
+        // Guardar únicamente en la base de datos
+        try {
+          const rawUserId = localStorage.getItem('userId') || '1';
+          const idUsuario = limpiarUserId(rawUserId);
+          // Convertir archivo a base64
+          const base64 = reader.result.split(',')[1];
+          const logoData = {
+            id_usuario: parseInt(idUsuario),
+            nombre_logo: file.name,
+            tipo_mime: file.type,
+            imagen_base64: base64
+          };
+          const response = await fetch(`http://localhost:8080/api/logos/subir`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(logoData)
+          });
+          if (response.ok) {
+            const result = await response.json();
+            if (result.data && result.data.id) {
+              setLogoPlantillaId(result.data.id);
+            }
+            showSuccessMessage('Logo de plantilla guardado correctamente en la base de datos');
+            // Recargar logo desde la base de datos para forzar actualización y evitar cache
+            await cargarLogoPlantilla();
+          } else {
+            const errorData = await response.json();
+            showErrorMessage(`Error al guardar logo: ${errorData.error || 'Error desconocido'}`);
+          }
+        } catch (error) {
+          console.error('Error al guardar logo en servidor:', error);
+          showErrorMessage('Error al guardar logo en la base de datos');
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Eliminar logo de plantillas
+  const eliminarLogoPlantilla = async () => {
+    try {
+      const rawUserId = localStorage.getItem('userId') || '1';
+      const idUsuario = limpiarUserId(rawUserId);
+      if (!logoPlantillaId) {
+        showErrorMessage('No hay logo para eliminar');
+        return;
+      }
+      const response = await fetch(`http://localhost:8080/api/logos/eliminar`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          id_logo: logoPlantillaId,
+          id_usuario: parseInt(idUsuario) 
+        })
+      });
+      if (response.ok) {
+        setLogoPlantilla(null);
+        setLogoPlantillaPreview('');
+        setLogoPlantillaId(null);
+        // Limpiar el input de archivo
+        if (document.getElementById('logo-plantilla-upload')) {
+          document.getElementById('logo-plantilla-upload').value = '';
+        }
+        // Recargar logo desde la base de datos para forzar actualización y evitar cache
+        await cargarLogoPlantilla();
+        showSuccessMessage('Logo de plantilla eliminado correctamente de la base de datos');
+      } else {
+        const errorData = await response.json();
+        showErrorMessage(`Error al eliminar logo: ${errorData.error || 'Error desconocido'}`);
+      }
+    } catch (error) {
+      console.error('Error al eliminar logo:', error);
+      showErrorMessage(`Error al eliminar logo: ${error.message}`);
+    }
+  };
+
+  // Cargar logo de plantilla guardado al inicializar
+  useEffect(() => {
+    cargarLogoPlantilla();
+  }, []);
+
+  // Eliminar logo de plantillas
+  // ...existing code... (eliminarLogoPlantilla duplicada, ya está definida más abajo)
+
+  // Cargar logo de plantilla guardado al inicializar
+  useEffect(() => {
+    const cargarLogoPlantilla = async () => {
+      // Cargar únicamente desde la base de datos
+      try {
+        let rawUserId = localStorage.getItem('userId') || '1';
+        const idUsuario = limpiarUserId(rawUserId);
+        
+        // Asegurar que sea un número válido
+        const idUsuarioNum = parseInt(idUsuario) || 1;
+        
+        const response = await fetch(`http://localhost:8080/api/logos/obtener-activo-json?id_usuario=${idUsuarioNum}`);
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.exists && data.imagen_base64) {
+            const logoDataUrl = `data:${data.tipo};base64,${data.imagen_base64}`;
+            setLogoPlantillaPreview(logoDataUrl);
+            // Guardar el ID del logo para poder eliminarlo después
+            if (data.id) {
+              setLogoPlantillaId(data.id);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error al cargar logo desde la base de datos:', error);
+      }
+    };
+    
+    cargarLogoPlantilla();
+  }, []);
+
+  // Función auxiliar para limpiar el userId
+  const limpiarUserId = (userId) => {
+    if (!userId || userId === 'default') return '1';
+    
+    // Limpiar el formato "default:1" a solo "1"
+    if (userId.includes(':')) {
+      return userId.split(':')[1];
+    }
+    
+    return userId;
+  };
+  
   return (
     <div className="info-personal-container" style={{ marginTop: '60px', marginLeft: '290px' }}>
       {mensaje && (
@@ -1029,100 +1252,146 @@ const descargarPlantillaEjemploDirecto = () => {
           </div>
           
           <div className="buttons-options">
-            <div className="info-group">
-              <label htmlFor="action-buttons-color">Color de botones de acción (Guardar, Descargar):</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <input
-                  type="color"
-                  id="action-buttons-color"
-                  value={panelActivo === 'admin' ? actionButtonsColor : actionButtonsColorFactura}
-                  onChange={handleActionButtonsColorChange}
-                  className="color-picker"
-                />
-                <button style={{ 
-                  backgroundColor: panelActivo === 'admin' ? actionButtonsColor : actionButtonsColorFactura, 
-                  color: 'white',
-                  padding: '8px 16px',
-                  borderRadius: '4px',
-                  border: 'none',
-                  cursor: 'pointer'
-                }}>
-                  Vista previa
-                </button>
+            <div className="button-customization-grid">
+              {/* Botones de Acción */}
+              <div className="button-color-group">
+                <div className="button-color-header">
+                  <div className="button-color-icon action-icon">💾</div>
+                  <h3 className="button-color-title">Botones de Acción</h3>
+                </div>
+                <div className="color-preview-container">
+                  <div className="color-input-wrapper">
+                    <div className="color-picker-button">
+                      <input
+                        type="color"
+                        id="action-buttons-color"
+                        value={panelActivo === 'admin' ? actionButtonsColor : actionButtonsColorFactura}
+                        onChange={handleActionButtonsColorChange}
+                      />
+                      <div 
+                        className="color-display" 
+                        style={{ backgroundColor: panelActivo === 'admin' ? actionButtonsColor : actionButtonsColorFactura }}
+                      ></div>
+                    </div>
+                  </div>
+                  <button 
+                    className="preview-button"
+                    style={{ 
+                      backgroundColor: panelActivo === 'admin' ? actionButtonsColor : actionButtonsColorFactura
+                    }}
+                  >
+                    Guardar
+                  </button>
+                </div>
+                <p className="button-description">
+                  Color para botones de guardar, descargar y otras acciones principales
+                </p>
               </div>
-              <p className="field-help">Este color se aplicará a botones de guardar y descargar.</p>
-            </div>
-            
-            <div className="info-group" style={{ marginTop: '20px' }}>
-              <label htmlFor="delete-buttons-color">Color de botones de eliminar:</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <input
-                  type="color"
-                  id="delete-buttons-color"
-                  value={panelActivo === 'admin' ? deleteButtonsColor : deleteButtonsColorFactura}
-                  onChange={handleDeleteButtonsColorChange}
-                  className="color-picker"
-                />
-                <button style={{ 
-                  backgroundColor: panelActivo === 'admin' ? deleteButtonsColor : deleteButtonsColorFactura, 
-                  color: 'white',
-                  padding: '8px 16px',
-                  borderRadius: '4px',
-                  border: 'none',
-                  cursor: 'pointer'
-                }}>
-                  Vista previa
-                </button>
+
+              {/* Botones de Eliminar */}
+              <div className="button-color-group">
+                <div className="button-color-header">
+                  <div className="button-color-icon delete-icon">🗑️</div>
+                  <h3 className="button-color-title">Botones de Eliminar</h3>
+                </div>
+                <div className="color-preview-container">
+                  <div className="color-input-wrapper">
+                    <div className="color-picker-button">
+                      <input
+                        type="color"
+                        id="delete-buttons-color"
+                        value={panelActivo === 'admin' ? deleteButtonsColor : deleteButtonsColorFactura}
+                        onChange={handleDeleteButtonsColorChange}
+                      />
+                      <div 
+                        className="color-display" 
+                        style={{ backgroundColor: panelActivo === 'admin' ? deleteButtonsColor : deleteButtonsColorFactura }}
+                      ></div>
+                    </div>
+                  </div>
+                  <button 
+                    className="preview-button"
+                    style={{ 
+                      backgroundColor: panelActivo === 'admin' ? deleteButtonsColor : deleteButtonsColorFactura
+                    }}
+                  >
+                    Eliminar
+                  </button>
+                </div>
+                <p className="button-description">
+                  Color para botones de eliminar registros y datos
+                </p>
               </div>
-              <p className="field-help">Este color se aplicará a botones de eliminar.</p>
-            </div>
-            
-            <div className="info-group" style={{ marginTop: '20px' }}>
-              <label htmlFor="edit-buttons-color">Color de botones de editar:</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <input
-                  type="color"
-                  id="edit-buttons-color"
-                  value={panelActivo === 'admin' ? editButtonsColor : editButtonsColorFactura}
-                  onChange={handleEditButtonsColorChange}
-                  className="color-picker"
-                />
-                <button style={{ 
-                  backgroundColor: panelActivo === 'admin' ? editButtonsColor : editButtonsColorFactura, 
-                  color: 'white',
-                  padding: '8px 16px',
-                  borderRadius: '4px',
-                  border: 'none',
-                  cursor: 'pointer'
-                }}>
-                  Vista previa
-                </button>
+
+              {/* Botones de Editar */}
+              <div className="button-color-group">
+                <div className="button-color-header">
+                  <div className="button-color-icon edit-icon">✏️</div>
+                  <h3 className="button-color-title">Botones de Editar</h3>
+                </div>
+                <div className="color-preview-container">
+                  <div className="color-input-wrapper">
+                    <div className="color-picker-button">
+                      <input
+                        type="color"
+                        id="edit-buttons-color"
+                        value={panelActivo === 'admin' ? editButtonsColor : editButtonsColorFactura}
+                        onChange={handleEditButtonsColorChange}
+                      />
+                      <div 
+                        className="color-display" 
+                        style={{ backgroundColor: panelActivo === 'admin' ? editButtonsColor : editButtonsColorFactura }}
+                      ></div>
+                    </div>
+                  </div>
+                  <button 
+                    className="preview-button"
+                    style={{ 
+                      backgroundColor: panelActivo === 'admin' ? editButtonsColor : editButtonsColorFactura
+                    }}
+                  >
+                    Editar
+                  </button>
+                </div>
+                <p className="button-description">
+                  Color para botones de editar información y modificar datos
+                </p>
               </div>
-              <p className="field-help">Este color se aplicará a botones de editar información y datos.</p>
-            </div>
-            
-            <div className="info-group" style={{ marginTop: '20px' }}>
-              <label htmlFor="file-select-buttons-color">Color de botones de selección de archivo:</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <input
-                  type="color"
-                  id="file-select-buttons-color"
-                  value={panelActivo === 'admin' ? fileSelectButtonsColor : fileSelectButtonsColorFactura}
-                  onChange={handleFileSelectButtonsColorChange}
-                  className="color-picker"
-                />
-                <button style={{ 
-                  backgroundColor: panelActivo === 'admin' ? fileSelectButtonsColor : fileSelectButtonsColorFactura, 
-                  color: 'white',
-                  padding: '8px 16px',
-                  borderRadius: '4px',
-                  border: 'none',
-                  cursor: 'pointer'
-                }}>
-                  Vista previa
-                </button>
+
+              {/* Botones de Selección de Archivo */}
+              <div className="button-color-group">
+                <div className="button-color-header">
+                  <div className="button-color-icon file-icon">📁</div>
+                  <h3 className="button-color-title">Botones de Archivo</h3>
+                </div>
+                <div className="color-preview-container">
+                  <div className="color-input-wrapper">
+                    <div className="color-picker-button">
+                      <input
+                        type="color"
+                        id="file-select-buttons-color"
+                        value={panelActivo === 'admin' ? fileSelectButtonsColor : fileSelectButtonsColorFactura}
+                        onChange={handleFileSelectButtonsColorChange}
+                      />
+                      <div 
+                        className="color-display" 
+                        style={{ backgroundColor: panelActivo === 'admin' ? fileSelectButtonsColor : fileSelectButtonsColorFactura }}
+                      ></div>
+                    </div>
+                  </div>
+                  <button 
+                    className="preview-button"
+                    style={{ 
+                      backgroundColor: panelActivo === 'admin' ? fileSelectButtonsColor : fileSelectButtonsColorFactura
+                    }}
+                  >
+                    Seleccionar
+                  </button>
+                </div>
+                <p className="button-description">
+                  Color para botones de selección de archivos .key y .cer
+                </p>
               </div>
-              <p className="field-help">Este color se aplicará a botones para seleccionar archivos .key y .cer.</p>
             </div>
           </div>
         </div>
@@ -1134,173 +1403,140 @@ const descargarPlantillaEjemploDirecto = () => {
             <h2>📝 Personalización de Tipografía - {panelActivo === 'admin' ? 'Panel Administrativo' : 'Panel de Facturación'}</h2>
           </div>
           
-          <div className="typography-options">            <div className="info-group">
-              <label htmlFor="font-select">Fuente Principal:</label>
-              <select 
-                id="font-select" 
-                value={panelActivo === 'admin' ? selectedFont : selectedFontFactura} 
-                onChange={handleFontChange}
-                className="theme-select"
-              >
-                {fontOptions.map(font => (
-                  <option key={font.id} value={font.id}>{font.name}</option>
-                ))}
-              </select>
-              <div style={{ 
-                marginTop: '15px', 
-                padding: '20px', 
-                border: '1px solid #ddd', 
-                borderRadius: '8px',
-                minHeight: '120px',
-                width: '100%',
-                maxWidth: '600px',
-                backgroundColor: '#fafafa',
-                fontFamily: fontOptions.find(f => f.id === (panelActivo === 'admin' ? selectedFont : selectedFontFactura))?.family,
-                fontSize: `${baseFontSize}px`,
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center'
-              }}>
-                <p style={{ margin: '0 0 8px 0', fontWeight: '500' }}>Vista previa de la fuente seleccionada</p>
-                <p style={{ margin: '8px 0', textTransform: 'uppercase', letterSpacing: '1px' }}>HOLA A TODOS</p>
-                <p style={{ margin: '8px 0' }}>hola a todos</p>
-                <p style={{ margin: '8px 0 0 0', fontFamily: 'monospace' }}>0123456789</p>
+          <div className="typography-options">
+            {/* Selectores de Fuente */}
+            <div className="typography-control-group">
+              <div className="typography-selector">
+                <label htmlFor="font-select">Fuente Principal</label>
+                <select 
+                  id="font-select" 
+                  value={panelActivo === 'admin' ? selectedFont : selectedFontFactura} 
+                  onChange={handleFontChange}
+                  className="typography-select"
+                >
+                  {fontOptions.map(font => (
+                    <option key={font.id} value={font.id}>{font.name}</option>
+                  ))}
+                </select>
+                <div className="typography-preview">
+                  <p className="typography-preview-title">Vista previa de fuente principal</p>
+                  <div 
+                    className="typography-preview-samples"
+                    style={{ 
+                      fontFamily: fontOptions.find(f => f.id === (panelActivo === 'admin' ? selectedFont : selectedFontFactura))?.family,
+                      fontSize: `${baseFontSize}px`
+                    }}
+                  >
+                    <p style={{ fontWeight: '500' }}>Texto con énfasis</p>
+                    <p style={{ textTransform: 'uppercase', letterSpacing: '1px' }}>TEXTO EN MAYÚSCULAS</p>
+                    <p>Texto normal de párrafo</p>
+                    <p style={{ fontFamily: 'monospace' }}>0123456789</p>
+                  </div>
+                </div>
               </div>
-            </div>            <div className="info-group" style={{ marginTop: '25px' }}>
-              <label htmlFor="heading-font-select">Fuente para Títulos:</label>
-              <select 
-                id="heading-font-select" 
-                value={panelActivo === 'admin' ? selectedHeadingFont : selectedHeadingFontFactura} 
-                onChange={handleHeadingFontChange}
-                className="theme-select"
-              >
-                {headingFontOptions.map(font => (
-                  <option key={font.id} value={font.id}>{font.name}</option>
-                ))}
-              </select>
-              <div style={{ 
-                marginTop: '15px', 
-                padding: '20px', 
-                border: '1px solid #ddd', 
-                borderRadius: '8px',
-                minHeight: '120px',
-                width: '100%',
-                maxWidth: '600px',
-                backgroundColor: '#fafafa',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center'
-              }}>
-                <h3 style={{ 
-                  margin: '0 0 12px 0', 
-                  fontFamily: headingFontOptions.find(f => f.id === (panelActivo === 'admin' ? selectedHeadingFont : selectedHeadingFontFactura))?.family,
-                  fontSize: `${headingFontSize}px`,
-                  fontWeight: '600'
-                }}>
-                  Vista previa del título
-                </h3>
-                <p style={{ 
-                  margin: '0',
-                  fontFamily: fontOptions.find(f => f.id === (panelActivo === 'admin' ? selectedFont : selectedFontFactura))?.family,
-                  fontSize: `${baseFontSize}px`,
-                  color: '#666'
-                }}>
-                  Este es un texto normal con la fuente principal.
-                </p>
+
+              <div className="typography-selector">
+                <label htmlFor="heading-font-select">Fuente para Títulos</label>
+                <select 
+                  id="heading-font-select" 
+                  value={panelActivo === 'admin' ? selectedHeadingFont : selectedHeadingFontFactura} 
+                  onChange={handleHeadingFontChange}
+                  className="typography-select"
+                >
+                  {headingFontOptions.map(font => (
+                    <option key={font.id} value={font.id}>{font.name}</option>
+                  ))}
+                </select>
+                <div className="typography-preview">
+                  <p className="typography-preview-title">Vista previa de títulos</p>
+                  <div className="typography-preview-samples">
+                    <h3 style={{ 
+                      margin: '0 0 12px 0', 
+                      fontFamily: headingFontOptions.find(f => f.id === (panelActivo === 'admin' ? selectedHeadingFont : selectedHeadingFontFactura))?.family,
+                      fontSize: `${headingFontSize}px`,
+                      fontWeight: '600'
+                    }}>
+                      Título Principal
+                    </h3>
+                    <p style={{ 
+                      margin: '0',
+                      fontFamily: fontOptions.find(f => f.id === (panelActivo === 'admin' ? selectedFont : selectedFontFactura))?.family,
+                      fontSize: `${baseFontSize}px`,
+                      color: '#666'
+                    }}>
+                      Texto de contenido normal.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
-              {/* CONTROLES DE TAMAÑO DE FUENTE */}
-            <div className="info-group" style={{ marginTop: '25px' }}>
-              <label htmlFor="base-font-size">Tamaño de Fuente Base:</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginTop: '10px' }}>
-                <input
-                  type="range"
-                  id="base-font-size"
-                  min="12"
-                  max="24"
-                  value={baseFontSize}
-                  onChange={handleBaseFontSizeChange}
-                  style={{ flex: 1 }}
-                />
-                <span style={{ 
-                  minWidth: '50px', 
-                  textAlign: 'center',
-                  padding: '5px 10px',
-                  backgroundColor: '#f5f5f5',
-                  borderRadius: '4px',
-                  fontSize: '14px'
-                }}>
-                  {baseFontSize}px
-                </span>
+
+            <div className="typography-section-divider"></div>
+            {/* Controles de Tamaño de Fuente */}
+            <div className="typography-control-group">
+              <div className="typography-size-control">
+                <label htmlFor="base-font-size">Tamaño de Fuente Base</label>
+                <div className="typography-size-slider">
+                  <input
+                    type="range"
+                    id="base-font-size"
+                    min="12"
+                    max="24"
+                    value={baseFontSize}
+                    onChange={handleBaseFontSizeChange}
+                    className="typography-slider"
+                  />
+                  <span className="typography-size-value">
+                    {baseFontSize}px
+                  </span>
+                </div>
+                <div className="typography-preview">
+                  <p className="typography-preview-title">Vista previa del tamaño base</p>
+                  <div 
+                    className="typography-preview-samples"
+                    style={{ fontSize: `${baseFontSize}px` }}
+                  >
+                    <p style={{ margin: '0 0 8px 0', fontWeight: '500' }}>Texto con énfasis</p>
+                    <p style={{ margin: '0', color: '#666' }}>Este es un ejemplo de texto normal con el tamaño seleccionado.</p>
+                  </div>
+                </div>
               </div>
-              <div style={{ 
-                marginTop: '15px', 
-                padding: '20px', 
-                border: '1px solid #ddd', 
-                borderRadius: '8px',
-                minHeight: '120px',
-                width: '100%',
-                maxWidth: '600px',
-                backgroundColor: '#fafafa',
-                fontSize: `${baseFontSize}px`,
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center'
-              }}>
-                <p style={{ margin: '0 0 8px 0', fontWeight: '500' }}>Vista previa del tamaño de fuente base</p>
-                <p style={{ margin: '0', color: '#666' }}>Este es un ejemplo de texto normal con el tamaño seleccionado.</p>
-              </div>
-            </div>
-            
-            <div className="info-group" style={{ marginTop: '25px' }}>
-              <label htmlFor="heading-font-size">Tamaño de Fuente para Títulos:</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginTop: '10px' }}>
-                <input
-                  type="range"
-                  id="heading-font-size"
-                  min="18"
-                  max="36"
-                  value={headingFontSize}
-                  onChange={handleHeadingFontSizeChange}
-                  style={{ flex: 1 }}
-                />
-                <span style={{ 
-                  minWidth: '50px', 
-                  textAlign: 'center',
-                  padding: '5px 10px',
-                  backgroundColor: '#f5f5f5',
-                  borderRadius: '4px',
-                  fontSize: '14px'
-                }}>                  {headingFontSize}px
-                </span>
-              </div>
-              <div style={{ 
-                marginTop: '15px', 
-                padding: '20px', 
-                border: '1px solid #ddd', 
-                borderRadius: '8px',
-                minHeight: '120px',
-                width: '100%',
-                maxWidth: '600px',
-                backgroundColor: '#fafafa',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center'
-              }}>
-                <h3 style={{ 
-                  margin: '0 0 12px 0',
-                  fontSize: `${headingFontSize}px`,
-                  fontWeight: '600'
-                }}>
-                  Vista previa del título
-                </h3>
-                <p style={{ 
-                  margin: '0',
-                  fontSize: `${baseFontSize}px`,
-                  color: '#666'
-                }}>
-                  Texto normal para comparación de tamaños.
-                </p>
+              
+              <div className="typography-size-control">
+                <label htmlFor="heading-font-size">Tamaño de Fuente para Títulos</label>
+                <div className="typography-size-slider">
+                  <input
+                    type="range"
+                    id="heading-font-size"
+                    min="18"
+                    max="36"
+                    value={headingFontSize}
+                    onChange={handleHeadingFontSizeChange}
+                    className="typography-slider"
+                  />
+                  <span className="typography-size-value">
+                    {headingFontSize}px
+                  </span>
+                </div>
+                <div className="typography-preview">
+                  <p className="typography-preview-title">Vista previa del título</p>
+                  <div className="typography-preview-samples">
+                    <h3 style={{ 
+                      margin: '0 0 12px 0',
+                      fontSize: `${headingFontSize}px`,
+                      fontWeight: '600'
+                    }}>
+                      Título de Ejemplo
+                    </h3>
+                    <p style={{ 
+                      margin: '0',
+                      fontSize: `${baseFontSize}px`,
+                      color: '#666'
+                    }}>
+                      Texto normal para comparación.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -1462,238 +1698,114 @@ const descargarPlantillaEjemploDirecto = () => {
       
       {/* SECCIÓN DE PLANTILLAS */}
       {subseccionActiva === 'plantillas' && (
-      <div className="info-card" style={{ marginTop: '30px' }}>
+      <div className="info-card plantilla-modern" style={{ marginTop: '30px' }}>
         <div className="card-header">
-          <h2>📄 Plantillas de Factura</h2>
+          <h2 style={{display:'flex',alignItems:'center',gap:'10px'}}>
+            <span style={{fontSize:'2.2rem',color:'#2b579a'}}>📄</span> Plantillas de Factura
+          </h2>
         </div>
-        
         <div className="plantilla-options">
-          {/* Plantilla activa */}
-          {plantillaActiva && (
-            <div className="plantilla-activa" style={{ 
-              padding: '15px', 
-              backgroundColor: '#f0f7ff', 
-              borderRadius: '8px',
-              marginBottom: '20px',
-              border: '1px solid #90caf9'
-            }}>
-              <h3 style={{ margin: '0 0 10px 0', color: '#1976d2' }}>Plantilla Activa:</h3>
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <span className="icono-archivo" style={{ 
-                  marginRight: '15px',
-                  fontSize: '28px',
-                  color: '#1976d2'
-                }}>
-                  📄
-                </span>
-                <div>
-                  <p style={{ margin: '0 0 5px 0', fontWeight: 'bold' }}>{plantillaActiva.nombre}</p>
-                  {plantillaActiva.descripcion && (
-                    <p style={{ margin: '0', fontSize: '0.9em', color: '#666' }}>{plantillaActiva.descripcion}</p>
-                  )}
-                  <p style={{ margin: '5px 0 0 0', fontSize: '0.8em', color: '#666' }}>
-                    Fecha: {plantillaActiva.fecha_creacion}
-                  </p>
+          {/* Info de ayuda y ejemplo */}
+          <div className="plantilla-ayuda-modern" style={{
+            background:'#f0f8ff',
+            border:'1.5px solid #c2e0ff',
+            borderRadius:'10px',
+            padding:'22px 24px',
+            marginBottom:'28px',
+            display:'flex',
+            alignItems:'flex-start',
+            gap:'18px',
+            boxShadow:'0 2px 8px rgba(33,150,243,0.06)'}}>
+            <div style={{fontSize:'2.1rem',marginRight:'8px',color:'#1976d2',flexShrink:0}}></div>
+            <div style={{flex:1}}>
+              <div style={{fontWeight:'bold',fontSize:'1.13rem',marginBottom:'6px'}}>¿No sabes cómo estructurar tu plantilla?</div>
+              <div style={{fontSize:'1rem',color:'#444',marginBottom:'10px'}}>Descarga nuestra plantilla de ejemplo que muestra la estructura correcta y todas las variables disponibles para crear tus propias facturas personalizadas.</div>
+              <div style={{display:'flex',alignItems:'center',gap:'14px'}}>
+                <div style={{
+                  width:'44px',height:'44px',background:'#2b579a',borderRadius:'6px',display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontWeight:'bold',fontSize:'1.7rem',boxShadow:'0 2px 8px #90caf9',flexShrink:0
+                }}>W</div>
+                <div style={{flex:1}}>
+                  <div style={{fontWeight:'bold',fontSize:'1.05rem',marginBottom:'2px'}}>plantilla_ejemplo_factura.docx</div>
+                  <div style={{fontSize:'0.93em',color:'#666'}}>Documento Word con variables de ejemplo</div>
                 </div>
-              </div>
-            </div>
-          )}
-          
-          {/* Información sobre plantilla activa */}
-          {plantillaActiva ? (
-            <div className="plantilla-activa-info" style={{
-              backgroundColor: '#e6f7ff',
-              border: '1px solid #91d5ff',
-              borderRadius: '4px',
-              padding: '10px',
-              marginBottom: '20px'
-            }}>
-              <p style={{ margin: 0 }}>
-                <strong>Plantilla Activa:</strong> {plantillaActiva.nombre}
-              </p>
-              <p style={{ margin: '5px 0 0 0', fontSize: '0.9em' }}>
-                Esta plantilla se utilizará automáticamente para generar todas las facturas.
-              </p>
-            </div>
-          ) : (
-            <div className="plantilla-activa-info" style={{
-              backgroundColor: '#fff2e8',
-              border: '1px solid #ffbb96',
-              borderRadius: '4px',
-              padding: '10px',
-              marginBottom: '20px'
-            }}>
-              <p style={{ margin: 0 }}>
-                <strong>No hay plantilla activa.</strong> Se usará la plantilla por defecto para generar facturas.
-              </p>
-              <p style={{ margin: '5px 0 0 0', fontSize: '0.9em' }}>
-                Activa una plantilla para utilizarla en todas las facturas.
-              </p>
-            </div>
-          )}
-          
-          {/* Lista de plantillas */}
-          {plantillas.length > 0 && (
-            <div className="plantillas-lista" style={{ marginBottom: '25px' }}>
-              <h3>Todas las Plantillas:</h3>
-              <div style={{ 
-                maxHeight: '250px',
-                overflowY: 'auto',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                padding: '10px'
-              }}>
-                {plantillas.map(plantilla => (
-                  <div key={plantilla.id} style={{ 
-                    padding: '10px',
-                    borderBottom: '1px solid #eee',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    backgroundColor: plantilla.activa ? '#f5f5f5' : 'transparent'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
-                      <span style={{ marginRight: '10px', fontSize: '20px' }}>📄</span>
-                      <div>
-                        <p style={{ margin: '0 0 3px 0', fontWeight: plantilla.activa ? 'bold' : 'normal' }}>
-                          {plantilla.nombre}
-                          {plantilla.activa && <span style={{ color: '#2e7d32', marginLeft: '8px' }}>• Activa</span>}
-                        </p>
-                        {plantilla.descripcion && (
-                          <p style={{ margin: '0', fontSize: '0.85em', color: '#666' }}>
-                            {plantilla.descripcion}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    <div>
-                      {!plantilla.activa && (
-                        <button 
-                          onClick={() => activarPlantilla(plantilla.id)}
-                          style={{ 
-                            marginRight: '8px',
-                            backgroundColor: actionButtonsColorFactura,
-                            color: 'white',
-                            border: 'none',
-                            padding: '5px 10px',
-                            borderRadius: '4px',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          Activar
-                        </button>
-                      )}
-                      <button 
-                        onClick={() => eliminarPlantilla(plantilla.id)}
-                        style={{ 
-                          backgroundColor: deleteButtonsColorFactura,
-                          color: 'white',
-                          border: 'none',
-                          padding: '5px 10px',
-                          borderRadius: '4px',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        Eliminar
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          
-          {/* Subir nueva plantilla */}
-          <div className="plantilla-upload">
-            <h3>Subir Nueva Plantilla</h3>
-            
-            {/* Plantilla de ejemplo */}
-            <div className="template-example" style={{ 
-              marginBottom: '25px', 
-              padding: '15px', 
-              backgroundColor: '#f0f8ff', 
-              borderRadius: '8px',
-              border: '1px solid #c2e0ff'
-            }}>
-              <h4 style={{ margin: '0 0 10px 0', color: '#0066cc' }}>
-                <span style={{ marginRight: '8px' }}>ℹ️</span>
-                ¿No sabes cómo estructurar tu plantilla?
-              </h4>
-              
-              <p style={{ margin: '0 0 12px 0', fontSize: '0.9em', color: '#444' }}>
-                Descarga nuestra plantilla de ejemplo que muestra la estructura correcta y todas las variables disponibles para crear tus propias facturas personalizadas.
-              </p>
-              
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                {/* Actualizar icono y descripción */}
-                <div style={{ 
-                  width: '40px', 
-                  height: '40px', 
-                  backgroundColor: '#2b579a', // Color azul de Word
-                  borderRadius: '4px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginRight: '12px',
-                  color: 'white',
-                  fontWeight: 'bold',
-                  fontSize: '16px'
-                }}>
-                  W
-                </div>
-                <div>
-                  <p style={{ margin: '0 0 4px 0', fontWeight: 'bold' }}>
-                    plantilla_ejemplo_factura.docx
-                  </p>
-                  <p style={{ margin: '0', fontSize: '0.8em', color: '#666' }}>
-                    Documento Word con variables de ejemplo
-                  </p>
-                </div>                <button 
+                <button 
                   onClick={() => {
-                    // Primer intento con fetch
                     descargarPlantillaEjemplo();
-                    
-                    // Si falla, intentar método directo después de 2 segundos
                     setTimeout(() => {
                       if (!document.querySelector('a[download="plantilla_ejemplo_factura.docx"]')) {
-                        console.log('Intentando método de descarga alternativo...');
                         descargarPlantillaEjemploDirecto();
                       }
                     }, 2000);
                   }}
-                  style={{ 
-                    marginLeft: 'auto',
+                  style={{
                     backgroundColor: actionButtonsColorFactura || '#0078d4',
                     color: 'white',
                     border: 'none',
-                    padding: '8px 16px',
-                    borderRadius: '4px',
+                    padding: '10px 18px',
+                    borderRadius: '6px',
                     cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
+                    fontWeight:'bold',
+                    fontSize:'1.08rem',
+                    display:'flex',alignItems:'center',gap:'7px',
+                    boxShadow:'0 2px 8px #90caf9'
                   }}
                 >
-                  <span style={{ fontSize: '16px' }}>⬇️</span> 
+                  <span style={{fontSize:'1.3rem'}}>⬇️</span>
                   Descargar Ejemplo
                 </button>
               </div>
             </div>
+          </div>
 
-            <div className="info-group" style={{ marginBottom: '15px' }}>
-              <label htmlFor="descripcion-plantilla">Descripción (opcional):</label>
-              <input 
-                type="text"
-                id="descripcion-plantilla"
-                value={descripcionPlantilla}
-                onChange={(e) => setDescripcionPlantilla(e.target.value)}
-                className="theme-select"
-                placeholder="Ej: Plantilla para facturas de servicios"
-              />
+          {/* 1. Lista de plantillas */}
+          {plantillas.length > 0 && (
+            <div className="plantillas-lista-modern" style={{display:'flex',flexWrap:'wrap',gap:'18px',marginBottom:'32px',marginTop:'18px'}}>
+              {plantillas.map(plantilla => (
+                <div key={plantilla.id} className="plantilla-card" style={{
+                  flex:'1 1 320px',minWidth:'320px',maxWidth:'420px',background:plantilla.activa?'#e3f2fd':'#fff',border:plantilla.activa?'2px solid #1976d2':'1.5px solid #e0e0e0',borderRadius:'12px',padding:'18px 20px',boxShadow:plantilla.activa?'0 2px 8px #90caf9':'0 1px 4px rgba(0,0,0,0.04)',display:'flex',flexDirection:'column',gap:'8px',position:'relative'}}>
+                  <div style={{display:'flex',alignItems:'center',gap:'12px'}}>
+                    <span style={{fontSize:'1.7rem',color:'#2b579a'}}></span>
+                    <div style={{fontWeight:'bold',fontSize:'1.1rem',color:plantilla.activa?'#1976d2':'#333'}}>{plantilla.nombre}</div>
+                    {plantilla.activa && <span style={{color:'#2e7d32',fontWeight:'bold',marginLeft:'8px'}}>• Activa</span>}
+                  </div>
+                  {plantilla.descripcion && <div style={{fontSize:'0.98em',color:'#555'}}>{plantilla.descripcion}</div>}
+                  <div style={{fontSize:'0.92em',color:'#888'}}>Fecha: {plantilla.fecha_creacion}</div>
+                  <div style={{display:'flex',gap:'10px',marginTop:'8px'}}>
+                    {!plantilla.activa && (
+                      <button className="action-button" style={{padding:'7px 16px',borderRadius:'6px',fontWeight:'bold',fontSize:'0.98em',border:'none',cursor:'pointer'}} onClick={()=>activarPlantilla(plantilla.id)}>Activar</button>
+                    )}
+                    <button className="delete-button" style={{padding:'7px 16px',borderRadius:'6px',fontWeight:'bold',fontSize:'0.98em',border:'none',cursor:'pointer'}} onClick={()=>eliminarPlantilla(plantilla.id)}>Eliminar</button>
+                  </div>
+                </div>
+              ))}
             </div>
-            
-            <label htmlFor="plantilla-upload">Seleccionar Archivo Word:</label>
-            <div className="file-upload-container">
+          )}
+
+          {/* 2. Subir/cambiar plantilla y logo */}
+          {/* Card: Subir Plantilla Word */}
+          <div className="plantilla-upload-modern" style={{
+            background:'#f9f9fb',
+            border:'1.5px solid #e0e0e0',
+            borderRadius:'14px',
+            padding:'28px 38px',
+            marginBottom:'22px',
+            boxShadow:'0 2px 10px rgba(0,0,0,0.06)',
+            maxWidth:'700px',
+            minWidth:'420px',
+            minHeight:'140px',
+            width:'100%',
+            marginRight:'auto',
+            marginLeft:'auto',
+            marginTop:'0',
+            display:'flex',
+            flexDirection:'column',
+            justifyContent:'center',
+          }}>
+            <h3 style={{margin:'0 0 10px 0',fontSize:'16px',color:'#333',display:'flex',alignItems:'center',gap:'7px'}}>
+              <span style={{fontSize:'1.2rem'}}>📄</span> Subir Plantilla Word
+            </h3>
+            <p style={{margin:'0 0 10px 0',fontSize:'0.93em',color:'#666'}}>Selecciona tu archivo Word personalizado para facturas.</p>
+            <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'10px'}}>
               <input
                 type="file"
                 id="plantilla-upload"
@@ -1706,47 +1818,56 @@ const descargarPlantillaEjemploDirecto = () => {
                 onClick={() => document.getElementById('plantilla-upload').click()}
                 className="file-input-button"
                 style={{ 
-                  backgroundColor: fileSelectButtonsColorFactura
+                  backgroundColor: fileSelectButtonsColorFactura,
+                  fontWeight:'bold',fontSize:'0.98em',padding:'7px 16px',borderRadius:'6px',border:'none',cursor:'pointer'
                 }}
               >
                 {plantillaWord ? 'Cambiar plantilla' : 'Seleccionar plantilla'}
               </button>
-              
               {plantillaWord && (
-                <span className="file-name" style={{ marginLeft: '10px' }}>
+                <span className="file-name" style={{ marginLeft: '10px',fontSize:'0.97em',color:'#1976d2',fontWeight:'bold' }}>
                   {plantillaWord.name}
                 </span>
               )}
             </div>
-            
-            <div className="file-requirements">
-              <small>Formatos permitidos: DOC, DOCX. Tamaño máximo: 5MB</small>
+            <div className="file-requirements" style={{marginBottom:'8px'}}>
+              <small style={{color:'#888'}}>Formatos permitidos: DOC, DOCX. Máx: 5MB</small>
             </div>
-            
+            <div className="info-group" style={{marginBottom:'8px'}}>
+              <label htmlFor="descripcion-plantilla" style={{fontWeight:'bold',fontSize:'0.97em'}}>Descripción (opcional):</label>
+              <input 
+                type="text"
+                id="descripcion-plantilla"
+                value={descripcionPlantilla}
+                onChange={(e) => setDescripcionPlantilla(e.target.value)}
+                className="theme-select"
+                placeholder="Ej: Plantilla para facturas de servicios"
+                style={{marginTop:'4px',fontSize:'0.97em'}}
+              />
+            </div>
             <div className="plantilla-actions" style={{ 
               display: 'flex', 
-              gap: '15px',
-              marginTop: '20px' 
+              gap: '10px',
+              marginTop: '10px' 
             }}>
               {loading && (
                 <div className="loading-indicator" style={{ 
-                  marginRight: '15px',
+                  marginRight: '10px',
                   display: 'flex',
                   alignItems: 'center' 
                 }}>
                   <div style={{
-                    width: '20px',
-                    height: '20px',
+                    width: '18px',
+                    height: '18px',
                     border: '3px solid #f3f3f3',
                     borderTop: '3px solid #3498db',
                     borderRadius: '50%',
                     animation: 'spin 1s linear infinite',
-                    marginRight: '8px'
+                    marginRight: '6px'
                   }}></div>
-                  <span>Procesando...</span>
+                  <span style={{fontSize:'0.97em'}}>Procesando...</span>
                 </div>
               )}
-              
               <button 
                 type="button" 
                 onClick={savePlantilla}
@@ -1758,11 +1879,105 @@ const descargarPlantillaEjemploDirecto = () => {
                   borderRadius: '4px',
                   border: 'none',
                   cursor: !plantillaWord || loading ? 'not-allowed' : 'pointer',
-                  opacity: !plantillaWord || loading ? 0.7 : 1
+                  opacity: !plantillaWord || loading ? 0.7 : 1,
+                  fontWeight:'bold',fontSize:'1em'
                 }}
               >
-                Guardar y Activar Plantilla              </button>
+                Guardar y Activar Plantilla
+              </button>
             </div>
+          </div>
+
+          {/* Card: Logo para Plantillas */}
+          <div className="plantilla-upload-modern" style={{
+            background:'#f9f9fb',
+            border:'1.5px solid #e0e0e0',
+            borderRadius:'14px',
+            padding:'28px 38px',
+            marginBottom:'22px',
+            boxShadow:'0 2px 10px rgba(0,0,0,0.06)',
+            maxWidth:'700px',
+            minWidth:'420px',
+            minHeight:'140px',
+            width:'100%',
+            marginRight:'auto',
+            marginLeft:'auto',
+            marginTop:'0',
+            display:'flex',
+            flexDirection:'column',
+            justifyContent:'center',
+          }}>
+            <h3 style={{margin:'0 0 10px 0',fontSize:'16px',color:'#333',display:'flex',alignItems:'center',gap:'7px'}}>
+              <span style={{fontSize:'1.2rem'}}>📷</span> Logo para Plantillas
+            </h3>
+            <p style={{margin:'0 0 10px 0',fontSize:'0.93em',color:'#666'}}>Este logo aparecerá en todas las facturas generadas con plantillas de Word.</p>
+            <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'10px'}}>
+              <input
+                type="file"
+                id="logo-plantilla-upload"
+                accept="image/png, image/jpeg, image/gif, image/svg+xml"
+                onChange={handleLogoPlantillaChange}
+                style={{ display: 'none' }}
+              />
+              <button 
+                type="button" 
+                onClick={() => document.getElementById('logo-plantilla-upload').click()}
+                className="file-input-button"
+                style={{ 
+                  backgroundColor: fileSelectButtonsColorFactura,
+                  fontWeight:'bold',fontSize:'0.98em',padding:'7px 16px',borderRadius:'6px',border:'none',cursor:'pointer'
+                }}
+              >
+                {logoPlantilla ? 'Cambiar logo' : 'Seleccionar logo'}
+              </button>
+              {logoPlantilla && (
+                <span className="file-name" style={{ marginLeft: '10px',fontSize:'0.97em',color:'#1976d2',fontWeight:'bold' }}>
+                  {logoPlantilla.name}
+                </span>
+              )}
+            </div>
+            <div className="file-requirements" style={{marginBottom:'8px'}}>
+              <small style={{color:'#888'}}>Formatos permitidos: JPG, PNG, GIF, SVG. Máx: 2MB. Recomendado: 300x100px</small>
+            </div>
+            {logoPlantillaPreview && (
+              <div className="logo-preview-container" style={{ marginTop: '10px',textAlign:'center' }}>
+                <div className="logo-preview" style={{ 
+                  border: '1px solid #ddd', 
+                  borderRadius: '8px', 
+                  padding: '10px', 
+                  backgroundColor: '#f9f9f9',
+                  display:'inline-block',
+                  maxWidth: '220px'
+                }}>
+                  <img 
+                    src={logoPlantillaPreview} 
+                    alt="Logo preview" 
+                    style={{ 
+                      maxWidth: '100%', 
+                      maxHeight: '80px', 
+                      objectFit: 'contain' 
+                    }} 
+                  />
+                </div>
+                <button 
+                  type="button" 
+                  onClick={eliminarLogoPlantilla}
+                  style={{ 
+                    marginTop: '8px',
+                    backgroundColor: deleteButtonsColorFactura,
+                    color: 'white',
+                    border: 'none',
+                    padding: '5px 10px',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                    fontWeight:'bold'
+                  }}
+                >
+                  Eliminar Logo
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -113,6 +113,15 @@ func UpdateDatosFiscalesHandler(w http.ResponseWriter, r *http.Request) {
 	codigoPostal := r.FormValue("codigo_postal")
 	claveCSD := r.FormValue("clave_csd")
 	regimenFiscal := r.FormValue("regimen_fiscal")
+	serieDf := r.FormValue("serie_df") // AGREGAR: Obtener serie_df del formulario
+
+	// LOG DETALLADO para depuración
+	fmt.Printf("🔍 HANDLER - Datos recibidos del formulario:\n")
+	fmt.Printf("   rfc: '%s'\n", rfc)
+	fmt.Printf("   razon_social: '%s'\n", razonSocial)
+	fmt.Printf("   serie_df: '%s' (longitud: %d)\n", serieDf, len(serieDf))
+	fmt.Printf("   direccion_fiscal: '%s'\n", direccionFiscal)
+	fmt.Printf("   codigo_postal: '%s'\n", codigoPostal)
 
 	// Verificar el userID y loguearlo
 	fmt.Printf("Valor inicial de userID: %d\n", userID)
@@ -175,8 +184,8 @@ func UpdateDatosFiscalesHandler(w http.ResponseWriter, r *http.Request) {
 	err = db.GuardarDatosFiscales(
 		rfc, razonSocial, direccionFiscal, codigoPostal,
 		archivoCSDKey, archivoCSDCer,
-		claveCSD, regimenFiscal,
-		idUsuario) // Pasar idUsuario aquí
+		claveCSD, regimenFiscal, serieDf, // AGREGAR: Pasar serie_df
+		userID) // Usar userID correctamente
 
 	if err != nil {
 		fmt.Printf("Error al guardar datos fiscales para usuario %d: %v\n", userID, err)

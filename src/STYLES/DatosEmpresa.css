@@ -23,6 +23,12 @@
   margin-bottom: 20px;
 }
 
+.header-buttons {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
 /* Typography */
 h1 {
   text-align: center;
@@ -133,6 +139,7 @@ h1.titulo {
   justify-content: center;
   align-items: center;
   z-index: 1000;
+  animation: fadeInOverlay 0.3s ease-in-out;
 }
 
 .modal-empresa {
@@ -226,8 +233,25 @@ h1.titulo {
   border-top: 1px solid #ddd;
   display: flex;
   justify-content: flex-end;
+  gap: 10px;
   background-color: #f8f9fa;
   border-radius: 0 0 12px 12px;
+}
+
+.btn-cargar-datos {
+  background-color: #28a745;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-cargar-datos:hover {
+  background-color: #218838;
 }
 
 .btn-cerrar {
@@ -339,12 +363,23 @@ h1.titulo {
 
 /* Para el estilo actual */
 .info-group label {
-  margin-bottom: 3px; /* Reducir de 5px a 3px */
+  font-weight: 600;
+  color: #374151;
+  font-size: 14px;
+  margin-bottom: 6px;
+  text-align: left; /* Alinear labels a la izquierda */
+  padding-left: 0; /* Eliminar padding izquierdo */
+  margin-left: 0; /* Eliminar margen izquierdo */
+  display: block; /* Asegurar que ocupe todo el ancho disponible */
 }
 
 /* Y/o si estás usando el nuevo diseño */
 .form-group label {
   margin-bottom: 3px; /* Reducir de 5px a 3px */
+  text-align: left; /* Alinear labels a la izquierda */
+  padding-left: 0; /* Eliminar padding izquierdo */
+  margin-left: 0; /* Eliminar margen izquierdo */
+  display: block; /* Asegurar que ocupe todo el ancho disponible */
 }
 
 /* Ajustar el espacio entre grupos para compensar */
@@ -352,68 +387,311 @@ h1.titulo {
   margin-bottom: 15px; /* Mantener el espacio entre grupos de campos */
 }
 
-/* Responsive */
+/* ==========================================
+   FORMULARIO - GRID Y GRUPOS DE INFORMACIÓN
+   ========================================== */
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+  padding: 20px 0;
+  padding-left: 0; /* Eliminar padding izquierdo */
+}
+
+.info-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding-left: 0; /* Eliminar padding izquierdo */
+  margin-left: 0; /* Eliminar margen izquierdo */
+}
+
+.info-group input,
+.info-group select,
+.info-group textarea {
+  padding: 12px 14px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  background-color: #ffffff;
+}
+
+.info-group input:focus,
+.info-group select:focus,
+.info-group textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.info-group input:disabled,
+.info-group select:disabled,
+.info-group textarea:disabled {
+  background-color: #f9fafb;
+  color: #6b7280;
+  border-color: #e5e7eb;
+  cursor: not-allowed;
+}
+
+.info-group .input-error {
+  border-color: #ef4444;
+  background-color: #fef2f2;
+}
+
+.info-group .read-only-field {
+  padding: 12px 14px;
+  background-color: #f9fafb;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #374151 !important;
+  min-height: 20px;
+}
+
+.required {
+  color: #ef4444;
+  font-weight: bold;
+}
+
+/* Responsive para el grid */
 @media (max-width: 768px) {
-  .form-row {
-    flex-direction: column;
-    gap: 15px;
-  }
-  
-  .form-group.half-width {
-    width: 100%;
-  }
-  
-  .file-input-container {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-  
-  .buscador-input-group {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .btn-buscar {
-    width: 100%;
-  }
-  
-  .empresa-info-grid {
+  .info-grid {
     grid-template-columns: 1fr;
+    gap: 15px;
+    padding: 15px 0;
   }
   
-  .modal-empresa {
-    width: 95%;
-    margin: 20px;
+  .info-group {
+    margin-bottom: 15px;
   }
 }
 
-/* AJUSTE PARA BAJAR EL TÍTULO DE INFORMACIÓN FISCAL */
-.form-header {
-  margin-top: 20px !important; /* Aumentar espacio superior */
+/* Mejoras adicionales para los archivos CSD */
+.csd-upload-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 15px;
+  background-color: #f8fafc;
+  border: 2px dashed #cbd5e1;
+  border-radius: 8px;
+  margin-bottom: 20px;
 }
 
-/* Si el título está en un h2 dentro del encabezado */
-.form-header h2 {
-  margin-top: 5px !important;
+.csd-upload-group label {
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 8px;
 }
 
-/* En caso de que esté usando la clase titulo */
-h1.titulo, 
-h2.titulo {
-  margin-top: 30px !important; /* Aumentar de lo actual */
-  margin-bottom: 20px !important;
+.csd-upload-group input[type="file"] {
+  padding: 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background-color: #ffffff;
+}
+
+.csd-upload-group input[type="file"]:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+/* ==========================================
+   BOTONES DE ACCIÓN
+   ========================================== */
+
+.btn-editar {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-editar:hover {
+  background-color: #0056b3;
+}
+
+.btn-cancelar {
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-cancelar:hover {
+  background-color: #545b62;
+}
+
+.btn-restablecer {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-restablecer:hover:not(:disabled) {
+  background-color: #c82333;
+}
+
+.btn-restablecer:disabled {
+  background-color: #adb5bd;
+  cursor: not-allowed;
+}
+
+.btn-guardar {
+  background-color: #28a745;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  width: 100%;
+  margin-top: 20px;
+}
+
+.btn-guardar:hover:not(:disabled) {
+  background-color: #218838;
+}
+
+.btn-guardar:disabled {
+  background-color: #adb5bd;
+  cursor: not-allowed;
+}
+
+/* ==========================================
+   MEJORAS PARA CAMPOS VACÍOS
+   ========================================== */
+
+.read-only-field {
+  min-height: 20px;
+  padding: 12px 14px;
+  color: #374151;
+  font-size: 14px;
+  background-color: #f9fafb;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.read-only-field:empty::before {
+  content: "—";
+  color: #999;
+  font-style: italic;
+}
+
+.read-only-field:empty::after {
+  content: "—";
+  color: #999;
+  font-style: italic;
+}
+
+/* ==========================================
+   Modal de Confirmación de Restablecimiento
+   ========================================== */
+.modal-restablecer {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
   text-align: center;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  width: 350px;
+  animation: slideIn 0.3s ease-in-out;
 }
 
-/* Si tiene un contenedor específico para el título de información fiscal */
-.info-fiscal-title,
-.info-fiscal-header,
-[data-title="Información Fiscal"] {
-  margin-top: 25px !important;
+.modal-restablecer h2 {
+  margin-bottom: 0.5rem;
+  font-size: 1.2rem;
+  color: #1a237e;
+  font-weight: 600;
 }
 
-/* Para los otros títulos de sección dentro del formulario */
-.form-section-title {
-  margin-top: 20px !important;
+.modal-restablecer p {
+  margin-bottom: 1.5rem;
+  color: #555;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.modal-buttons {
+  display: flex;
+  justify-content: flex-start;
+  gap: 15px;
+  margin-top: 1rem;
+  padding-left: 15px;
+}
+
+.modal-buttons .btn {
+  padding: 0.5rem 1.2rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  width: 120px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.modal-buttons .btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.modal-buttons .btn-secondary {
+  background-color: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+}
+
+.modal-buttons .btn-secondary:hover:not(:disabled) {
+  background-color: #e5e7eb;
+}
+
+.modal-buttons .btn-danger {
+  background-color: #d32f2f;
+  color: white;
+}
+
+.modal-buttons .btn-danger:hover:not(:disabled) {
+  background-color: #c62828;
+}
+
+/* Animaciones para el modal */
+@keyframes slideIn {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Mejoras a la animación del overlay existente */
+@keyframes fadeInOverlay {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }

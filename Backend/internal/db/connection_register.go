@@ -15,7 +15,7 @@ func ConnectUserDB() (*sql.DB, error) {
 	port := "3306"
 	dbname := "Usuario"
 
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", username, password, hostname, port, dbname)
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true", username, password, hostname, port, dbname)
 
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {

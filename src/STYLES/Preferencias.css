@@ -376,6 +376,336 @@
   margin-top: 15px;
 }
 
+/* Estilos mejorados para la sección de botones */
+.buttons-options {
+  padding: 20px 0;
+}
+
+.button-customization-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 25px;
+  margin-top: 20px;
+}
+
+.button-color-group {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 12px;
+  padding: 20px;
+  transition: all 0.3s ease;
+}
+
+.button-color-group:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: #dee2e6;
+}
+
+.button-color-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.button-color-icon {
+  font-size: 1.2rem;
+  margin-right: 10px;
+  padding: 8px;
+  border-radius: 8px;
+  background: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.button-color-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #495057;
+  margin: 0;
+}
+
+.color-preview-container {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 10px;
+}
+
+.color-input-wrapper {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.color-picker-button {
+  width: 50px;
+  height: 40px;
+  border: 2px solid #dee2e6;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.color-picker-button:hover {
+  border-color: #adb5bd;
+  transform: scale(1.05);
+}
+
+.color-picker-button input[type="color"] {
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  width: calc(100% + 4px);
+  height: calc(100% + 4px);
+  border: none;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.color-display {
+  width: 100%;
+  height: 100%;
+  border-radius: 6px;
+  pointer-events: none;
+}
+
+.preview-button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  min-width: 120px;
+}
+
+.preview-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.button-description {
+  font-size: 0.9rem;
+  color: #6c757d;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Iconos específicos para cada tipo de botón */
+.action-icon {
+  background: linear-gradient(135deg, #28a745, #20c997);
+  color: white;
+}
+
+.delete-icon {
+  background: linear-gradient(135deg, #dc3545, #fd7e14);
+  color: white;
+}
+
+.edit-icon {
+  background: linear-gradient(135deg, #007bff, #6610f2);
+  color: white;
+}
+
+.file-icon {
+  background: linear-gradient(135deg, #6c757d, #495057);
+  color: white;
+}
+
+/* === ESTILOS PARA SECCIÓN DE TIPOGRAFÍA === */
+.typography-options {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+  padding: 20px 0;
+}
+
+.typography-control-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+  align-items: start;
+}
+
+.typography-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.typography-selector label {
+  font-weight: 600;
+  color: #333;
+  font-size: 16px;
+  margin-bottom: 8px;
+}
+
+.typography-select {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 16px;
+  background-color: white;
+  transition: all 0.3s ease;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 20px;
+  padding-right: 45px;
+}
+
+.typography-select:focus {
+  outline: none;
+  border-color: #2196f3;
+  box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+}
+
+.typography-select:hover {
+  border-color: #bdbdbd;
+}
+
+.typography-preview {
+  margin-top: 15px;
+  padding: 25px;
+  border: 2px solid #e8f5e8;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 140px;
+  transition: all 0.3s ease;
+}
+
+.typography-preview:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.typography-preview-title {
+  margin: 0 0 12px 0;
+  font-weight: 600;
+  color: #2e7d32;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.typography-preview-samples {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.typography-preview-samples p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.typography-size-control {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.typography-size-slider {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-top: 10px;
+}
+
+.typography-slider {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: #e0e0e0;
+  outline: none;
+  transition: background 0.3s ease;
+  appearance: none;
+}
+
+.typography-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #2196f3;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(33, 150, 243, 0.3);
+  transition: all 0.3s ease;
+}
+
+.typography-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+  box-shadow: 0 3px 8px rgba(33, 150, 243, 0.4);
+}
+
+.typography-slider::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #2196f3;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 6px rgba(33, 150, 243, 0.3);
+  transition: all 0.3s ease;
+}
+
+.typography-slider::-moz-range-thumb:hover {
+  transform: scale(1.1);
+  box-shadow: 0 3px 8px rgba(33, 150, 243, 0.4);
+}
+
+.typography-size-value {
+  min-width: 60px;
+  text-align: center;
+  padding: 8px 12px;
+  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1976d2;
+  border: 1px solid #90caf9;
+}
+
+.typography-section-divider {
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(to right, transparent, #e0e0e0, transparent);
+  margin: 20px 0;
+}
+
+/* Responsive para la sección de tipografía */
+@media (max-width: 768px) {
+  .typography-control-group {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  
+  .typography-preview {
+    min-height: 120px;
+    padding: 20px;
+  }
+  
+  .typography-size-slider {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  
+  .typography-size-value {
+    text-align: center;
+  }
+}
+
+/* === FIN ESTILOS TIPOGRAFÍA === */
+
 /* Responsive */
 @media (max-width: 768px) {
   .theme-preview-flex {
@@ -386,6 +716,21 @@
   .theme-preview-sidebar {
     width: 100%;
     padding: 10px 0;
+  }
+
+  .button-customization-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  
+  .color-preview-container {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  
+  .preview-button {
+    width: 100%;
   }
 }
 

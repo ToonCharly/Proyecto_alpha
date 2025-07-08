@@ -13,7 +13,7 @@ import (
 func GuardarDatosFiscales(
 	rfc, razonSocial, direccionFiscal, codigoPostal string,
 	archivoCSDKey, archivoCSDCer []byte,
-	claveCSD, regimenFiscal string,
+	claveCSD, regimenFiscal, serieDf string, // AGREGAR: parámetro serie_df
 	usuarioID int) error {
 
 	// Verificar que el ID de usuario sea válido
@@ -23,7 +23,8 @@ func GuardarDatosFiscales(
 
 	// Más log para depuración
 	log.Printf("GuardarDatosFiscales: iniciando para usuario ID %d", usuarioID)
-	log.Printf("Datos: rfc=%s, razon_social=%s, id_usuario=%d", rfc, razonSocial, usuarioID)
+	log.Printf("Datos: rfc=%s, razon_social=%s, serie_df='%s', id_usuario=%d", rfc, razonSocial, serieDf, usuarioID)
+	log.Printf("🔍 DEBUG: Valor exacto de serie_df recibido: [%s] (longitud: %d)", serieDf, len(serieDf))
 
 	// Conectar a la base de datos
 	db, err := ConnectUserDB()
@@ -88,15 +89,17 @@ func GuardarDatosFiscales(
             UPDATE datos_fiscales 
             SET rfc = ?, razon_social = ?, direccion_fiscal = ?, 
                 codigo_postal = ?, regimen_fiscal = ?, clave_csd = ?,
-                fecha_actualizacion = ?
+                serie_df = ?, fecha_actualizacion = ?
             WHERE id_usuario = ?
         `
 		_, err = tx.Exec(query, rfc, razonSocial, direccionFiscal, codigoPostal,
-			regimenFiscal, claveCSD, now, usuarioID)
+			regimenFiscal, claveCSD, serieDf, now, usuarioID)
 
 		if err != nil {
 			return fmt.Errorf("error al actualizar datos básicos: %w", err)
 		}
+
+		log.Printf("✅ UPDATE ejecutado correctamente. serie_df actualizada a: '%s'", serieDf)
 
 		// Actualizar rutas de archivos solo si se proporcionaron nuevos archivos
 		if len(archivoCSDKey) > 0 {
@@ -122,19 +125,19 @@ func GuardarDatosFiscales(
 		query := `
             INSERT INTO datos_fiscales (
                 id_usuario, rfc, razon_social, direccion_fiscal, 
-                codigo_postal, regimen_fiscal, clave_csd, 
+                codigo_postal, regimen_fiscal, clave_csd, serie_df,
                 ruta_csd_key, ruta_csd_cer, 
                 fecha_creacion, fecha_actualizacion
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `
 		// Log de la consulta y valores para depuración
 		log.Printf("SQL: %s", query)
-		log.Printf("Valores: id_usuario=%d, rfc=%s, razon_social=%s", usuarioID, rfc, razonSocial)
+		log.Printf("Valores: id_usuario=%d, rfc=%s, razon_social=%s, serie_df=%s", usuarioID, rfc, razonSocial, serieDf)
 
 		// CRUCIAL: Usar la variable now en lugar de NOW()
 		_, err = tx.Exec(query,
 			usuarioID, rfc, razonSocial, direccionFiscal,
-			codigoPostal, regimenFiscal, claveCSD,
+			codigoPostal, regimenFiscal, claveCSD, serieDf,
 			rutaCSDKey, rutaCSDCer, now, now)
 
 		if err != nil {
@@ -160,23 +163,21 @@ func ObtenerDatosFiscales(userID int) (map[string]interface{}, error) {
 	defer db.Close()
 
 	query := `
-        SELECT id, rfc, razon_social, direccion_fiscal, codigo_postal, 
-               regimen_fiscal, clave_csd, ruta_csd_key, ruta_csd_cer,
-               fecha_creacion, fecha_actualizacion
+        SELECT id, rfc, razon_social, direccion_fiscal, direccion, colonia, 
+               codigo_postal, ciudad, estado, regimen_fiscal, clave_csd, 
+               serie_df, ruta_csd_key, ruta_csd_cer
         FROM datos_fiscales
         WHERE id_usuario = ?
     `
 
 	var id int
 	var rfc, razonSocial string
-	var direccionFiscal, codigoPostal, regimenFiscal sql.NullString
-	var claveCSD, rutaCSDKey, rutaCSDCer sql.NullString
-	var fechaCreacion, fechaActualizacion sql.NullTime
+	var direccionFiscal, direccion, colonia, codigoPostal, ciudad, estado, regimenFiscal sql.NullString
+	var claveCSD, serieDf, rutaCSDKey, rutaCSDCer sql.NullString
 
 	err = db.QueryRow(query, userID).Scan(
-		&id, &rfc, &razonSocial, &direccionFiscal, &codigoPostal,
-		&regimenFiscal, &claveCSD, &rutaCSDKey, &rutaCSDCer,
-		&fechaCreacion, &fechaActualizacion,
+		&id, &rfc, &razonSocial, &direccionFiscal, &direccion, &colonia,
+		&codigoPostal, &ciudad, &estado, &regimenFiscal, &claveCSD, &serieDf, &rutaCSDKey, &rutaCSDCer,
 	)
 
 	if err != nil {
@@ -199,10 +200,34 @@ func ObtenerDatosFiscales(userID int) (map[string]interface{}, error) {
 		datos["direccion_fiscal"] = ""
 	}
 
+	if direccion.Valid {
+		datos["direccion"] = direccion.String
+	} else {
+		datos["direccion"] = ""
+	}
+
+	if colonia.Valid {
+		datos["colonia"] = colonia.String
+	} else {
+		datos["colonia"] = ""
+	}
+
 	if codigoPostal.Valid {
 		datos["codigo_postal"] = codigoPostal.String
 	} else {
 		datos["codigo_postal"] = ""
+	}
+
+	if ciudad.Valid {
+		datos["ciudad"] = ciudad.String
+	} else {
+		datos["ciudad"] = ""
+	}
+
+	if estado.Valid {
+		datos["estado"] = estado.String
+	} else {
+		datos["estado"] = ""
 	}
 
 	if regimenFiscal.Valid {
@@ -215,6 +240,13 @@ func ObtenerDatosFiscales(userID int) (map[string]interface{}, error) {
 		datos["clave_csd"] = claveCSD.String
 	}
 
+	// Agregar serie_df
+	if serieDf.Valid {
+		datos["serie_df"] = serieDf.String
+	} else {
+		datos["serie_df"] = ""
+	}
+
 	if rutaCSDKey.Valid && rutaCSDKey.String != "" {
 		datos["tiene_key"] = true
 	} else {
@@ -225,14 +257,6 @@ func ObtenerDatosFiscales(userID int) (map[string]interface{}, error) {
 		datos["tiene_cer"] = true
 	} else {
 		datos["tiene_cer"] = false
-	}
-
-	if fechaCreacion.Valid {
-		datos["fecha_creacion"] = fechaCreacion.Time
-	}
-
-	if fechaActualizacion.Valid {
-		datos["fecha_actualizacion"] = fechaActualizacion.Time
 	}
 
 	return datos, nil

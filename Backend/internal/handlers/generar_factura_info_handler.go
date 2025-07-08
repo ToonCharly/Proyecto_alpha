@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strings"
 
+	"carlos/Facts/Backend/internal/db"
 	"carlos/Facts/Backend/internal/models"
 	"carlos/Facts/Backend/internal/services"
 	"carlos/Facts/Backend/internal/utils"
@@ -52,6 +53,29 @@ func GenerarFacturaConInfoHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// Debug: imprimir todos los campos recibidos de la factura
+		log.Printf("DEBUG - Datos recibidos de la factura:")
+		log.Printf("  Estado (int): %d", factura.Estado)
+		log.Printf("  EstadoNombre: '%s'", factura.EstadoNombre)
+		log.Printf("  Total conceptos recibidos: %d", len(factura.Conceptos))
+		log.Printf("  ClaveTicket: '%s'", factura.ClaveTicket)
+		log.Printf("  Total: %.2f", factura.Total)
+		log.Printf("  Conceptos recibidos (JSON): %v", factura.Conceptos)
+
+		// Imprimir detalles de cada concepto recibido
+		for i, concepto := range factura.Conceptos {
+			log.Printf("  Concepto %d:", i+1)
+			log.Printf("    ClaveProdServ: '%s'", concepto.ClaveProdServ)
+			log.Printf("    Descripcion: '%s'", concepto.Descripcion)
+			log.Printf("    ClaveUnidad: '%s'", concepto.ClaveUnidad)
+			log.Printf("    Cantidad: %.2f", concepto.Cantidad)
+			log.Printf("    ValorUnitario: %.2f", concepto.ValorUnitario)
+			log.Printf("    Importe: %.2f", concepto.Importe)
+			log.Printf("    TasaIVA: %.1f", concepto.TasaIVA)
+			log.Printf("    TasaIEPS: %.1f", concepto.TasaIEPS)
+			log.Printf("    Descuento: %.2f", concepto.Descuento)
+		}
+
 		// Leer el archivo de la plantilla
 		plantillaFile, _, err := r.FormFile("plantilla")
 		if err == nil {
@@ -79,6 +103,47 @@ func GenerarFacturaConInfoHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// *** ANTES DE VERIFICAR CONCEPTOS - LOG COMPLETO ***
+	log.Printf("🔍 DEBUG_CONCEPTOS - Verificando conceptos recibidos:")
+	log.Printf("🔍 DEBUG_CONCEPTOS - len(factura.Conceptos) = %d", len(factura.Conceptos))
+	log.Printf("🔍 DEBUG_CONCEPTOS - ClaveTicket = '%s'", factura.ClaveTicket)
+	log.Printf("🔍 DEBUG_CONCEPTOS - factura.Conceptos = %+v", factura.Conceptos)
+
+	// *** Si no hay conceptos, intentar obtenerlos desde la base de datos usando clave_ticket ***
+	if len(factura.Conceptos) == 0 {
+		log.Printf("⚠️ FLUJO REAL - No se recibieron conceptos en el JSON")
+		log.Printf("⚠️ FLUJO REAL - ClaveTicket recibida: '%s'", factura.ClaveTicket)
+		log.Printf("⚠️ FLUJO REAL - IdUsuario: %d", factura.IdUsuario)
+		log.Printf("⚠️ FLUJO REAL - Total factura: %.2f", factura.Total)
+
+		if factura.ClaveTicket != "" {
+			log.Printf("🔍 FLUJO REAL - Intentando obtener conceptos desde BD para ticket: '%s'", factura.ClaveTicket)
+			conceptosBD, err := obtenerConceptosDesdeVentas(factura.ClaveTicket)
+			if err != nil {
+				log.Printf("❌ FLUJO REAL - Error al obtener conceptos desde BD: %v", err)
+				log.Printf("🔄 FLUJO REAL - Usando productos de ejemplo como fallback")
+				factura.Conceptos = []models.Concepto{}
+			} else {
+				log.Printf("✅ Obtenidos %d conceptos desde BD usando clave_ticket", len(conceptosBD))
+				for i, concepto := range conceptosBD {
+					log.Printf("  [BD] Concepto %d: ClaveProdServ='%s', Desc='%s', Cant=%.2f, Precio=%.2f, Importe=%.2f", i+1, concepto.ClaveProdServ, concepto.Descripcion, concepto.Cantidad, concepto.ValorUnitario, concepto.Importe)
+				}
+				factura.Conceptos = conceptosBD
+			}
+		} else {
+			log.Printf("⚠️ No hay clave_ticket disponible, usando productos de ejemplo")
+			factura.Conceptos = []models.Concepto{}
+		}
+	}
+
+	// *** LOG FINAL - VERIFICAR CONCEPTOS ANTES DE GENERAR PDF ***
+	log.Printf("🔍 FINAL_DEBUG - Conceptos finales para PDF:")
+	log.Printf("🔍 FINAL_DEBUG - Total conceptos: %d", len(factura.Conceptos))
+	for i, concepto := range factura.Conceptos {
+		log.Printf("🔍 FINAL_DEBUG - Concepto %d: ClaveProdServ='%s', Desc='%s', Cant=%.2f, Precio=%.2f, Importe=%.2f",
+			i+1, concepto.ClaveProdServ, concepto.Descripcion, concepto.Cantidad, concepto.ValorUnitario, concepto.Importe)
+	}
+
 	// Generar folio automáticamente si no se proporcionó uno
 	if factura.NumeroFolio == "" {
 		err := factura.GenerarFolioAutomatico()
@@ -98,38 +163,95 @@ func GenerarFacturaConInfoHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Llenar datos del emisor automáticamente desde los datos fiscales del usuario
+	if factura.IdUsuario > 0 {
+		err := LlenarDatosEmisor(&factura, factura.IdUsuario)
+		if err != nil {
+			log.Printf("INFO - No se llenaron datos del emisor: %v", err)
+			log.Printf("INFO - La factura se generará sin datos del emisor predefinidos")
+			// No devolvemos error, continuamos con los datos disponibles
+		} else {
+			log.Printf("SUCCESS - Datos del emisor llenados correctamente")
+		}
+	} else {
+		log.Printf("WARNING: No se encontró ID de usuario válido en la factura (IdUsuario=%d)", factura.IdUsuario)
+	}
+
+	// Convertir el ID del régimen fiscal al código del SAT
+	if factura.RegimenFiscal != "" {
+		codigo, err := ObtenerCodigoRegimenFiscal(factura.RegimenFiscal)
+		if err != nil {
+			log.Printf("Error al obtener código de régimen fiscal: %v", err)
+			// No devolvemos error, usamos el valor original
+		} else {
+			factura.RegimenFiscal = codigo
+		}
+	}
+
+	if factura.RegimenFiscalReceptor != "" {
+		codigo, err := ObtenerCodigoRegimenFiscal(factura.RegimenFiscalReceptor)
+		if err != nil {
+			log.Printf("Error al obtener código de régimen fiscal receptor: %v", err)
+			// No devolvemos error, usamos el valor original
+		} else {
+			factura.RegimenFiscalReceptor = codigo
+		}
+	}
+
+	// Convertir el ID del estado al nombre del estado si viene como número Y no tenemos ya el nombre
+	if factura.EstadoNombre == "" && factura.Estado != 0 {
+		estadoStr := fmt.Sprintf("%d", factura.Estado)
+		nombreEstado, err := ObtenerNombreEstado(estadoStr)
+		if err != nil {
+			log.Printf("Error al obtener nombre de estado: %v", err)
+			// No devolvemos error, usamos el valor original
+		} else if nombreEstado != "" {
+			factura.EstadoNombre = nombreEstado
+		}
+	}
+
+	// Cargar logo del usuario admin (ID=1) - se usa en todas las facturas
+	logoBytes, err := services.CargarLogoPlantilla("1") // Siempre usar el logo del admin
+	if err != nil {
+		log.Printf("Error al cargar logo del admin: %v", err)
+		// Continuar sin logo en caso de error
+		logoBytes = nil
+	}
+
 	// Procesar la plantilla si se proporcionó
 	var pdfBuffer *bytes.Buffer
-	var err error
+	var err2 error
+
 	if len(plantillaBytes) > 0 {
-		pdfBuffer, err = services.ProcesarPlantilla(factura, plantillaBytes)
-		if err != nil {
-			log.Printf("Error al procesar plantilla: %v", err)
+		pdfBuffer, err2 = services.ProcesarPlantilla(factura, plantillaBytes)
+		if err2 != nil {
+			log.Printf("Error al procesar plantilla: %v", err2)
 			http.Error(w, "Error al procesar la plantilla", http.StatusInternalServerError)
 			return
 		}
 	} else {
-		// Generar el PDF sin plantilla
-		pdfBuffer, err = services.GenerarPDF(factura, nil)
-		if err != nil {
-			log.Printf("Error al generar PDF: %v", err)
+		// Usar el logo del admin cargado
+		pdfBuffer, err2 = services.GenerarPDF(factura, nil, logoBytes)
+
+		if err2 != nil {
+			log.Printf("Error al generar PDF: %v", err2)
 			http.Error(w, "Error al generar la factura", http.StatusInternalServerError)
 			return
 		}
 	}
 
 	// Generar XML para la factura
-	xmlBytes, err := services.GenerarXML(factura)
-	if err != nil {
-		log.Printf("Error al generar XML: %v", err)
+	xmlBytes, err2 := services.GenerarXML(factura)
+	if err2 != nil {
+		log.Printf("Error al generar XML: %v", err2)
 		http.Error(w, "Error al generar XML de la factura", http.StatusInternalServerError)
 		return
 	}
 
 	// Usar la función CrearZIP para empaquetar PDF y XML
-	zipBuffer, err := services.CrearZIP(pdfBuffer.Bytes(), xmlBytes)
-	if err != nil {
-		log.Printf("Error al crear ZIP: %v", err)
+	zipBuffer, err2 := services.CrearZIP(pdfBuffer.Bytes(), xmlBytes)
+	if err2 != nil {
+		log.Printf("Error al crear ZIP: %v", err2)
 		http.Error(w, "Error al crear archivo ZIP", http.StatusInternalServerError)
 		return
 	}
@@ -149,18 +271,7 @@ func GenerarFacturaConInfoHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Guardar automáticamente en el historial de facturas (DESPUÉS de generar todo)
-	log.Printf("DEBUG - Intentando guardar en historial:")
-	log.Printf("  IdEmpresa: %d", factura.IdEmpresa)
-	log.Printf("  ReceptorRFC: '%s'", factura.ReceptorRFC)
-	log.Printf("  ReceptorRazonSocial: '%s'", factura.ReceptorRazonSocial)
-	log.Printf("  ClaveTicket: '%s'", factura.ClaveTicket)
-	log.Printf("  NumeroFolio: '%s'", factura.NumeroFolio)
-	log.Printf("  Total: %f", factura.Total)
-	log.Printf("  UsoCFDI: '%s'", factura.UsoCFDI)
-	log.Printf("  Observaciones: '%s'", factura.Observaciones)
-
 	if factura.IdUsuario > 0 { // Solo si tenemos un ID de usuario válido
-		log.Printf("DEBUG - Llamando a InsertarHistorialFactura...")
 		_, err = models.InsertarHistorialFactura(
 			factura.IdUsuario, // Usar el ID del usuario que genera la factura
 			factura.ReceptorRFC,
@@ -178,8 +289,6 @@ func GenerarFacturaConInfoHandler(w http.ResponseWriter, r *http.Request) {
 		} else {
 			log.Printf("Factura guardada en historial con folio: %s", factura.NumeroFolio)
 		}
-	} else {
-		log.Printf("DEBUG - No se guarda en historial porque IdEmpresa <= 0: %d", factura.IdEmpresa)
 	}
 
 	// Guardar el archivo ZIP temporalmente (opcional, para descarga posterior)
@@ -187,4 +296,64 @@ func GenerarFacturaConInfoHandler(w http.ResponseWriter, r *http.Request) {
 
 	utils.RespondWithJSON(w, http.StatusOK, response)
 	log.Printf("Factura generada exitosamente con folio: %s", factura.NumeroFolio)
+}
+
+// DebugVentasDetHandler - endpoint de debug para ver datos en ventas_det
+func DebugVentasDetHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
+	database := db.GetDB()
+
+	query := `
+		SELECT id, clave_producto, descripcion, clave_sat, unidad_sat, cantidad, precio_unitario, descuento, total, fecha_venta
+		FROM ventas_det 
+		ORDER BY id DESC 
+		LIMIT 10
+	`
+
+	rows, err := database.Query(query)
+	if err != nil {
+		log.Printf("Error al consultar ventas_det: %v", err)
+		http.Error(w, "Error al consultar base de datos", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var ventas []map[string]interface{}
+	for rows.Next() {
+		var id int
+		var claveProducto, descripcion, claveSat, unidadSat, fechaVenta string
+		var cantidad, precioUnitario, descuento, total float64
+
+		err := rows.Scan(&id, &claveProducto, &descripcion, &claveSat, &unidadSat, &cantidad, &precioUnitario, &descuento, &total, &fechaVenta)
+		if err != nil {
+			log.Printf("Error al escanear fila: %v", err)
+			continue
+		}
+
+		venta := map[string]interface{}{
+			"id":              id,
+			"clave_producto":  claveProducto,
+			"descripcion":     descripcion,
+			"clave_sat":       claveSat,
+			"unidad_sat":      unidadSat,
+			"cantidad":        cantidad,
+			"precio_unitario": precioUnitario,
+			"descuento":       descuento,
+			"total":           total,
+			"fecha_venta":     fechaVenta,
+		}
+		ventas = append(ventas, venta)
+	}
+
+	response := map[string]interface{}{
+		"success": true,
+		"message": fmt.Sprintf("Encontradas %d ventas en la tabla ventas_det", len(ventas)),
+		"ventas":  ventas,
+	}
+
+	utils.RespondWithJSON(w, http.StatusOK, response)
 }

@@ -230,15 +230,18 @@ func generarXMLFactura(factura *models.HistorialFactura) ([]byte, error) {
 func generarPDFFactura(factura *models.HistorialFactura) ([]byte, error) {
 	// Convertir HistorialFactura a la estructura Factura que espera el generador de PDF
 	facturaParaPDF := models.Factura{
-		ID:          strconv.Itoa(factura.ID), // Convertir int a string
-		RFC:         factura.RFCReceptor,
-		RazonSocial: factura.RazonSocialReceptor,
+		ID:                  strconv.Itoa(factura.ID), // Convertir int a string
+		ReceptorRFC:         factura.RFCReceptor,
+		ReceptorRazonSocial: factura.RazonSocialReceptor,
+		// Si tienes estos datos en HistorialFactura, asígnalos aquí:
+		// ReceptorDireccion:     factura.DireccionReceptor,
+		// ReceptorCodigoPostal:  factura.CodigoPostalReceptor,
+		// RegimenFiscalReceptor: factura.RegimenFiscalReceptor,
 		ClaveTicket: factura.ClaveTicket,
 		Total:       factura.Total,
 		UsoCFDI:     factura.UsoCFDI,
 		Subtotal:    factura.Total / 1.16, // Asumiendo IVA 16%
 		Impuestos:   factura.Total - (factura.Total / 1.16),
-		// Añadir un concepto genérico
 		Conceptos: []models.Concepto{
 			{
 				Descripcion:   fmt.Sprintf("Venta relacionada con ticket %s", factura.ClaveTicket),
@@ -249,8 +252,23 @@ func generarPDFFactura(factura *models.HistorialFactura) ([]byte, error) {
 		},
 	}
 
+	// Obtener los datos de la empresa emisora
+	empresaEmisora, err := obtenerEmpresaEmisoraParaFactura(factura)
+	if err != nil {
+		return nil, fmt.Errorf("error al obtener empresa emisora: %v", err)
+	}
+
+	// Cargar el logo activo del usuario admin (ID=1) - se usa en todas las facturas
+	var logoBytes []byte
+	logoBytes, err = services.CargarLogoPlantilla("1") // Siempre usar el logo del admin
+	if err != nil {
+		log.Printf("Error al cargar logo del admin: %v", err)
+		// Continuar sin logo en caso de error
+		logoBytes = nil
+	}
+
 	// Generar el PDF usando el servicio existente
-	pdfBuffer, err := services.GenerarPDF(facturaParaPDF, nil) // Sin logo
+	pdfBuffer, err := services.GenerarPDF(facturaParaPDF, empresaEmisora, logoBytes)
 	if err != nil {
 		return nil, fmt.Errorf("error al generar PDF: %v", err)
 	}

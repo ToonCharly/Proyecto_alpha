@@ -228,3 +228,12 @@ func ObtenerEmpresasPorUsuario(idUsuario int) ([]Empresa, error) {
 
 	return empresas, nil
 }
+
+// ObtenerEmpresaEmisoraPorIdEmpresa obtiene los datos de la empresa emisora para una factura
+func ObtenerEmpresaEmisoraPorIdEmpresa(idEmpresa int) (*Empresa, error) {
+	if idEmpresa <= 0 {
+		return nil, fmt.Errorf("ID de empresa inválido: %d", idEmpresa)
+	}
+
+	return ObtenerEmpresaPorID(idEmpresa)
+}

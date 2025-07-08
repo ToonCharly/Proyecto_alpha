@@ -42,6 +42,9 @@ func main() {
 	fs := http.FileServer(http.Dir("./public/assets"))
 	http.Handle("/assets/", http.StripPrefix("/assets/", fs))
 
+	// Los logos ahora se manejan únicamente desde la base de datos
+	// Eliminado el servicio de archivos estáticos para logos
+
 	// Definir endpoints
 	http.Handle("/api/factura", utils.EnableCors(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
@@ -66,11 +69,30 @@ func main() {
 	// Endpoint que devuelve información sobre la factura generada
 	http.Handle("/api/generar-factura-info", utils.EnableCors(http.HandlerFunc(handlers.GenerarFacturaConInfoHandler)))
 
+	// Test endpoints removed - handlers not implemented
+
+	// Endpoint para debug - ver qué series existen en ventas_det
+	http.Handle("/api/debug-ventas", utils.EnableCors(http.HandlerFunc(handlers.DebugVentasHandler)))
+
+	// Endpoint para debug - ver estructura y datos de ventas_det
+	http.Handle("/api/debug-ventas-det", utils.EnableCors(http.HandlerFunc(handlers.DebugVentasDetHandler)))
+
 	http.Handle("/api/plantillas/subir", utils.EnableCors(http.HandlerFunc(handlers.SubirPlantillaHandler)))
 	http.Handle("/api/plantillas/listar", utils.EnableCors(http.HandlerFunc(handlers.ListarPlantillasHandler)))
 	http.Handle("/api/plantillas/activar", utils.EnableCors(http.HandlerFunc(handlers.ActivarPlantillaHandler)))
 	http.Handle("/api/plantillas/eliminar", utils.EnableCors(http.HandlerFunc(handlers.EliminarPlantillaHandler)))
 	http.Handle("/api/plantillas", utils.EnableCors(http.HandlerFunc(handlers.BuscarPlantillasHandler)))
+
+	// Endpoints para manejo de logos en base de datos
+	logoDBHandler := handlers.NewLogoHandler()
+	http.Handle("/api/logos/subir", utils.EnableCors(http.HandlerFunc(logoDBHandler.SubirLogo)))
+	http.Handle("/api/logos/listar", utils.EnableCors(http.HandlerFunc(logoDBHandler.ObtenerLogosUsuario)))
+	http.Handle("/api/logos/obtener-activo", utils.EnableCors(http.HandlerFunc(logoDBHandler.ObtenerLogoActivoUsuario)))
+	http.Handle("/api/logos/obtener-activo-json", utils.EnableCors(http.HandlerFunc(logoDBHandler.ObtenerLogoActivoJSON)))
+	http.Handle("/api/logos/descargar", utils.EnableCors(http.HandlerFunc(logoDBHandler.ObtenerLogoImagen)))
+	http.Handle("/api/logos/activar", utils.EnableCors(http.HandlerFunc(logoDBHandler.ActivarLogo)))
+	http.Handle("/api/logos/eliminar", utils.EnableCors(http.HandlerFunc(logoDBHandler.EliminarLogo)))
+	http.Handle("/api/logos/debug", utils.EnableCors(http.HandlerFunc(handlers.DebugLogosHandler)))
 
 	// Usar la conexión a optimus para los handlers que la necesitan
 	http.Handle("/api/ventas", utils.EnableCors(http.HandlerFunc(handlers.VentasHandler(optimusDB))))
@@ -91,13 +113,6 @@ func main() {
 	// Endpoints para impuestos
 	http.Handle("/api/impuestos", utils.EnableCors(http.HandlerFunc(handlers.ImpuestosHandler(optimusDB))))
 	http.Handle("/api/productos-con-impuestos", utils.EnableCors(http.HandlerFunc(handlers.ProductosConImpuestosHandler(optimusDB))))
-
-	// Endpoints para gestión de folios basados en archivos
-	// TODO: Implementar handlers de folios basados en archivos
-	// http.Handle("/api/folios", utils.EnableCors(http.HandlerFunc(handlers.FolioFileHandler)))
-	// http.Handle("/api/folios/crear-serie", utils.EnableCors(http.HandlerFunc(handlers.CrearSerieFileHandler)))
-	// http.Handle("/api/folios/resetear", utils.EnableCors(http.HandlerFunc(handlers.ResetearSerieHandler)))
-	// http.Handle("/api/folios/stats", utils.EnableCors(http.HandlerFunc(handlers.EstadisticasFoliosHandler)))
 
 	// Endpoint para registrar usuarios
 	http.Handle("/api/registrar_usuario", utils.EnableCors(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -436,87 +451,7 @@ func main() {
 	})))
 
 	// NUEVO: Endpoint para historial de facturas (formato con guión)
-	http.Handle("/api/historial-facturas", utils.EnableCors(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodGet:
-			// Obtener historial de facturas por usuario
-			idUsuarioStr := r.URL.Query().Get("id_usuario")
-			if idUsuarioStr == "" {
-				http.Error(w, "El parámetro id_usuario es requerido", http.StatusBadRequest)
-				return
-			}
-
-			idUsuario, err := strconv.Atoi(idUsuarioStr)
-			if err != nil {
-				http.Error(w, "El parámetro id_usuario debe ser un número entero", http.StatusBadRequest)
-				return
-			}
-
-			facturas, err := models.ObtenerHistorialFacturasPorUsuario(idUsuario)
-			if err != nil {
-				log.Printf("Error al obtener historial de facturas: %v", err)
-				http.Error(w, "Error al obtener el historial de facturas", http.StatusInternalServerError)
-				return
-			}
-
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(facturas)
-
-		case http.MethodPost:
-			// Registrar una nueva factura en el historial
-			var historialData struct {
-				IDUsuario           int     `json:"id_usuario"`
-				RFCReceptor         string  `json:"rfc_receptor"`
-				RazonSocialReceptor string  `json:"razon_social_receptor"`
-				ClaveTicket         string  `json:"clave_ticket"`
-				Folio               string  `json:"folio"`
-				Total               float64 `json:"total"`
-				UsoCFDI             string  `json:"uso_cfdi"`
-				Observaciones       string  `json:"observaciones"`
-			}
-
-			decoder := json.NewDecoder(r.Body)
-			if err := decoder.Decode(&historialData); err != nil {
-				log.Printf("Error decodificando JSON de historial: %v", err)
-				utils.RespondWithError(w, "Error al leer los datos del historial")
-				return
-			}
-
-			// Validar datos obligatorios
-			if historialData.IDUsuario == 0 || historialData.RFCReceptor == "" ||
-				historialData.RazonSocialReceptor == "" || historialData.ClaveTicket == "" ||
-				historialData.Total <= 0 || historialData.UsoCFDI == "" {
-				utils.RespondWithError(w, "Faltan campos obligatorios para el registro de historial")
-				return
-			}
-
-			// Insertar en base de datos
-			id, err := models.InsertarHistorialFactura(
-				historialData.IDUsuario,
-				historialData.RFCReceptor,
-				historialData.RazonSocialReceptor,
-				historialData.ClaveTicket,
-				historialData.Folio, // Incluir el folio
-				historialData.Total,
-				historialData.UsoCFDI,
-				historialData.Observaciones,
-			)
-
-			if err != nil {
-				log.Printf("Error al registrar historial: %v", err)
-				utils.RespondWithError(w, fmt.Sprintf("Error al registrar en el historial: %v", err))
-				return
-			}
-
-			utils.RespondWithJSON(w, http.StatusCreated, map[string]interface{}{
-				"id":      id,
-				"message": "Factura registrada correctamente en el historial",
-			})
-
-		default:
-			http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
-		}
-	})))
+	http.Handle("/api/historial-facturas", utils.EnableCors(http.HandlerFunc(handlers.HistorialFacturasHandler(db.GetDB()))))
 
 	// Endpoint para descargar una factura del historial
 	http.Handle("/api/descargar-factura/", utils.EnableCors(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -601,7 +536,7 @@ func main() {
 			return
 		}
 
-		// Buscar en la tabla adm_empresas_rfc con JOIN a adm_metodopago y efac_regimenfiscal
+		// Buscar en la tabla adm_empresas_rfc con JOIN a adm_metodopago, efac_regimenfiscal, adm_tipopagos y adm_condicionpago
 		var result struct {
 			IDEmpresa          int    `json:"idempresa"`
 			IDRFC              int    `json:"idrfc"`
@@ -610,6 +545,10 @@ func main() {
 			IDRegimenFiscal    int    `json:"idregimenfiscal"`
 			CRegimenFiscal     string `json:"c_regimenfiscal"`
 			DescripcionRegimen string `json:"descripcion_regimen"`
+			IDTipoPago         int    `json:"idtipopago"`
+			TipoPago           string `json:"tipo_pago"`
+			IDCondicion        int    `json:"idcondicion"`
+			CondicionPago      string `json:"condicion_pago"`
 		}
 
 		// Conectar a la base de datos Alpha
@@ -625,12 +564,18 @@ func main() {
                   COALESCE(mp.metodo, 'No disponible') AS metodo_pago,
                   er.idregimenfiscal,
                   COALESCE(rf.c_regimenfiscal, 'No disponible') AS c_regimenfiscal,
-                  COALESCE(rf.descripcion, 'No disponible') AS descripcion_regimen
+                  COALESCE(rf.descripcion, 'No disponible') AS descripcion_regimen,
+                  COALESCE(er.idtipopago, 0) AS idtipopago,
+                  COALESCE(tp.tipo, 'No disponible') AS tipo_pago,
+                  COALESCE(er.idcondicion, 0) AS idcondicion,
+                  COALESCE(cp.condicion, 'No disponible') AS condicion_pago
                   FROM adm_empresas_rfc er
                   LEFT JOIN adm_metodopago mp ON er.idmetodo = mp.idmetodo
                   LEFT JOIN efac_regimenfiscal rf ON er.idregimenfiscal = rf.idregimenfiscal
+                  LEFT JOIN adm_tipopagos tp ON er.idtipopago = tp.idtipo
+                  LEFT JOIN adm_condicionpago cp ON er.idcondicion = cp.idcondicion
                   WHERE er.rfc = ?`
-		err = alphaDB.QueryRow(query, rfc).Scan(&result.IDEmpresa, &result.IDRFC, &result.IDMetodo, &result.MetodoPago, &result.IDRegimenFiscal, &result.CRegimenFiscal, &result.DescripcionRegimen)
+		err = alphaDB.QueryRow(query, rfc).Scan(&result.IDEmpresa, &result.IDRFC, &result.IDMetodo, &result.MetodoPago, &result.IDRegimenFiscal, &result.CRegimenFiscal, &result.DescripcionRegimen, &result.IDTipoPago, &result.TipoPago, &result.IDCondicion, &result.CondicionPago)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				http.Error(w, "RFC no encontrado", http.StatusNotFound)
@@ -763,33 +708,46 @@ func main() {
 			return
 		}
 
-		// Obtener datos fiscales (siempre será un solo registro)
-		query := `SELECT id, rfc, razon_social, direccion_fiscal, codigo_postal, 
-              ruta_csd_key, ruta_csd_cer, clave_csd, regimen_fiscal 
-              FROM datos_fiscales LIMIT 1`
+		// Obtener datos fiscales para el usuario específico
+		query := `SELECT id, rfc, razon_social, direccion_fiscal, direccion, 
+              codigo_postal, ruta_csd_key, ruta_csd_cer, clave_csd, regimen_fiscal,
+              nombre_comercial, colonia, ciudad, estado, serie_df
+              FROM datos_fiscales WHERE id_usuario = ?`
 
 		var datosFiscales struct {
 			ID              int    `json:"id"`
 			RFC             string `json:"rfcEmisor"`
 			RazonSocial     string `json:"razonSocial"`
 			DireccionFiscal string `json:"direccionFiscal"`
+			Direccion       string `json:"direccion"`
 			CodigoPostal    string `json:"cp"`
 			RutaCsdKey      string `json:"rutaCsdKey"`
 			RutaCsdCer      string `json:"rutaCsdCer"`
 			ClaveCsd        string `json:"claveArchivoCSD"`
 			RegimenFiscal   string `json:"regimenFiscal"`
+			NombreComercial string `json:"nombreComercial"`
+			Colonia         string `json:"colonia"`
+			Ciudad          string `json:"ciudad"`
+			Estado          string `json:"estado"`
+			SerieDf         string `json:"serieDf"`
 		}
 
-		err = db.GetDB().QueryRow(query).Scan(
+		err = db.GetDB().QueryRow(query, idUsuario).Scan(
 			&datosFiscales.ID,
 			&datosFiscales.RFC,
 			&datosFiscales.RazonSocial,
 			&datosFiscales.DireccionFiscal,
+			&datosFiscales.Direccion,
 			&datosFiscales.CodigoPostal,
 			&datosFiscales.RutaCsdKey,
 			&datosFiscales.RutaCsdCer,
 			&datosFiscales.ClaveCsd,
 			&datosFiscales.RegimenFiscal,
+			&datosFiscales.NombreComercial,
+			&datosFiscales.Colonia,
+			&datosFiscales.Ciudad,
+			&datosFiscales.Estado,
+			&datosFiscales.SerieDf,
 		)
 
 		if err != nil {
@@ -827,16 +785,41 @@ func main() {
 		// Obtener datos del formulario
 		rfc := r.FormValue("rfc")
 		razonSocial := r.FormValue("razon_social")
+		nombreComercial := r.FormValue("nombre_comercial")
 		direccionFiscal := r.FormValue("direccion_fiscal")
+		direccion := r.FormValue("direccion")
+		colonia := r.FormValue("colonia")
+		ciudad := r.FormValue("ciudad")
+		estado := r.FormValue("estado")
 		codigoPostal := r.FormValue("codigo_postal")
 		claveCsd := r.FormValue("clave_csd")
 		regimenFiscal := r.FormValue("regimen_fiscal")
+		serieDf := r.FormValue("serie_df")
+		idUsuarioStr := r.FormValue("id_usuario")
+
+		// LOG para depuración
+		log.Printf("🔍 MAIN.GO - Datos recibidos:")
+		log.Printf("   rfc: '%s'", rfc)
+		log.Printf("   nombre_comercial: '%s'", nombreComercial)
+		log.Printf("   direccion: '%s'", direccion)
+		log.Printf("   colonia: '%s'", colonia)
+		log.Printf("   ciudad: '%s'", ciudad)
+		log.Printf("   estado: '%s'", estado)
+		log.Printf("   serie_df: '%s' (longitud: %d)", serieDf, len(serieDf))
 
 		// Validar campos obligatorios
-		if rfc == "" || razonSocial == "" || codigoPostal == "" || regimenFiscal == "" {
-			log.Printf("Faltan campos obligatorios: RFC=%s, RazonSocial=%s, CP=%s, RegimenFiscal=%s",
-				rfc, razonSocial, codigoPostal, regimenFiscal)
-			http.Error(w, "RFC, Razón Social, Código Postal y Régimen Fiscal son obligatorios", http.StatusBadRequest)
+		if rfc == "" || razonSocial == "" || codigoPostal == "" || regimenFiscal == "" || idUsuarioStr == "" {
+			log.Printf("Faltan campos obligatorios: RFC=%s, RazonSocial=%s, CP=%s, RegimenFiscal=%s, IDUsuario=%s",
+				rfc, razonSocial, codigoPostal, regimenFiscal, idUsuarioStr)
+			http.Error(w, "RFC, Razón Social, Código Postal, Régimen Fiscal e ID de Usuario son obligatorios", http.StatusBadRequest)
+			return
+		}
+
+		// Convertir id_usuario a entero
+		idUsuario, err := strconv.Atoi(idUsuarioStr)
+		if err != nil {
+			log.Printf("Error al convertir id_usuario: %v", err)
+			http.Error(w, "ID de usuario inválido", http.StatusBadRequest)
 			return
 		}
 
@@ -910,9 +893,9 @@ func main() {
 		}
 		defer dbConn.Close()
 
-		// Verificar si ya existen datos fiscales
+		// Verificar si ya existen datos fiscales para este usuario
 		var count int
-		err = dbConn.QueryRow("SELECT COUNT(*) FROM datos_fiscales").Scan(&count)
+		err = dbConn.QueryRow("SELECT COUNT(*) FROM datos_fiscales WHERE id_usuario = ?", idUsuario).Scan(&count)
 		if err != nil {
 			log.Printf("Error al verificar datos existentes: %v", err)
 			http.Error(w, "Error al procesar la solicitud", http.StatusInternalServerError)
@@ -923,22 +906,27 @@ func main() {
 		var args []interface{}
 
 		if count == 0 {
-			// Insertar nuevos datos
+			// Insertar nuevos datos incluyendo los campos administrativos
 			query = `INSERT INTO datos_fiscales 
-                (rfc, razon_social, direccion_fiscal, codigo_postal, 
-                ruta_csd_key, ruta_csd_cer, clave_csd, regimen_fiscal) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+                (id_usuario, rfc, razon_social, nombre_comercial, direccion_fiscal, 
+                direccion, colonia, ciudad, estado, codigo_postal, 
+                ruta_csd_key, ruta_csd_cer, clave_csd, regimen_fiscal, serie_df) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 			args = []interface{}{
-				rfc, razonSocial, direccionFiscal, codigoPostal,
-				rutaCsdKey, rutaCsdCer, claveCsd, regimenFiscal,
+				idUsuario, rfc, razonSocial, nombreComercial, direccionFiscal,
+				direccion, colonia, ciudad, estado, codigoPostal,
+				rutaCsdKey, rutaCsdCer, claveCsd, regimenFiscal, serieDf,
 			}
 		} else {
-			// Actualizar datos existentes
+			// Actualizar datos existentes incluyendo los campos administrativos
 			query = `UPDATE datos_fiscales SET 
-                rfc = ?, razon_social = ?, direccion_fiscal = ?, codigo_postal = ?,
-                regimen_fiscal = ?`
+                rfc = ?, razon_social = ?, nombre_comercial = ?, direccion_fiscal = ?, 
+                direccion = ?, colonia = ?, ciudad = ?, estado = ?, codigo_postal = ?,
+                regimen_fiscal = ?, serie_df = ?`
 			args = []interface{}{
-				rfc, razonSocial, direccionFiscal, codigoPostal, regimenFiscal,
+				rfc, razonSocial, nombreComercial, direccionFiscal,
+				direccion, colonia, ciudad, estado, codigoPostal,
+				regimenFiscal, serieDf,
 			}
 
 			// Añadir campos opcionales solo si se proporcionaron
@@ -957,7 +945,8 @@ func main() {
 				args = append(args, rutaCsdCer)
 			}
 
-			query += " WHERE id = 1"
+			query += " WHERE id_usuario = ?"
+			args = append(args, idUsuario)
 		}
 
 		// Ejecutar consulta
@@ -1152,6 +1141,64 @@ func main() {
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(tablaInfo)
+	})))
+
+	// Endpoint para restablecer datos fiscales
+	http.Handle("/api/restablecer-datos-fiscales", utils.EnableCors(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost && r.Method != http.MethodDelete {
+			http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+			return
+		}
+
+		// Verificar que sea un administrador (opcional - la validación también está en frontend)
+		var body struct {
+			IDUsuario int `json:"id_usuario"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			http.Error(w, "Error al procesar la solicitud", http.StatusBadRequest)
+			return
+		}
+
+		// Verificar si el usuario es administrador
+		var isAdmin bool
+		err := db.GetDB().QueryRow("SELECT role = 'admin' FROM usuarios WHERE id = ?", body.IDUsuario).Scan(&isAdmin)
+		if err != nil {
+			log.Printf("Error al verificar rol de usuario: %v", err)
+			http.Error(w, "Error al verificar permisos de usuario", http.StatusInternalServerError)
+			return
+		}
+
+		if !isAdmin {
+			http.Error(w, "Solo los administradores pueden restablecer datos fiscales", http.StatusForbidden)
+			return
+		}
+
+		// Conectar a la base de datos
+		dbConn, err := db.ConnectUserDB()
+		if err != nil {
+			log.Printf("Error al conectar a la base de datos: %v", err)
+			http.Error(w, "Error al conectar a la base de datos", http.StatusInternalServerError)
+			return
+		}
+		defer dbConn.Close()
+
+		// Eliminar los datos fiscales del usuario específico
+		_, err = dbConn.Exec("DELETE FROM datos_fiscales WHERE id_usuario = ?", body.IDUsuario)
+		if err != nil {
+			log.Printf("Error al eliminar datos fiscales: %v", err)
+			http.Error(w, "Error al restablecer los datos fiscales", http.StatusInternalServerError)
+			return
+		}
+
+		log.Printf("Datos fiscales restablecidos por usuario administrador ID: %d", body.IDUsuario)
+
+		// Responder éxito
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{
+			"status":  "success",
+			"message": "Datos fiscales restablecidos correctamente",
+		})
 	})))
 
 	// En main.go asegúrate de tener esta ruta

@@ -1,124 +1,680 @@
 package services
 
 import (
-    "bytes"
-    "fmt"
-    "os"
-    "path/filepath"
-    "time"
+	"bytes"
+	"fmt"
+	"log"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
 
-    "github.com/phpdave11/gofpdf"
-    "carlos/Facts/Backend/internal/models"
+	"carlos/Facts/Backend/internal/models"
+
+	"github.com/phpdave11/gofpdf"
 )
+
+// Función auxiliar para dividir texto de manera segura manteniendo caracteres UTF-8
+func splitTextSafely(pdf *gofpdf.Fpdf, texto string, ancho float64) []string {
+	// Dividir texto manualmente para evitar problemas con SplitText
+	if len(texto) <= 80 {
+		return []string{texto}
+	}
+
+	var lineas []string
+	palabras := strings.Fields(texto)
+	lineaActual := ""
+	longitudMaxima := 80
+
+	for _, palabra := range palabras {
+		testLinea := lineaActual
+		if testLinea != "" {
+			testLinea += " "
+		}
+		testLinea += palabra
+
+		// Si la línea se vuelve muy larga, guardar la anterior y empezar nueva
+		if len(testLinea) > longitudMaxima {
+			if lineaActual != "" {
+				lineas = append(lineas, lineaActual)
+			}
+			lineaActual = palabra
+		} else {
+			lineaActual = testLinea
+		}
+	}
+
+	if lineaActual != "" {
+		lineas = append(lineas, lineaActual)
+	}
+
+	return lineas
+}
 
 // Función auxiliar para obtener la descripción del uso de CFDI
 func obtenerDescripcionUsoCfdi(clave string) string {
-    descripciones := map[string]string{
-        "G01": "Adquisición de mercancías",
-        "G02": "Devoluciones, descuentos o bonificaciones",
-        "G03": "Gastos en general",
-        "I01": "Construcciones",
-        "D01": "Honorarios médicos",
-        "P01": "Por definir",
-    }
-    if desc, ok := descripciones[clave]; ok {
-        return desc
-    }
-    return clave
+	descripciones := map[string]string{
+		"G01": "Adquisición de mercancías",
+		"G02": "Devoluciones, descuentos o bonificaciones",
+		"G03": "Gastos en general",
+		"I01": "Construcciones",
+		"D01": "Honorarios médicos",
+		"P01": "Por definir",
+	}
+	if desc, ok := descripciones[clave]; ok {
+		return desc
+	}
+	return clave
 }
 
-func GenerarPDF(factura models.Factura, logoBytes []byte) (*bytes.Buffer, error) {
-    pdf := gofpdf.New("P", "mm", "A4", "")
-    pdf.SetAuthor("Sistema de Facturación", true)
-    pdf.SetTitle("Factura Electrónica", true)
-    pdf.AddPage()
-    pdf.SetMargins(15, 15, 15)
+// Función auxiliar para obtener la descripción del régimen fiscal
+func obtenerDescripcionRegimenFiscalPDF(clave string) string {
+	if desc, ok := regimenFiscalDescripciones[clave]; ok {
+		return desc
+	}
+	return clave
+}
 
-    // Configurar la fuente principal
-    tr := pdf.UnicodeTranslatorFromDescriptor("")
-    pdf.SetFont("Arial", "B", 20)
-    pdf.SetTextColor(50, 50, 50)
-    pdf.SetXY(20, 20)
-    pdf.Cell(130, 10, tr("FACTURA ELECTRÓNICA"))
+func GenerarPDF(factura models.Factura, empresa *models.Empresa, logoBytes []byte) (*bytes.Buffer, error) {
+	pdf := gofpdf.New("P", "mm", "A4", "")
+	pdf.SetAuthor("Sistema de Facturación", true)
+	pdf.SetTitle("Factura Electrónica", true)
+	pdf.AddPage()
+	pdf.SetMargins(10, 10, 10)
 
-    // Agregar logo si está disponible
-    if len(logoBytes) > 0 {
-        tmpDir := os.TempDir()
-        tmpfileName := filepath.Join(tmpDir, fmt.Sprintf("logo-%d.png", time.Now().UnixNano()))
-        err := os.WriteFile(tmpfileName, logoBytes, 0644)
-        if err == nil {
-            defer os.Remove(tmpfileName)
-            pdf.Image(tmpfileName, 155, 17, 38, 36, false, "", 0, "")
-        }
-    }
+	tr := pdf.UnicodeTranslatorFromDescriptor("")
 
-    // Agregar datos del emisor
-    pdf.SetFont("Arial", "B", 12)
-    pdf.SetTextColor(30, 80, 150)
-    pdf.SetXY(15, 50)
-    pdf.Cell(180, 8, tr("DATOS DEL EMISOR"))
-    pdf.SetFont("Arial", "", 10)
-    pdf.SetTextColor(50, 50, 50)
-    pdf.SetXY(15, 60)
-    pdf.Cell(180, 6, tr("Empresa Ejemplo SA de CV"))
-    pdf.SetXY(15, 66)
-    pdf.Cell(180, 6, tr("RFC: AAA010101AAA"))
-    pdf.SetXY(15, 72)
-    pdf.Cell(180, 6, tr("Régimen Fiscal: 601 - General de Ley Personas Morales"))
+	// ========== HEADER LIMPIO ==========
+	// Agregar logo si está disponible (posición izquierda)
+	if len(logoBytes) > 0 {
+		tmpDir := os.TempDir()
+		tmpfileName := filepath.Join(tmpDir, fmt.Sprintf("logo-%d.png", time.Now().UnixNano()))
+		err := os.WriteFile(tmpfileName, logoBytes, 0644)
+		if err == nil {
+			defer os.Remove(tmpfileName)
+			pdf.Image(tmpfileName, 10, 10, 30, 30, false, "", 0, "")
+		}
+	}
 
-    // Agregar datos del receptor
-    pdf.SetFont("Arial", "B", 12)
-    pdf.SetTextColor(30, 80, 150)
-    pdf.SetXY(15, 80)
-    pdf.Cell(180, 8, tr("DATOS DEL RECEPTOR"))
-    pdf.SetFont("Arial", "", 10)
-    pdf.SetTextColor(50, 50, 50)
-    pdf.SetXY(15, 90)
-    pdf.Cell(180, 6, tr(fmt.Sprintf("Razón Social: %s", factura.RazonSocial)))
-    pdf.SetXY(15, 96)
-    pdf.Cell(180, 6, tr(fmt.Sprintf("RFC: %s", factura.RFC)))
-    pdf.SetXY(15, 102)
-    pdf.Cell(180, 6, tr(fmt.Sprintf("Uso CFDI: %s", obtenerDescripcionUsoCfdi(factura.UsoCFDI))))
+	y := 45.0
+	pdf.SetTextColor(0, 0, 0)
 
-    // Agregar detalles de la factura
-    pdf.SetFont("Arial", "B", 10)
-    pdf.SetFillColor(230, 230, 230)
-    pdf.SetXY(15, 110)
-    pdf.CellFormat(120, 8, tr("Concepto"), "1", 0, "C", true, 0, "")
-    pdf.CellFormat(30, 8, tr("Cantidad"), "1", 0, "C", true, 0, "")
-    pdf.CellFormat(30, 8, tr("Importe"), "1", 1, "C", true, 0, "")
+	// ========== DATOS ESENCIALES DE LA FACTURA (COLUMNA IZQUIERDA) ==========
+	pdf.SetFont("Arial", "B", 8) // Negrita para las etiquetas
 
-    pdf.SetFont("Arial", "", 10)
-    pdf.SetFillColor(255, 255, 255)
-    for _, concepto := range factura.Conceptos {
-        pdf.SetX(15)
-        pdf.CellFormat(120, 8, tr(concepto.Descripcion), "1", 0, "L", true, 0, "")
-        pdf.CellFormat(30, 8, fmt.Sprintf("%.2f", concepto.Cantidad), "1", 0, "C", true, 0, "")
-        pdf.CellFormat(30, 8, fmt.Sprintf("$%.2f", concepto.Importe), "1", 1, "R", true, 0, "")
-    }
+	// RFC emisor
+	if factura.EmisorRFC != "" {
+		pdf.SetXY(10, y)
+		pdf.SetTextColor(0, 0, 0)
+		pdf.Cell(40, 4, tr("RFC emisor:"))
+		pdf.SetFont("Arial", "", 8) // Normal para los datos
+		pdf.SetTextColor(64, 64, 64)
+		pdf.Cell(70, 4, tr(factura.EmisorRFC))
+		y += 4
+	}
 
-    // Agregar totales
-    pdf.SetFont("Arial", "B", 10)
-    pdf.SetXY(15, pdf.GetY()+10)
-    pdf.CellFormat(150, 8, tr("Subtotal:"), "0", 0, "R", false, 0, "")
-    pdf.CellFormat(30, 8, fmt.Sprintf("$%.2f", factura.Subtotal), "0", 1, "R", false, 0, "")
+	// Nombre emisor
+	if factura.EmisorRazonSocial != "" {
+		pdf.SetXY(10, y)
+		pdf.SetFont("Arial", "B", 8) // Negrita para la etiqueta
+		pdf.SetTextColor(0, 0, 0)
+		pdf.Cell(40, 4, tr("Nombre emisor:"))
+		pdf.SetFont("Arial", "", 8) // Normal para los datos
+		pdf.SetTextColor(64, 64, 64)
+		lineas := splitTextSafely(pdf, tr(factura.EmisorRazonSocial), 70)
+		pdf.Cell(70, 4, tr(lineas[0]))
+		y += 4
+		for i := 1; i < len(lineas); i++ {
+			pdf.SetXY(50, y)
+			pdf.SetFont("Arial", "", 8) // Normal para los datos
+			pdf.SetTextColor(64, 64, 64)
+			pdf.Cell(70, 4, tr(lineas[i]))
+			y += 4
+		}
+	}
 
-    pdf.SetXY(15, pdf.GetY())
-    pdf.CellFormat(150, 8, tr("IVA (16%):"), "0", 0, "R", false, 0, "")
-    pdf.CellFormat(30, 8, fmt.Sprintf("$%.2f", factura.Impuestos), "0", 1, "R", false, 0, "")
+	// Folio
+	folio := ""
+	if factura.NumeroFolio != "" {
+		folio = factura.NumeroFolio
+	} else if factura.Serie != "" {
+		folio = factura.Serie
+	}
+	if folio != "" {
+		pdf.SetXY(10, y)
+		pdf.SetFont("Arial", "B", 8) // Negrita para la etiqueta
+		pdf.SetTextColor(0, 0, 0)
+		pdf.Cell(40, 4, tr("Folio:"))
+		pdf.SetFont("Arial", "", 8) // Normal para los datos
+		pdf.SetTextColor(64, 64, 64)
+		pdf.Cell(70, 4, tr(folio))
+		y += 4
+	}
 
-    pdf.SetXY(15, pdf.GetY())
-    pdf.SetFont("Arial", "B", 12)
-    pdf.SetTextColor(30, 80, 150)
-    pdf.CellFormat(150, 8, tr("Total:"), "0", 0, "R", false, 0, "")
-    pdf.CellFormat(30, 8, fmt.Sprintf("$%.2f", factura.Total), "0", 1, "R", false, 0, "")
+	// RFC receptor
+	receptorRFC := ""
+	if factura.ReceptorRFC != "" {
+		receptorRFC = factura.ReceptorRFC
+	} else if factura.ClienteRFC != "" {
+		receptorRFC = factura.ClienteRFC
+	}
+	if receptorRFC != "" {
+		pdf.SetXY(10, y)
+		pdf.SetFont("Arial", "B", 8) // Negrita para la etiqueta
+		pdf.SetTextColor(0, 0, 0)
+		pdf.Cell(40, 4, tr("RFC receptor:"))
+		pdf.SetFont("Arial", "", 8) // Normal para los datos
+		pdf.SetTextColor(64, 64, 64)
+		pdf.Cell(70, 4, tr(receptorRFC))
+		y += 4
+	}
 
-    // Guardar el PDF en un buffer
-    var pdfBuffer bytes.Buffer
-    err := pdf.Output(&pdfBuffer)
-    if err != nil {
-        return nil, fmt.Errorf("error al generar PDF: %w", err)
-    }
+	// Nombre receptor
+	receptorRazon := ""
+	if factura.ReceptorRazonSocial != "" {
+		receptorRazon = factura.ReceptorRazonSocial
+	} else if factura.ClienteRazonSocial != "" {
+		receptorRazon = factura.ClienteRazonSocial
+	}
+	if receptorRazon != "" {
+		pdf.SetXY(10, y)
+		pdf.SetFont("Arial", "B", 8) // Negrita para la etiqueta
+		pdf.SetTextColor(0, 0, 0)
+		pdf.Cell(40, 4, tr("Nombre receptor:"))
+		pdf.SetFont("Arial", "", 8) // Normal para los datos
+		pdf.SetTextColor(64, 64, 64)
+		lineas := splitTextSafely(pdf, tr(receptorRazon), 70)
+		pdf.Cell(70, 4, tr(lineas[0]))
+		y += 4
+		for i := 1; i < len(lineas); i++ {
+			pdf.SetXY(50, y)
+			pdf.SetFont("Arial", "", 8) // Normal para los datos
+			pdf.SetTextColor(64, 64, 64)
+			pdf.Cell(70, 4, tr(lineas[i]))
+			y += 4
+		}
+	}
 
-    return &pdfBuffer, nil
+	// Código postal del receptor
+	cpReceptor := ""
+	if factura.CodigoPostal != "" {
+		cpReceptor = factura.CodigoPostal
+	} else if factura.ReceptorCodigoPostal != "" {
+		cpReceptor = factura.ReceptorCodigoPostal
+	}
+	if cpReceptor != "" {
+		pdf.SetXY(10, y)
+		pdf.SetFont("Arial", "B", 8) // Negrita para la etiqueta
+		pdf.SetTextColor(0, 0, 0)
+		pdf.Cell(40, 4, tr("Código postal del"))
+		y += 4
+		pdf.SetXY(10, y)
+		pdf.SetFont("Arial", "B", 8) // Negrita para la etiqueta
+		pdf.Cell(40, 4, tr("receptor:"))
+		pdf.SetFont("Arial", "", 8) // Normal para los datos
+		pdf.SetTextColor(64, 64, 64)
+		pdf.Cell(70, 4, tr(cpReceptor))
+		y += 4
+	}
+
+	// Régimen fiscal receptor
+	regimenReceptor := ""
+	if factura.RegimenFiscalReceptor != "" {
+		regimenReceptor = factura.RegimenFiscalReceptor
+	} else if factura.RegimenFiscal != "" {
+		regimenReceptor = factura.RegimenFiscal
+	}
+	if regimenReceptor != "" {
+		pdf.SetXY(10, y)
+		pdf.SetFont("Arial", "B", 8) // Negrita para la etiqueta
+		pdf.SetTextColor(0, 0, 0)
+		pdf.Cell(40, 4, tr("Régimen fiscal"))
+		y += 4
+		pdf.SetXY(10, y)
+		pdf.SetFont("Arial", "B", 8) // Negrita para la etiqueta
+		pdf.Cell(40, 4, tr("receptor:"))
+		pdf.SetFont("Arial", "", 8) // Normal para los datos
+		pdf.SetTextColor(64, 64, 64)
+		regimenDesc := obtenerDescripcionRegimenFiscalPDF(regimenReceptor)
+		pdf.Cell(70, 4, tr(regimenDesc))
+		y += 4
+	}
+
+	// Uso CFDI
+	pdf.SetXY(10, y)
+	pdf.SetFont("Arial", "B", 8) // Negrita para la etiqueta
+	pdf.SetTextColor(0, 0, 0)
+	pdf.Cell(40, 4, tr("Uso CFDI:"))
+	pdf.SetFont("Arial", "", 8) // Normal para los datos
+	pdf.SetTextColor(64, 64, 64)
+	var usoCfdiTexto string
+	if factura.UsoCFDI != "" {
+		usoCfdiDesc := obtenerDescripcionUsoCfdi(factura.UsoCFDI)
+		usoCfdiTexto = usoCfdiDesc
+	} else {
+		usoCfdiTexto = "Gastos en general"
+	}
+	pdf.Cell(70, 4, tr(usoCfdiTexto))
+	y += 4
+
+	// ========== INFORMACIÓN FISCAL (COLUMNA DERECHA) ==========
+	yFiscal := 45.0
+
+	// Folio fiscal
+	pdf.SetXY(110, yFiscal)
+	pdf.SetFont("Arial", "B", 8) // Negrita para la etiqueta
+	pdf.SetTextColor(0, 0, 0)
+	pdf.Cell(50, 4, tr("Folio fiscal:"))
+	pdf.SetFont("Arial", "", 8) // Normal para los datos
+	pdf.SetTextColor(64, 64, 64)
+	pdf.Cell(80, 4, tr(""))
+	yFiscal += 4
+
+	// No. de serie del CSD
+	pdf.SetXY(110, yFiscal)
+	pdf.SetFont("Arial", "B", 8) // Negrita para la etiqueta
+	pdf.SetTextColor(0, 0, 0)
+	pdf.Cell(50, 4, tr("No. de serie del CSD:"))
+	pdf.SetFont("Arial", "", 8) // Normal para los datos
+	pdf.SetTextColor(64, 64, 64)
+	pdf.Cell(80, 4, tr(""))
+	yFiscal += 4
+
+	// Código postal, fecha y hora de emisión
+	pdf.SetXY(110, yFiscal)
+	pdf.SetFont("Arial", "B", 8) // Negrita para la etiqueta
+	pdf.SetTextColor(0, 0, 0)
+	pdf.Cell(50, 4, tr("Código postal, fecha y hora"))
+	yFiscal += 4
+	pdf.SetXY(110, yFiscal)
+	pdf.SetFont("Arial", "B", 8) // Negrita para la etiqueta
+	pdf.Cell(50, 4, tr("de emisión:"))
+	pdf.SetFont("Arial", "", 8) // Normal para los datos
+	pdf.SetTextColor(64, 64, 64)
+
+	// Código postal del emisor y fecha
+	codigoPostalEmisor := ""
+	if factura.EmisorCodigoPostal != "" {
+		codigoPostalEmisor = factura.EmisorCodigoPostal
+	}
+	fechaEmision := ""
+	if factura.FechaEmision != "" {
+		fechaEmision = factura.FechaEmision
+	} else {
+		fechaEmision = time.Now().Format("2006-01-02 15:04:05")
+	}
+	cpyFecha := fmt.Sprintf("%s %s", codigoPostalEmisor, fechaEmision)
+	pdf.Cell(80, 4, tr(cpyFecha))
+	yFiscal += 4
+
+	// Efecto de comprobante
+	pdf.SetXY(110, yFiscal)
+	pdf.SetFont("Arial", "B", 8) // Negrita para la etiqueta
+	pdf.SetTextColor(0, 0, 0)
+	pdf.Cell(50, 4, tr("Efecto de comprobante:"))
+	pdf.SetFont("Arial", "", 8) // Normal para los datos
+	pdf.SetTextColor(64, 64, 64)
+	pdf.Cell(80, 4, tr("Ingreso"))
+	yFiscal += 4
+
+	// Régimen fiscal (del emisor)
+	pdf.SetXY(110, yFiscal)
+	pdf.SetFont("Arial", "B", 8) // Negrita para la etiqueta
+	pdf.SetTextColor(0, 0, 0)
+	pdf.Cell(50, 4, tr("Régimen fiscal:"))
+	pdf.SetFont("Arial", "", 8) // Normal para los datos
+	pdf.SetTextColor(64, 64, 64)
+	regimenFiscalTexto := ""
+	if factura.EmisorRegimenFiscal != "" {
+		regimenFiscalTexto = obtenerDescripcionRegimenFiscalPDF(factura.EmisorRegimenFiscal)
+	} else {
+		regimenFiscalTexto = "General de Ley Personas Morales"
+	}
+	pdf.Cell(80, 4, tr(regimenFiscalTexto))
+	yFiscal += 4
+
+	// Ajustar Y para continuar después de ambas columnas
+	if yFiscal > y {
+		y = yFiscal
+	}
+
+	y += 2 // Espacio adicional reducido
+
+	// Sin línea divisoria antes de la tabla
+
+	// ========== TABLA DE PRODUCTOS MEJORADA ==========
+	log.Printf("PDF_DEBUG - Generando tabla de conceptos")
+	log.Printf("PDF_DEBUG - Total conceptos en factura: %d", len(factura.Conceptos))
+
+	// Deduplicar conceptos
+	conceptosUnicos := make(map[string]models.Concepto)
+	for _, concepto := range factura.Conceptos {
+		claveUnica := fmt.Sprintf("%s_%.2f_%.2f", concepto.Descripcion, concepto.Cantidad, concepto.ValorUnitario)
+		if _, existe := conceptosUnicos[claveUnica]; !existe {
+			conceptosUnicos[claveUnica] = concepto
+		}
+	}
+
+	conceptosParaPDF := make([]models.Concepto, 0, len(conceptosUnicos))
+	for _, concepto := range conceptosUnicos {
+		conceptosParaPDF = append(conceptosParaPDF, concepto)
+	}
+
+	// Verificar espacio para la tabla - filas con altura fija
+	spaceNeeded := float64(len(conceptosParaPDF)*8) + 20 // Altura fija por fila
+	spaceAvailable := 280 - y
+	if spaceNeeded > spaceAvailable {
+		pdf.AddPage()
+		y = 20
+	}
+
+	// Título de la tabla
+	pdf.SetFont("Arial", "B", 12)
+	pdf.SetTextColor(30, 80, 150)
+	pdf.SetXY(15, y)
+	pdf.Cell(180, 8, tr("DETALLE DE PRODUCTOS"))
+	y += 12
+
+	// Definir anchos de columnas optimizados con mejor distribución - AÑADIENDO COLUMNA TOTAL
+	colWidths := []float64{
+		18, // Clave Prod/Ser
+		70, // Producto (descripción) - Reducido para dar espacio a TOTAL
+		13, // Clave SAT
+		16, // Unidad SAT
+		15, // Cantidad
+		15, // Precio
+		12, // IVA (%)
+		12, // IEPS (%)
+		16, // TOTAL (nueva columna)
+	}
+
+	headers := []string{
+		"Clave Prod/Ser", "Producto", "Clave SAT", "Unidad SAT",
+		"Cantidad", "Precio", "IVA (%)", "IEPS (%)", "TOTAL",
+	}
+
+	// Dibujar encabezados de la tabla con líneas negras
+	pdf.SetFont("Arial", "B", 7)    // Reducir tamaño de fuente para encabezados
+	pdf.SetFillColor(60, 120, 180)  // Color azul para encabezados
+	pdf.SetTextColor(255, 255, 255) // Texto blanco
+	pdf.SetDrawColor(0, 0, 0)       // Líneas negras
+
+	x := 15.0
+	for i, header := range headers {
+		pdf.SetXY(x, y)
+		pdf.CellFormat(colWidths[i], 8, tr(header), "1", 0, "C", true, 0, "")
+		x += colWidths[i] // Sin espacios entre columnas - tabla compacta
+	}
+	y += 8
+
+	// Configurar para el contenido de la tabla
+	pdf.SetFont("Arial", "", 7) // Reducir tamaño de fuente para contenido
+	pdf.SetTextColor(40, 40, 40)
+	pdf.SetFillColor(248, 248, 248) // Color gris claro alternado
+	pdf.SetDrawColor(0, 0, 0)       // Líneas negras para el contenido
+
+	// Dibujar filas de la tabla
+	for i, concepto := range conceptosParaPDF {
+		// Alternar color de fondo
+		fillColor := i%2 == 0
+
+		// Verificar si necesitamos una nueva página
+		if y > 265 { // Ajustar el límite para dar más espacio
+			pdf.AddPage()
+			y = 20
+			// Redibujar encabezados en la nueva página
+			pdf.SetFont("Arial", "B", 7)
+			pdf.SetFillColor(60, 120, 180)
+			pdf.SetTextColor(255, 255, 255)
+			pdf.SetDrawColor(0, 0, 0) // Líneas negras también en nueva página
+			x = 15.0
+			for j, header := range headers {
+				pdf.SetXY(x, y)
+				pdf.CellFormat(colWidths[j], 8, tr(header), "1", 0, "C", true, 0, "")
+				x += colWidths[j] // Sin espacios - tabla compacta
+			}
+			y += 8
+			pdf.SetFont("Arial", "", 7)
+			pdf.SetTextColor(40, 40, 40)
+			pdf.SetFillColor(248, 248, 248)
+			pdf.SetDrawColor(0, 0, 0) // Líneas negras en nueva página
+		}
+
+		// Calcular altura de la fila basada en el texto más largo
+		maxLines := 1
+		descripcionLines := splitTextSafely(pdf, tr(concepto.Descripcion), colWidths[1]-4) // Más margen
+		if len(descripcionLines) > maxLines {
+			maxLines = len(descripcionLines)
+		}
+
+		// Aumentar altura mínima de filas para mejor legibilidad
+		rowHeight := float64(maxLines) * 3.5 // Ajustar espaciado entre líneas
+		if rowHeight < 10 {
+			rowHeight = 10 // Altura mínima aumentada
+		}
+
+		x = 15.0
+
+		// Clave Prod/Ser
+		pdf.SetXY(x, y)
+		pdf.CellFormat(colWidths[0], rowHeight, concepto.ClaveProdServ, "1", 0, "C", fillColor, 0, "")
+		x += colWidths[0]
+
+		// Producto (descripción con texto multilínea)
+		pdf.SetXY(x, y)
+		pdf.CellFormat(colWidths[1], rowHeight, "", "1", 0, "L", fillColor, 0, "")
+
+		// Renderizar texto multilínea para la descripción con mejor espaciado
+		for j, line := range descripcionLines {
+			lineY := y + float64(j)*3.5 + 2.5   // Ajustar posición vertical
+			pdf.SetXY(x+2, lineY)               // Más margen izquierdo
+			pdf.Cell(colWidths[1]-4, 3.5, line) // Más margen total
+		}
+		x += colWidths[1]
+
+		// Clave SAT
+		pdf.SetXY(x, y)
+		claveSAT := concepto.ClaveSAT
+		if claveSAT == "" || claveSAT == "0" {
+			claveSAT = "N/A"
+		}
+		pdf.CellFormat(colWidths[2], rowHeight, claveSAT, "1", 0, "C", fillColor, 0, "")
+		x += colWidths[2]
+
+		// Unidad SAT
+		pdf.SetXY(x, y)
+		unidadSAT := concepto.ClaveUnidad
+		if unidadSAT == "" || unidadSAT == "0" {
+			unidadSAT = "PZA"
+		}
+		pdf.CellFormat(colWidths[3], rowHeight, unidadSAT, "1", 0, "C", fillColor, 0, "")
+		x += colWidths[3]
+
+		// Cantidad
+		pdf.SetXY(x, y)
+		pdf.CellFormat(colWidths[4], rowHeight, fmt.Sprintf("%.0f", concepto.Cantidad), "1", 0, "C", fillColor, 0, "")
+		x += colWidths[4]
+
+		// Precio (centrado como las demás columnas)
+		pdf.SetXY(x, y)
+		pdf.CellFormat(colWidths[5], rowHeight, fmt.Sprintf("$%.2f", concepto.ValorUnitario), "1", 0, "C", fillColor, 0, "")
+		x += colWidths[5]
+
+		// IVA (%)
+		pdf.SetXY(x, y)
+		pdf.CellFormat(colWidths[6], rowHeight, fmt.Sprintf("%.0f%%", concepto.TasaIVA), "1", 0, "C", fillColor, 0, "")
+		x += colWidths[6]
+
+		// IEPS (%)
+		pdf.SetXY(x, y)
+		pdf.CellFormat(colWidths[7], rowHeight, fmt.Sprintf("%.0f%%", concepto.TasaIEPS), "1", 0, "C", fillColor, 0, "")
+		x += colWidths[7]
+
+		// TOTAL (nueva columna)
+		pdf.SetXY(x, y)
+		totalConcepto := concepto.Cantidad * concepto.ValorUnitario
+		pdf.CellFormat(colWidths[8], rowHeight, fmt.Sprintf("$%.2f", totalConcepto), "1", 0, "C", fillColor, 0, "")
+
+		y += rowHeight
+	}
+
+	// Verificar espacio para el total
+	if y > 260 {
+		pdf.AddPage()
+		y = 20
+	}
+
+	// Calcular subtotal e impuestos
+	subtotal := 0.0
+	totalIVA := 0.0
+	totalIEPS := 0.0
+
+	for _, concepto := range conceptosParaPDF {
+		importeConcepto := concepto.Cantidad * concepto.ValorUnitario
+		subtotal += importeConcepto
+		totalIVA += importeConcepto * (concepto.TasaIVA / 100)
+		totalIEPS += importeConcepto * (concepto.TasaIEPS / 100)
+	}
+
+	// Mostrar desglose de totales
+	y += 10
+	pdf.SetFont("Arial", "B", 10)
+	pdf.SetTextColor(0, 0, 0) // Texto negro
+
+	// SUBTOTAL
+	pdf.SetXY(15, y)
+	pdf.CellFormat(150, 6, tr("SUBTOTAL:"), "0", 0, "R", false, 0, "")
+	pdf.CellFormat(30, 6, fmt.Sprintf("$%.2f", subtotal), "0", 1, "R", false, 0, "")
+	y += 6
+
+	// IVA (16%)
+	pdf.SetXY(15, y)
+	pdf.CellFormat(150, 6, tr("IVA (16%):"), "0", 0, "R", false, 0, "")
+	pdf.CellFormat(30, 6, fmt.Sprintf("$%.2f", totalIVA), "0", 1, "R", false, 0, "")
+	y += 6
+
+	// TOTAL (usando el valor original de la factura)
+	pdf.SetFont("Arial", "B", 12)
+	pdf.SetXY(15, y)
+	pdf.CellFormat(150, 8, tr("TOTAL:"), "0", 0, "R", false, 0, "")
+	pdf.CellFormat(30, 8, fmt.Sprintf("$%.2f", factura.Total), "0", 1, "R", false, 0, "")
+
+	// Información adicional si existe
+	if factura.Observaciones != "" {
+		// Calcular el espacio necesario para las observaciones
+		observaciones := factura.Observaciones
+		lineWidth := 170.0
+		lines := splitTextSafely(pdf, tr(observaciones), lineWidth)
+		spaceNeededForObservaciones := float64(len(lines)*5) + 20 // 5mm por línea + título + margen
+
+		// Verificar si hay suficiente espacio en la página actual
+		currentY := y + 30
+		if currentY+spaceNeededForObservaciones > 280 { // Si no cabe en la página actual
+			pdf.AddPage()
+			currentY = 20
+		}
+
+		y = currentY
+		pdf.SetFont("Arial", "B", 10)
+		pdf.SetXY(10, y)
+		pdf.CellFormat(180, 6, tr("OBSERVACIONES:"), "", 0, "L", false, 0, "")
+		y += 8
+
+		pdf.SetFont("Arial", "", 9)
+		for _, line := range lines {
+			pdf.SetXY(10, y)
+			pdf.CellFormat(180, 5, line, "", 0, "L", false, 0, "")
+			y += 5
+		}
+	}
+
+	// Guardar el PDF en un buffer
+	var pdfBuffer bytes.Buffer
+	err := pdf.Output(&pdfBuffer)
+	if err != nil {
+		return nil, fmt.Errorf("error al generar PDF: %w", err)
+	}
+
+	return &pdfBuffer, nil
+}
+
+// CargarLogoDesdeBaseDatos carga el logo de un usuario desde la base de datos
+func CargarLogoDesdeBaseDatos(idUsuario int, logoService *LogoService) ([]byte, error) {
+	if logoService == nil {
+		return nil, fmt.Errorf("servicio de logo no inicializado")
+	}
+
+	logoBytes, err := logoService.CargarLogoDesdeBaseDatos(idUsuario)
+	if err != nil {
+		log.Printf("Error al cargar logo desde BD para usuario %d: %v", idUsuario, err)
+		return nil, err
+	}
+
+	return logoBytes, nil
+}
+
+// CargarLogoPlantilla carga el logo desde la base de datos
+func CargarLogoPlantilla(idUsuario string) ([]byte, error) {
+	if idUsuario == "" {
+		return nil, nil
+	}
+
+	// Convertir idUsuario a int
+	idUsuarioInt, err := strconv.Atoi(idUsuario)
+	if err != nil {
+		log.Printf("Error al convertir idUsuario a entero: %v", err)
+		return nil, nil
+	}
+
+	// Crear servicio de logos
+	logoService := NewLogoService()
+
+	// Obtener logo activo del usuario desde la base de datos
+	logoBytes, err := logoService.CargarLogoDesdeBaseDatos(idUsuarioInt)
+	if err != nil {
+		log.Printf("No se encontró logo activo para el usuario %s: %v", idUsuario, err)
+		return nil, nil // No es un error fatal, simplemente no hay logo
+	}
+
+	return logoBytes, nil
+}
+
+// Mapa de descripciones de régimen fiscal SAT (puedes completarlo con todos los códigos oficiales)
+var regimenFiscalDescripciones = map[string]string{
+	// Códigos oficiales del SAT
+	"601": "General de Ley Personas Morales",
+	"603": "Personas Morales con Fines no Lucrativos",
+	"605": "Sueldos y Salarios e Ingresos Asimilados a Salarios",
+	"606": "Arrendamiento",
+	"607": "Régimen de Enajenación o Adquisición de Bienes",
+	"608": "Demás ingresos",
+	"609": "Consolidación",
+	"610": "Residentes en el Extranjero sin Establecimiento Permanente en México",
+	"611": "Ingresos por Dividendos (socios y accionistas)",
+	"612": "Personas Físicas con Actividades Empresariales y Profesionales",
+	"614": "Ingresos por intereses",
+	"615": "Régimen de los ingresos por obtención de premios",
+	"616": "Sin obligaciones fiscales",
+	"620": "Sociedades Cooperativas de Producción que optan por diferir sus ingresos",
+	"621": "Incorporación Fiscal",
+	"622": "Actividades Agrícolas, Ganaderas, Silvícolas y Pesqueras",
+	"623": "Opcional para Grupos de Sociedades",
+	"624": "Coordinados",
+	"628": "Hidrocarburos",
+	"629": "De los Regímenes Fiscales Preferentes y de las Empresas Multinacionales",
+	"630": "Enajenación de acciones en bolsa de valores",
+	"626": "Régimen Simplificado de Confianza",
+
+	// Códigos adicionales que podrían aparecer en sistemas locales
+	"1":  "Régimen General",
+	"2":  "Personas Físicas con Actividades Empresariales",
+	"3":  "Régimen de Incorporación Fiscal",
+	"4":  "Arrendamiento",
+	"5":  "Honorarios",
+	"6":  "Sueldos y Salarios",
+	"7":  "Sin obligaciones fiscales",
+	"8":  "Actividades Agrícolas",
+	"9":  "Demás ingresos",
+	"10": "Residentes en el Extranjero",
 }

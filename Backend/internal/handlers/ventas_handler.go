@@ -3,7 +3,6 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 )
@@ -32,47 +31,24 @@ func VentasHandler(db *sql.DB) http.HandlerFunc {
 		if len(serie) < SerieMinLength {
 			http.Error(w, "La serie debe tener al menos 30 caracteres", http.StatusBadRequest)
 			return
-		} // CONSULTA CON IMPUESTOS DESDE crm_impuestos (EVITANDO MULTIPLICACIÓN)
+		} // CONSULTA CON GROUP BY PARA EVITAR DUPLICADOS Y OBTENER CLAVES SAT REALES
 		query := `
             SELECT 
                 p.id_pedido, 
                 p.clave_pedido, 
                 d.descripcion AS producto, 
-                d.cantidad, 
-                d.precio, 
-                COALESCE(d.precio_o, d.precio) AS precio_o,           
-                d.iva AS iva_pedido,                
-                d.descuento,
-                d.idproducto AS codigo_producto, 
-                pr.clave AS categoria_producto,
-                pr.sat_clave,           
-                pr.sat_medida,
-                pr.idempresa,
-                -- Impuestos desde crm_impuestos (usando MAX para evitar duplicados)
-                COALESCE(MAX(imp.iva), 0) AS iva_config,
-                COALESCE(MAX(imp.ieps1), 0) AS ieps1_config,
-                COALESCE(MAX(imp.ieps2), 0) AS ieps2_config,
-                COALESCE(MAX(imp.ieps3), 0) AS ieps3_config,
-                -- Conteo de configuraciones para el diagnóstico
-                COUNT(imp.idiva) AS configs_count,
-                -- Información adicional para depuración
-                pr.idempresa AS empresa_producto,
-                GROUP_CONCAT(DISTINCT imp.idempresa) AS empresas_impuestos,
-                -- Diagnóstico mejorado
-                CASE 
-                    WHEN pr.idproducto IS NULL THEN 'Sin producto en crm_productos'
-                    WHEN pr.sat_clave IS NULL OR pr.sat_clave = '' OR pr.sat_clave = '0' THEN 'Sin clave SAT'
-                    WHEN pr.sat_medida IS NULL OR pr.sat_medida = '' THEN 'Sin unidad SAT'
-                    ELSE 'Datos completos'
-                END AS diagnostico_config
+                SUM(d.cantidad) AS cantidad_total, 
+                AVG(d.precio) AS precio_promedio, 
+                AVG(d.iva) AS iva_pedido,                
+                SUM(d.descuento) AS descuento_total,
+                d.idproducto AS codigo_producto,
+                COALESCE(pr.sat_clave, '01010101') AS sat_clave_real,
+                COALESCE(pr.sat_medida, 'H87') AS sat_medida_real
             FROM optimus.crm_pedidos p 
             JOIN optimus.crm_pedidos_det d ON p.id_pedido = d.id_pedido 
-            LEFT JOIN optimus.crm_productos pr ON d.idproducto = pr.idproducto 
-            LEFT JOIN optimus.crm_impuestos imp ON pr.idempresa = imp.idempresa
+            LEFT JOIN optimus.crm_productos pr ON d.idproducto = pr.idproducto
             WHERE p.clave_pedido = ?
-            GROUP BY p.id_pedido, p.clave_pedido, d.descripcion, d.cantidad, d.precio, 
-                     d.precio_o, d.iva, d.descuento, d.idproducto, pr.clave, 
-                     pr.sat_clave, pr.sat_medida, pr.idempresa
+            GROUP BY p.id_pedido, p.clave_pedido, d.idproducto, d.descripcion, pr.sat_clave, pr.sat_medida
             ORDER BY d.idproducto`
 
 		rows, err := db.Query(query, serie)
@@ -83,20 +59,15 @@ func VentasHandler(db *sql.DB) http.HandlerFunc {
 		}
 		defer rows.Close()
 		var ventas []map[string]interface{}
+		// Usar mapa para deduplicar por codigo_producto
+		productosUnicos := make(map[int]map[string]interface{})
+
 		for rows.Next() {
 			var idPedido int
 			var clavePedido, producto string
 			var codigoProducto int
-			var idEmpresa sql.NullInt64
-			var categoriaProducto sql.NullString
-			var satClave sql.NullString
-			var satMedida sql.NullString
-			var cantidad, precio, precioO, ivaPedido, descuento float64
-			var ivaConfig, ieps1Config, ieps2Config, ieps3Config float64
-			var configsCount int
-			var empresaProducto sql.NullInt64
-			var empresasImpuestos sql.NullString
-			var diagnosticoConfig string
+			var cantidad, precio, ivaPedido, descuento float64
+			var satClaveReal, satMedidaReal string
 
 			if err := rows.Scan(
 				&idPedido,
@@ -104,114 +75,54 @@ func VentasHandler(db *sql.DB) http.HandlerFunc {
 				&producto,
 				&cantidad,
 				&precio,
-				&precioO,
 				&ivaPedido,
 				&descuento,
 				&codigoProducto,
-				&categoriaProducto,
-				&satClave,
-				&satMedida,
-				&idEmpresa,
-				&ivaConfig,
-				&ieps1Config,
-				&ieps2Config,
-				&ieps3Config,
-				&configsCount,
-				&empresaProducto,
-				&empresasImpuestos,
-				&diagnosticoConfig,
+				&satClaveReal,
+				&satMedidaReal,
 			); err != nil {
 				log.Printf("Error al escanear los resultados: %v", err)
 				http.Error(w, ErrorProcesarDatos, http.StatusInternalServerError)
 				return
 			}
 
-			// Usar valores por defecto cuando los campos son NULL
-			categoriaProductoVal := "N/A"
-			if categoriaProducto.Valid {
-				categoriaProductoVal = categoriaProducto.String
-			}
+			// Solo procesar si no hemos visto este codigo_producto antes
+			if _, existe := productosUnicos[codigoProducto]; !existe {
+				// Calcular el total básico
+				subtotal := (cantidad * precio) - descuento
+				ivaTotal := subtotal * (ivaPedido / 100.0)
+				totalConImpuestos := subtotal + ivaTotal
 
-			satClaveVal := ""
-			if satClave.Valid && satClave.String != "" && satClave.String != "0" {
-				satClaveVal = satClave.String
+				productosUnicos[codigoProducto] = map[string]interface{}{
+					"idPedido":        idPedido,
+					"clavePedido":     clavePedido,
+					"producto":        producto,
+					"cantidad":        cantidad,
+					"precio":          precio,
+					"iva":             ivaPedido,
+					"descuento":       descuento,
+					"subtotal":        subtotal,
+					"total":           totalConImpuestos,
+					"codigo_producto": codigoProducto,
+					"sat_clave":       satClaveReal,  // Usar valor real de la BD
+					"sat_medida":      satMedidaReal, // Usar valor real de la BD
+				}
+
+				log.Printf("✅ PRODUCTO ÚNICO: ID=%d, Desc='%s', Cant=%.2f, Precio=%.2f, SAT_Clave='%s', SAT_Medida='%s'",
+					codigoProducto, producto, cantidad, precio, satClaveReal, satMedidaReal)
 			} else {
-				satClaveVal = "No configurado"
+				log.Printf("⚠️ PRODUCTO DUPLICADO IGNORADO: ID=%d, Desc='%s'",
+					codigoProducto, producto)
 			}
-
-			satMedidaVal := ""
-			if satMedida.Valid && satMedida.String != "" {
-				satMedidaVal = satMedida.String
-			} else {
-				satMedidaVal = "No disponible"
-			}
-
-			// Determinar de dónde vienen los impuestos según configs_count
-			var ivaFinal, ieps1Final, ieps2Final, ieps3Final float64
-			var origenImpuestos string
-
-			if configsCount > 0 {
-				// Usar impuestos desde crm_impuestos
-				ivaFinal = ivaConfig
-				ieps1Final = ieps1Config
-				ieps2Final = ieps2Config
-				ieps3Final = ieps3Config
-				origenImpuestos = "crm_impuestos"
-			} else {
-				// Usar impuestos del ticket original
-				ivaFinal = ivaPedido
-				ieps1Final = 0 // No hay IEPS en el ticket original
-				ieps2Final = 0
-				ieps3Final = 0
-				origenImpuestos = "ticket_original"
-			}
-
-			// Calcular el total usando los impuestos finales
-			subtotal := (cantidad * precio) - descuento
-			ivaTotal := subtotal * (ivaFinal / 100.0)
-			ieps1Total := subtotal * (ieps1Final / 100.0)
-			ieps2Total := subtotal * (ieps2Final / 100.0)
-			ieps3Total := subtotal * (ieps3Final / 100.0)
-			totalConImpuestos := subtotal + ivaTotal + ieps1Total + ieps2Total + ieps3Total
-
-			// Procesar valores para depuración
-			empresaProductoVal := "N/A"
-			if empresaProducto.Valid {
-				empresaProductoVal = fmt.Sprintf("%d", empresaProducto.Int64)
-			}
-
-			empresasImpuestosVal := "N/A"
-			if empresasImpuestos.Valid {
-				empresasImpuestosVal = empresasImpuestos.String
-			}
-
-			ventas = append(ventas, map[string]interface{}{
-				"idPedido":           idPedido,
-				"clavePedido":        clavePedido,
-				"producto":           producto,
-				"cantidad":           cantidad,
-				"precio":             precio,
-				"precio_o":           precioO,
-				"iva_pedido":         ivaPedido,  // IVA del ticket original
-				"iva":                ivaFinal,   // IVA final (desde crm_impuestos o ticket)
-				"ieps1":              ieps1Final, // IEPS1 final
-				"ieps2":              ieps2Final, // IEPS2 final
-				"ieps3":              ieps3Final, // IEPS3 final
-				"descuento":          descuento,
-				"subtotal":           subtotal,
-				"total":              totalConImpuestos,
-				"codigo_producto":    codigoProducto,
-				"categoria_producto": categoriaProductoVal,
-				"sat_clave":          satClaveVal,
-				"sat_medida":         satMedidaVal,
-				"idempresa":          idEmpresa,
-				"diagnostico_config": diagnosticoConfig,
-				"configs_count":      configsCount,         // Para detectar múltiples configuraciones
-				"empresa_producto":   empresaProductoVal,   // Para depuración
-				"empresas_impuestos": empresasImpuestosVal, // Para depuración
-				"origen_impuestos":   origenImpuestos,      // De dónde vienen los impuestos
-			})
 		}
+
+		// Convertir mapa a slice
+		for _, producto := range productosUnicos {
+			ventas = append(ventas, producto)
+		}
+
+		log.Printf("🔍 RESUMEN: Total filas SQL=%d, Productos únicos=%d",
+			len(productosUnicos), len(ventas))
 		w.Header().Set(ContentTypeHeader, ApplicationJSON)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"ventas": ventas,
@@ -445,6 +356,7 @@ func GuardarVentasHandler(db *sql.DB) http.HandlerFunc {
 				PrecioUnitario float64 `json:"precio_unitario"`
 				Descuento      float64 `json:"descuento"`
 				Total          float64 `json:"total"`
+				IVA            float64 `json:"iva"`
 			} `json:"ventas"`
 		}
 
@@ -473,9 +385,9 @@ func GuardarVentasHandler(db *sql.DB) http.HandlerFunc {
 		// Preparar statement para insertar en ventas_det con la nueva estructura
 		stmt, err := tx.Prepare(`
 			INSERT INTO ventas_det (
-				clave_producto, descripcion, clave_sat, unidad_sat, 
-				cantidad, precio_unitario, descuento, total, fecha_venta
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+				serie, clave_producto, descripcion, clave_sat, unidad_sat, 
+				cantidad, precio_unitario, descuento, total, iva, fecha_venta
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
 		`)
 		if err != nil {
 			log.Printf("Error al preparar statement: %v", err)
@@ -487,8 +399,15 @@ func GuardarVentasHandler(db *sql.DB) http.HandlerFunc {
 		// Insertar cada venta
 		insertados := 0
 		for _, venta := range ventasData.Ventas {
+			// Si no se proporciona IVA, usar el valor por defecto de 16%
+			iva := venta.IVA
+			if iva == 0 {
+				iva = 16.0
+			}
+
 			_, err := stmt.Exec(
-				venta.ClaveProducto,
+				ventasData.Serie,    // Serie como primer parámetro
+				venta.ClaveProducto, // Agregar clave_producto
 				venta.Descripcion,
 				venta.ClaveSat,
 				venta.UnidadSat,
@@ -496,6 +415,7 @@ func GuardarVentasHandler(db *sql.DB) http.HandlerFunc {
 				venta.PrecioUnitario,
 				venta.Descuento,
 				venta.Total,
+				iva, // Agregar IVA
 			)
 			if err != nil {
 				log.Printf("Error al insertar venta: %v", err)

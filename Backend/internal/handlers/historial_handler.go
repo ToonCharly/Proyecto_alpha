@@ -42,15 +42,56 @@ func HistorialFacturasHandler(db *sql.DB) func(http.ResponseWriter, *http.Reques
 				return
 			}
 
-			facturas, err := models.ObtenerHistorialFacturasPorUsuario(idUsuario)
+			// Obtener parámetros de paginación
+			paginaStr := r.URL.Query().Get("pagina")
+			limiteStr := r.URL.Query().Get("limite")
+
+			// Valores por defecto
+			pagina := 1
+			limite := 10
+
+			// Si se proporciona página, usarla
+			if paginaStr != "" {
+				if p, err := strconv.Atoi(paginaStr); err == nil && p > 0 {
+					pagina = p
+				}
+			}
+
+			// Si se proporciona límite, usarlo (máximo 50)
+			if limiteStr != "" {
+				if l, err := strconv.Atoi(limiteStr); err == nil && l > 0 && l <= 50 {
+					limite = l
+				}
+			}
+
+			log.Printf("Obteniendo historial de facturas - Usuario: %d, Página: %d, Límite: %d", idUsuario, pagina, limite)
+
+			facturas, totalFacturas, err := models.ObtenerHistorialFacturasPorUsuarioConPaginacion(idUsuario, pagina, limite)
 			if err != nil {
 				log.Printf("Error al obtener facturas: %v", err)
 				http.Error(w, "Error al obtener facturas", http.StatusInternalServerError)
 				return
 			}
 
-			// Importante: Devolver directamente el array, no un objeto que lo contenga
-			json.NewEncoder(w).Encode(facturas)
+			// Calcular información de paginación
+			totalPaginas := (totalFacturas + limite - 1) / limite
+			tieneSiguiente := pagina < totalPaginas
+			tieneAnterior := pagina > 1
+
+			// Devolver respuesta con información de paginación
+			response := map[string]interface{}{
+				"facturas": facturas,
+				"paginacion": map[string]interface{}{
+					"pagina_actual":   pagina,
+					"limite":          limite,
+					"total_facturas":  totalFacturas,
+					"total_paginas":   totalPaginas,
+					"tiene_siguiente": tieneSiguiente,
+					"tiene_anterior":  tieneAnterior,
+				},
+			}
+
+			json.NewEncoder(w).Encode(response)
 			return
 		}
 
@@ -130,33 +171,90 @@ func BuscarHistorialFacturasHandler(db *sql.DB) func(http.ResponseWriter, *http.
 		rfcReceptor := r.URL.Query().Get("rfc_receptor")
 		razonSocial := r.URL.Query().Get("razon_social_receptor")
 
-		log.Printf("Búsqueda de facturas - Usuario: %d, Folio: '%s', RFC: '%s', Razón Social: '%s'",
-			idUsuario, folio, rfcReceptor, razonSocial)
+		// Obtener parámetros de paginación
+		paginaStr := r.URL.Query().Get("pagina")
+		limiteStr := r.URL.Query().Get("limite")
 
-		// Si no hay criterios de búsqueda, devolver todas las facturas del usuario
+		// Valores por defecto para paginación
+		pagina := 1
+		limite := 10
+
+		// Si se proporciona página, usarla
+		if paginaStr != "" {
+			if p, err := strconv.Atoi(paginaStr); err == nil && p > 0 {
+				pagina = p
+			}
+		}
+
+		// Si se proporciona límite, usarlo (máximo 50)
+		if limiteStr != "" {
+			if l, err := strconv.Atoi(limiteStr); err == nil && l > 0 && l <= 50 {
+				limite = l
+			}
+		}
+
+		log.Printf("Búsqueda de facturas - Usuario: %d, Folio: '%s', RFC: '%s', Razón Social: '%s', Página: %d, Límite: %d",
+			idUsuario, folio, rfcReceptor, razonSocial, pagina, limite)
+
+		// Si no hay criterios de búsqueda, devolver todas las facturas del usuario con paginación
 		if folio == "" && rfcReceptor == "" && razonSocial == "" {
-			log.Printf("Sin criterios de búsqueda, obteniendo todas las facturas del usuario %d", idUsuario)
-			facturas, err := models.ObtenerHistorialFacturasPorUsuario(idUsuario)
+			log.Printf("Sin criterios de búsqueda, obteniendo todas las facturas del usuario %d con paginación", idUsuario)
+			facturas, totalFacturas, err := models.ObtenerHistorialFacturasPorUsuarioConPaginacion(idUsuario, pagina, limite)
 			if err != nil {
 				log.Printf("Error al obtener facturas: %v", err)
 				http.Error(w, "Error al obtener facturas", http.StatusInternalServerError)
 				return
 			}
-			log.Printf("Se encontraron %d facturas", len(facturas))
-			json.NewEncoder(w).Encode(facturas)
+
+			// Calcular información de paginación
+			totalPaginas := (totalFacturas + limite - 1) / limite
+			tieneSiguiente := pagina < totalPaginas
+			tieneAnterior := pagina > 1
+
+			response := map[string]interface{}{
+				"facturas": facturas,
+				"paginacion": map[string]interface{}{
+					"pagina_actual":   pagina,
+					"limite":          limite,
+					"total_facturas":  totalFacturas,
+					"total_paginas":   totalPaginas,
+					"tiene_siguiente": tieneSiguiente,
+					"tiene_anterior":  tieneAnterior,
+				},
+			}
+
+			log.Printf("Se encontraron %d facturas de %d totales", len(facturas), totalFacturas)
+			json.NewEncoder(w).Encode(response)
 			return
 		}
 
-		// Buscar facturas con criterios específicos
-		log.Printf("Buscando facturas con criterios específicos")
-		facturas, err := models.BuscarHistorialFacturas(idUsuario, folio, rfcReceptor, razonSocial)
+		// Buscar facturas con criterios específicos y paginación
+		log.Printf("Buscando facturas con criterios específicos y paginación")
+		facturas, totalFacturas, err := models.BuscarHistorialFacturasConPaginacion(idUsuario, folio, rfcReceptor, razonSocial, pagina, limite)
 		if err != nil {
 			log.Printf("Error al buscar facturas: %v", err)
 			http.Error(w, "Error al buscar facturas", http.StatusInternalServerError)
 			return
 		}
 
-		log.Printf("Búsqueda completada, se encontraron %d facturas", len(facturas))
-		json.NewEncoder(w).Encode(facturas)
+		// Calcular información de paginación
+		totalPaginas := (totalFacturas + limite - 1) / limite
+		tieneSiguiente := pagina < totalPaginas
+		tieneAnterior := pagina > 1
+
+		response := map[string]interface{}{
+			"facturas": facturas,
+			"paginacion": map[string]interface{}{
+				"pagina_actual":   pagina,
+				"limite":          limite,
+				"total_facturas":  totalFacturas,
+				"total_paginas":   totalPaginas,
+				"tiene_siguiente": tieneSiguiente,
+				"tiene_anterior":  tieneAnterior,
+			},
+		}
+
+		log.Printf("Búsqueda completada, se encontraron %d facturas de %d totales", len(facturas), totalFacturas)
+		json.NewEncoder(w).Encode(response)
 	}
 }

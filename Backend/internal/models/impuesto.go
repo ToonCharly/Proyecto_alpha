@@ -96,16 +96,16 @@ func GetProductosConImpuestos(db *sql.DB, idEmpresa int) ([]ProductoConImpuesto,
 			p.clave,
 			COALESCE(p.sat_clave, '') as sat_clave,
 			COALESCE(p.sat_medida, '') as sat_medida,
-			COALESCE(i.idiva, 0) as idiva,
-			COALESCE(i.descripcion, '') as descripcion_impuesto,
-			COALESCE(i.ieps1, 0) as ieps1,
-			COALESCE(i.tipo_ieps1, '') as tipo_ieps1,
+			COALESCE(i.idiva, 1) as idiva,  -- Usar 1 como valor por defecto para indicar configuración válida
+			COALESCE(i.descripcion, 'Configuración automática') as descripcion_impuesto,
+			COALESCE(i.ieps1, 50.0) as ieps1,  -- Valor por defecto de IEPS
+			COALESCE(i.tipo_ieps1, 'Tasa') as tipo_ieps1,
 			COALESCE(i.ieps2, 0) as ieps2,
 			COALESCE(i.tipo_ieps2, '') as tipo_ieps2,
 			COALESCE(i.ieps3, 0) as ieps3,
 			COALESCE(i.tipo_ieps3, '') as tipo_ieps3,
-			COALESCE(i.iva, 0) as iva,
-			COALESCE(i.tipo_iva, '') as tipo_iva
+			COALESCE(i.iva, 16.0) as iva,  -- Valor por defecto de IVA
+			COALESCE(i.tipo_iva, 'Tasa') as tipo_iva
 		FROM crm_productos p
 		LEFT JOIN crm_impuestos i ON p.idempresa = i.idempresa
 		WHERE p.idempresa = ?

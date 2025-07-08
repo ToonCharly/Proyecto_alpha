@@ -22,6 +22,7 @@ type Factura struct {
 	ClienteDireccion   string      `json:"cliente_direccion"`
 	UsoCFDI            string      `json:"uso_cfdi"`
 	ClaveTicket        string      `json:"clave_ticket"`
+	Serie              string      `json:"serie,omitempty"` // Serie para datos fiscales (serie_df)
 	FechaEmision       string      `json:"fecha_emision"`
 	Subtotal           float64     `json:"subtotal"`
 	Impuestos          float64     `json:"impuestos"`
@@ -50,6 +51,23 @@ type Factura struct {
 	ReceptorDireccion     string `json:"receptor_direccion,omitempty"`
 	ReceptorCodigoPostal  string `json:"receptor_codigo_postal,omitempty"`
 	RegimenFiscalReceptor string `json:"regimen_fiscal_receptor"`
+	Localidad             string `json:"localidad,omitempty"`
+	EstadoNombre          string `json:"estado_nombre,omitempty"` // Nombre del estado para mostrar en PDF
+
+	// Nuevos campos para el emisor (datos fiscales del usuario)
+	EmisorRFC             string `json:"emisor_rfc,omitempty"`
+	EmisorRazonSocial     string `json:"emisor_razon_social,omitempty"`
+	EmisorNombreComercial string `json:"emisor_nombre_comercial,omitempty"`
+	EmisorDireccionFiscal string `json:"emisor_direccion_fiscal,omitempty"`
+	EmisorDireccion       string `json:"emisor_direccion,omitempty"`
+	EmisorColonia         string `json:"emisor_colonia,omitempty"`
+	EmisorCodigoPostal    string `json:"emisor_codigo_postal,omitempty"`
+	EmisorCiudad          string `json:"emisor_ciudad,omitempty"`
+	EmisorEstado          string `json:"emisor_estado,omitempty"`
+	EmisorRegimenFiscal   string `json:"emisor_regimen_fiscal,omitempty"`
+	EmisorMetodoPago      string `json:"emisor_metodo_pago,omitempty"`
+	EmisorTipoPago        string `json:"emisor_tipo_pago,omitempty"`
+	EmisorCondicionPago   string `json:"emisor_condicion_pago,omitempty"`
 
 	// Campos específicos para la base de datos
 	IdFactura int    `json:"idfactura"`  // Para compatibilidad con la BD
@@ -58,9 +76,7 @@ type Factura struct {
 	Estatus   int    `json:"estatus"`
 	Pagado    int    `json:"pagado"`
 	FechaPago string `json:"fecha_pago"`
-
-	// Estado, equivalente a Estatus pero con otro nombre
-	Estado int `json:"estado"`
+	Estado    int    `json:"estado"`
 }
 
 type Concepto struct {
@@ -68,6 +84,14 @@ type Concepto struct {
 	Cantidad      float64 `json:"cantidad"`
 	ValorUnitario float64 `json:"valor_unitario"`
 	Importe       float64 `json:"importe"`
+
+	// Campos adicionales para la tabla detallada
+	ClaveProdServ string  `json:"clave_prod_serv,omitempty"` // Clave del producto/servicio
+	ClaveSAT      string  `json:"clave_sat,omitempty"`       // Clave SAT del producto
+	ClaveUnidad   string  `json:"clave_unidad,omitempty"`    // Clave SAT de la unidad
+	TasaIVA       float64 `json:"tasa_iva,omitempty"`        // Tasa de IVA en porcentaje (16.0)
+	TasaIEPS      float64 `json:"tasa_ieps,omitempty"`       // Tasa de IEPS en porcentaje (50.0)
+	Descuento     float64 `json:"descuento,omitempty"`       // Descuento aplicado
 }
 
 // CFDI representa la estructura del Comprobante Fiscal Digital

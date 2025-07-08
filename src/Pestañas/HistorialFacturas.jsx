@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import '../STYLES/HistorialFacturas.css';
 import '../STYLES/Notificaciones.css'; 
 
@@ -8,6 +8,14 @@ function HistorialFacturas() {
   const [error, setError] = useState(null);
   const [usuarioNoAutenticado, setUsuarioNoAutenticado] = useState(false);
   const [success, setSuccess] = useState('');
+  
+  // Estados para paginación
+  const [paginaActual, setPaginaActual] = useState(1);
+  const [totalPaginas, setTotalPaginas] = useState(1);
+  const [totalFacturas, setTotalFacturas] = useState(0);
+  const [tieneSiguiente, setTieneSiguiente] = useState(false);
+  const [tieneAnterior, setTieneAnterior] = useState(false);
+  const [limite] = useState(10); // Valor fijo sin selector - 10 facturas por página
   
   // Estados para búsqueda
   const [criterioBusqueda, setCriterioBusqueda] = useState('folio'); // 'folio', 'rfc_receptor', 'razon_social_receptor'
@@ -42,7 +50,7 @@ function HistorialFacturas() {
   };
   
   // Extraer cargarFacturas fuera del useEffect para que sea accesible
-  const cargarFacturas = async () => {
+  const cargarFacturas = useCallback(async (pagina = 1) => {
     setCargando(true);
     setError(null);
     
@@ -58,11 +66,13 @@ function HistorialFacturas() {
       
       console.log("👤 USUARIO AUTENTICADO - ID:", userData.id);
       console.log("👤 DATOS COMPLETOS DEL USUARIO:", userData);
-      console.log("🔗 URL DE CONSULTA:", `http://localhost:8080/api/historial_facturas?id_usuario=${userData.id}`);
       
-      console.log("Cargando facturas para usuario ID:", userData.id);
+      const url = `http://localhost:8080/api/historial-facturas?id_usuario=${userData.id}&pagina=${pagina}&limite=${limite}`;
+      console.log("🔗 URL DE CONSULTA:", url);
       
-      const response = await fetch(`http://localhost:8080/api/historial_facturas?id_usuario=${userData.id}`);
+      console.log("Cargando facturas para usuario ID:", userData.id, "página:", pagina);
+      
+      const response = await fetch(url);
       
       if (!response.ok) {
         throw new Error(`Error al cargar facturas: ${response.status}`);
@@ -71,28 +81,27 @@ function HistorialFacturas() {
       const data = await response.json();
       console.log("📊 DATOS RECIBIDOS DEL BACKEND:", data);
       console.log("📊 TIPO DE DATOS:", typeof data);
-      console.log("📊 ES ARRAY?:", Array.isArray(data));
-      console.log("📊 LONGITUD:", data ? data.length : 'N/A');
       
-      // Verificar la estructura de los datos
-      if (Array.isArray(data)) {
-        // Ordenar por fecha de generación (más reciente primero) y tomar las 10 más recientes
-        const facturasOrdenadas = data
-          .sort((a, b) => new Date(b.fecha_generacion) - new Date(a.fecha_generacion))
-          .slice(0, 10);
-        setFacturas(facturasOrdenadas);
-        // Cargar también las razones sociales para el autocompletado
-        cargarTodasLasRazonesSociales();
-      } else if (data && Array.isArray(data.facturas)) {
-        // Ordenar por fecha de generación (más reciente primero) y tomar las 10 más recientes
-        const facturasOrdenadas = data.facturas
-          .sort((a, b) => new Date(b.fecha_generacion) - new Date(a.fecha_generacion))
-          .slice(0, 10);
-        setFacturas(facturasOrdenadas);
-        cargarTodasLasRazonesSociales();
+      // Verificar la estructura de los datos paginados
+      if (data && data.facturas && Array.isArray(data.facturas)) {
+        setFacturas(data.facturas);
+        
+        // Actualizar información de paginación
+        if (data.paginacion) {
+          setPaginaActual(data.paginacion.pagina_actual);
+          setTotalPaginas(data.paginacion.total_paginas);
+          setTotalFacturas(data.paginacion.total_facturas);
+          setTieneSiguiente(data.paginacion.tiene_siguiente);
+          setTieneAnterior(data.paginacion.tiene_anterior);
+        }
       } else {
         console.warn("Formato de respuesta inesperado:", data);
         setFacturas([]);
+        setPaginaActual(1);
+        setTotalPaginas(1);
+        setTotalFacturas(0);
+        setTieneSiguiente(false);
+        setTieneAnterior(false);
       }
     } catch (error) {
       console.error("Error al cargar facturas:", error);
@@ -100,10 +109,10 @@ function HistorialFacturas() {
     } finally {
       setCargando(false);
     }
-  };
+  }, [limite]); // Solo depende de limite, no de la función
 
   // Función para realizar búsqueda
-  const realizarBusqueda = async () => {
+  const realizarBusqueda = async (pagina = 1) => {
     const userId = getUserId();
     if (!userId) {
       setUsuarioNoAutenticado(true);
@@ -115,7 +124,11 @@ function HistorialFacturas() {
 
     try {
       // Construir parámetros de búsqueda
-      const params = new URLSearchParams({ id_usuario: userId });
+      const params = new URLSearchParams({ 
+        id_usuario: userId,
+        pagina: pagina.toString(),
+        limite: limite.toString()
+      });
       
       // Solo agregar el criterio de búsqueda si hay un valor
       if (valorBusqueda.trim()) {
@@ -130,12 +143,33 @@ function HistorialFacturas() {
       }
       
       const data = await response.json();
-      setFacturas(data || []);
       
-      if (data.length === 0) {
-        mostrarNotificacion('No se encontraron facturas con los criterios especificados', 'info');
+      // Verificar la estructura de los datos paginados
+      if (data && data.facturas && Array.isArray(data.facturas)) {
+        setFacturas(data.facturas);
+        
+        // Actualizar información de paginación
+        if (data.paginacion) {
+          setPaginaActual(data.paginacion.pagina_actual);
+          setTotalPaginas(data.paginacion.total_paginas);
+          setTotalFacturas(data.paginacion.total_facturas);
+          setTieneSiguiente(data.paginacion.tiene_siguiente);
+          setTieneAnterior(data.paginacion.tiene_anterior);
+        }
+        
+        if (data.facturas.length === 0 && pagina === 1) {
+          mostrarNotificacion('No se encontraron facturas con los criterios especificados', 'info');
+        } else if (pagina === 1) {
+          mostrarNotificacion(`Se encontraron ${data.paginacion?.total_facturas || data.facturas.length} factura(s)`, 'success');
+        }
       } else {
-        mostrarNotificacion(`Se encontraron ${data.length} factura(s)`, 'success');
+        setFacturas([]);
+        setPaginaActual(1);
+        setTotalPaginas(1);
+        setTotalFacturas(0);
+        setTieneSiguiente(false);
+        setTieneAnterior(false);
+        mostrarNotificacion('No se encontraron facturas con los criterios especificados', 'info');
       }
     } catch (err) {
       console.error('Error al buscar facturas:', err);
@@ -146,7 +180,7 @@ function HistorialFacturas() {
   };
 
   // Función auxiliar para realizar búsqueda con un valor específico
-  const realizarBusquedaConValor = async (valor) => {
+  const realizarBusquedaConValor = async (valor, pagina = 1) => {
     const userId = getUserId();
     if (!userId) {
       setUsuarioNoAutenticado(true);
@@ -158,7 +192,11 @@ function HistorialFacturas() {
 
     try {
       // Construir parámetros de búsqueda con el valor específico
-      const params = new URLSearchParams({ id_usuario: userId });
+      const params = new URLSearchParams({ 
+        id_usuario: userId,
+        pagina: pagina.toString(),
+        limite: limite.toString()
+      });
       
       if (valor && valor.trim()) {
         params.append(criterioBusqueda, valor.trim());
@@ -172,12 +210,33 @@ function HistorialFacturas() {
       }
       
       const data = await response.json();
-      setFacturas(data || []);
       
-      if (data.length === 0) {
-        mostrarNotificacion('No se encontraron facturas con los criterios especificados', 'info');
+      // Manejar respuesta paginada
+      if (data && data.facturas && Array.isArray(data.facturas)) {
+        setFacturas(data.facturas);
+        
+        // Actualizar información de paginación
+        if (data.paginacion) {
+          setPaginaActual(data.paginacion.pagina_actual);
+          setTotalPaginas(data.paginacion.total_paginas);
+          setTotalFacturas(data.paginacion.total_facturas);
+          setTieneSiguiente(data.paginacion.tiene_siguiente);
+          setTieneAnterior(data.paginacion.tiene_anterior);
+        }
+        
+        if (data.facturas.length === 0) {
+          mostrarNotificacion('No se encontraron facturas con los criterios especificados', 'info');
+        } else {
+          mostrarNotificacion(`Se encontraron ${data.paginacion ? data.paginacion.total_facturas : data.facturas.length} factura(s)`, 'success');
+        }
       } else {
-        mostrarNotificacion(`Se encontraron ${data.length} factura(s)`, 'success');
+        setFacturas([]);
+        setPaginaActual(1);
+        setTotalPaginas(1);
+        setTotalFacturas(0);
+        setTieneSiguiente(false);
+        setTieneAnterior(false);
+        mostrarNotificacion('No se encontraron facturas con los criterios especificados', 'info');
       }
     } catch (err) {
       console.error('Error al buscar facturas:', err);
@@ -188,19 +247,28 @@ function HistorialFacturas() {
   };
 
   // Función para cargar todas las razones sociales únicas
-  const cargarTodasLasRazonesSociales = async () => {
+  const cargarTodasLasRazonesSociales = useCallback(async () => {
     try {
       const userId = getUserId();
       if (!userId) return;
 
-      const response = await fetch(`http://localhost:8080/api/historial_facturas?id_usuario=${userId}`);
+      // Usar el endpoint correcto y obtener todas las facturas para extraer las razones sociales
+      const response = await fetch(`http://localhost:8080/api/historial-facturas?id_usuario=${userId}&limite=1000`);
       if (!response.ok) return;
 
       const data = await response.json();
+      let facturas = [];
+      
+      // Extraer facturas según la estructura de respuesta
+      if (data && data.facturas && Array.isArray(data.facturas)) {
+        facturas = data.facturas;
+      } else if (Array.isArray(data)) {
+        facturas = data;
+      }
       
       // Extraer todas las razones sociales únicas
       const razonesSociales = [...new Set(
-        data
+        facturas
           .map(factura => factura.razon_social_receptor)
           .filter(razon => razon && razon.trim() !== '')
       )].sort(); // Ordenar alfabéticamente
@@ -209,7 +277,7 @@ function HistorialFacturas() {
     } catch (error) {
       console.error('Error al cargar razones sociales:', error);
     }
-  };
+  }, []); // No tiene dependencias externas
 
   // Función para filtrar sugerencias localmente (como Spotify)
   const filtrarSugerenciasLocal = (termino) => {
@@ -294,7 +362,7 @@ function HistorialFacturas() {
     setMostrarSugerencias(false);
     setSugerenciasRazonSocial([]);
     setIndiceSugerenciaSeleccionada(-1);
-    cargarFacturas();
+    cargarFacturas(1); // Reiniciar desde la primera página
   };
 
   // Efecto para limpiar sugerencias cuando cambia el criterio
@@ -304,9 +372,7 @@ function HistorialFacturas() {
     setIndiceSugerenciaSeleccionada(-1);
     // Limpiar el campo de búsqueda al cambiar cualquier criterio
     setValorBusqueda('');
-    // Recargar todas las facturas al cambiar criterio
-    cargarFacturas();
-  }, [criterioBusqueda]);
+  }, [criterioBusqueda]); // Solo cuando cambia el criterio de búsqueda
 
   // Función para obtener el estado formateado para mostrar
   const getEstadoDisplay = (estadoCodigo) => {
@@ -345,43 +411,15 @@ function HistorialFacturas() {
     }
   };
 
-  // Cargar facturas del usuario
+  // Cargar facturas del usuario al montar el componente
   useEffect(() => {
-    const fetchFacturas = async () => {
-      const userId = getUserId();
-      if (!userId) {
-        setCargando(false);
-        setUsuarioNoAutenticado(true);
-        return;
-      }
+    cargarFacturas(1);
+  }, []); // Solo al montar
 
-      try {
-        // Sin parámetros de búsqueda
-        const url = `http://localhost:8080/api/historial_facturas?id_usuario=${userId}`;
-        
-        setCargando(true);
-        const response = await fetch(url);
-        if (!response.ok) {
-          throw new Error('Error al obtener el historial de facturas');
-        }
-        
-        const data = await response.json();
-        // Ordenar por fecha de generación (más reciente primero) y tomar las 10 más recientes
-        const facturasOrdenadas = (data || [])
-          .sort((a, b) => new Date(b.fecha_generacion) - new Date(a.fecha_generacion))
-          .slice(0, 10);
-        setFacturas(facturasOrdenadas);
-        console.log("Facturas cargadas:", facturasOrdenadas);
-      } catch (err) {
-        console.error('Error al cargar historial de facturas:', err);
-        setError('Error al cargar el historial de facturas. Por favor, intenta nuevamente.');
-      } finally {
-        setCargando(false);
-      }
-    };
-
-    fetchFacturas();
-  }, []); // Cargar al montar el componente
+  // Cargar razones sociales una sola vez al montar el componente
+  useEffect(() => {
+    cargarTodasLasRazonesSociales();
+  }, []); // Solo al montar
 
   // Limpiar mensajes después de 5 segundos
   useEffect(() => {
@@ -464,10 +502,58 @@ function HistorialFacturas() {
     }
   }
 
-  // Modificar el useEffect para usar la función cargarFacturas
-  useEffect(() => {
-    cargarFacturas();
-  }, []);
+  // Funciones de paginación
+  const cambiarPagina = (nuevaPagina) => {
+    if (nuevaPagina !== paginaActual && nuevaPagina >= 1 && nuevaPagina <= totalPaginas) {
+      if (valorBusqueda.trim()) {
+        // Si hay búsqueda activa, usar búsqueda paginada
+        realizarBusqueda(nuevaPagina);
+      } else {
+        // Si no hay búsqueda, cargar facturas normales
+        cargarFacturas(nuevaPagina);
+      }
+    }
+  };
+
+  const generarBotonesPagina = () => {
+    const botones = [];
+    const maxBotones = 5;
+    
+    if (totalPaginas <= maxBotones) {
+      // Si hay pocas páginas, mostrar todas
+      for (let i = 1; i <= totalPaginas; i++) {
+        botones.push(i);
+      }
+    } else {
+      // Lógica más compleja para muchas páginas
+      if (paginaActual <= 3) {
+        // Estamos al principio
+        for (let i = 1; i <= 4; i++) {
+          botones.push(i);
+        }
+        botones.push('...');
+        botones.push(totalPaginas);
+      } else if (paginaActual >= totalPaginas - 2) {
+        // Estamos al final
+        botones.push(1);
+        botones.push('...');
+        for (let i = totalPaginas - 3; i <= totalPaginas; i++) {
+          botones.push(i);
+        }
+      } else {
+        // Estamos en el medio
+        botones.push(1);
+        botones.push('...');
+        for (let i = paginaActual - 1; i <= paginaActual + 1; i++) {
+          botones.push(i);
+        }
+        botones.push('...');
+        botones.push(totalPaginas);
+      }
+    }
+    
+    return botones;
+  };
 
   return (
     <div className="historial-facturas-container" style={{ marginTop: '60px', marginLeft: '290px' }}>
@@ -505,7 +591,7 @@ function HistorialFacturas() {
               if (valorBusqueda.trim()) {
                 realizarBusqueda();
               } else {
-                cargarFacturas();
+                cargarFacturas(1);
               }
             }}
             title="Actualizar lista de facturas"
@@ -653,6 +739,47 @@ function HistorialFacturas() {
                   ))}
                 </tbody>
               </table>
+              
+              {/* Controles de paginación */}
+              {totalPaginas > 1 && (
+                <div className="pagination-controls">
+                  <div className="pagination-info">
+                    <span>
+                      Página {paginaActual} de {totalPaginas} 
+                      ({totalFacturas} facturas en total)
+                    </span>
+                  </div>
+                  <div className="pagination-buttons">
+                    <button 
+                      className="btn-pagination"
+                      disabled={!tieneAnterior}
+                      onClick={() => cambiarPagina(paginaActual - 1)}
+                    >
+                      ← Anterior
+                    </button>
+                    
+                    {/* Números de página */}
+                    {generarBotonesPagina().map((pagina, index) => (
+                      <button
+                        key={index}
+                        className={`btn-pagination ${pagina === paginaActual ? 'active' : ''} ${pagina === '...' ? 'dots' : ''}`}
+                        disabled={pagina === '...'}
+                        onClick={() => pagina !== '...' && cambiarPagina(pagina)}
+                      >
+                        {pagina}
+                      </button>
+                    ))}
+                    
+                    <button 
+                      className="btn-pagination"
+                      disabled={!tieneSiguiente}
+                      onClick={() => cambiarPagina(paginaActual + 1)}
+                    >
+                      Siguiente →
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

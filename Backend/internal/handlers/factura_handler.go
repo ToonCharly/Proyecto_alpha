@@ -159,8 +159,6 @@ func GenerarFacturaDesdeDB(w http.ResponseWriter, r *http.Request) {
 	nombreArchivo := fmt.Sprintf("factura_%d_%s.pdf", facturaRequest.IDUsuario, timestamp)
 	rutaDestino := filepath.Join(facturasDir, nombreArchivo)
 
-	// Aquí iría el código que genera la factura a partir de la plantilla
-	// ...
 
 	// Simulamos la generación para este ejemplo
 	log.Printf("Generando factura para %s con RFC %s usando plantilla %s",

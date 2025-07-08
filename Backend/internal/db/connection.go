@@ -8,7 +8,7 @@ import (
 )
 
 func Connect() (*sql.DB, error) {
-	dsn := "alpha_junior:GHtLop23_P54@tcp(199.89.55.249:3306)/optimus"
+	dsn := "alpha_junior:GHtLop23_P54@tcp(199.89.55.249:3306)/optimus?parseTime=true"
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("error al conectar a la base de datos: %w", err)

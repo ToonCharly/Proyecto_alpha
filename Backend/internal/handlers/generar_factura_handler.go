@@ -9,9 +9,148 @@ import (
 	"net/http"
 	"strings"
 
+	"carlos/Facts/Backend/internal/db"
 	"carlos/Facts/Backend/internal/models"
 	"carlos/Facts/Backend/internal/services"
 )
+
+// obtenerConceptosDesdeVentas obtiene los productos desde la tabla ventas_det usando la serie
+// NOTA: Actualmente la tabla ventas_det no tiene columna 'serie', usando como fallback los productos más recientes
+func obtenerConceptosDesdeVentas(claveTicket string) ([]models.Concepto, error) {
+	log.Printf("🔍 BD_DEBUG - Iniciando búsqueda de conceptos para ticket: '%s'", claveTicket)
+	database := db.GetDB()
+
+	// Primero intentar buscar por serie (cuando la columna exista)
+	query := `
+		SELECT 
+			id,
+			COALESCE(clave_producto, '') as clave_producto,
+			descripcion,
+			clave_sat,
+			unidad_sat,
+			cantidad,
+			precio_unitario,
+			descuento,
+			total,
+			COALESCE(iva, 16.0) as iva
+		FROM ventas_det
+		WHERE serie = ?
+		ORDER BY id
+	`
+
+	log.Printf("🔍 BD_DEBUG - Ejecutando query con serie: '%s'", claveTicket)
+
+	// Primero verificar si existen datos con esta serie
+	var count int
+	countQuery := "SELECT COUNT(*) FROM ventas_det WHERE serie = ?"
+	err := database.QueryRow(countQuery, claveTicket).Scan(&count)
+	if err != nil {
+		log.Printf("❌ BD_DEBUG - Error al contar registros: %v", err)
+	} else {
+		log.Printf("🔍 BD_DEBUG - Registros encontrados en ventas_det con serie '%s': %d", claveTicket, count)
+	}
+
+	rows, err := database.Query(query, claveTicket)
+	if err != nil {
+		log.Printf("❌ BD_DEBUG - Error en query con serie: %v", err)
+		log.Printf("🔄 BD_DEBUG - Intentando fallback: productos más recientes")
+
+		// Fallback: obtener los productos más recientes (últimos 10 minutos)
+		queryFallback := `
+			SELECT 
+				id,
+				COALESCE(clave_producto, '') as clave_producto,
+				descripcion,
+				clave_sat,
+				unidad_sat,
+				cantidad,
+				precio_unitario,
+				descuento,
+				total,
+				COALESCE(iva, 16.0) as iva
+			FROM ventas_det
+			WHERE fecha_venta >= DATE_SUB(NOW(), INTERVAL 10 MINUTE)
+			ORDER BY id DESC
+		`
+
+		rows, err = database.Query(queryFallback)
+		if err != nil {
+			log.Printf("❌ BD_DEBUG - Error en query fallback: %v", err)
+			return nil, fmt.Errorf("error al consultar ventas_det: %v", err)
+		}
+	}
+	defer rows.Close()
+
+	var conceptos []models.Concepto
+	// Usar mapa para deduplicar conceptos por descripción + clave SAT
+	conceptosUnicos := make(map[string]models.Concepto)
+	rowCount := 0
+
+	for rows.Next() {
+		rowCount++
+		var concepto models.Concepto
+		var id int
+		var claveProducto, claveSat, unidadSat string
+		var descuento, total, iva float64
+
+		err := rows.Scan(
+			&id,
+			&claveProducto,
+			&concepto.Descripcion,
+			&claveSat,
+			&unidadSat,
+			&concepto.Cantidad,
+			&concepto.ValorUnitario,
+			&descuento,
+			&total,
+			&iva,
+		)
+		if err != nil {
+			log.Printf("❌ BD_DEBUG - Error al escanear fila %d: %v", rowCount, err)
+			continue
+		}
+
+		// Crear clave única usando descripción + cantidad + precio para mayor precisión
+		claveUnica := fmt.Sprintf("%s_%.2f_%.2f", concepto.Descripcion, concepto.Cantidad, concepto.ValorUnitario)
+
+		// Solo agregar si no existe este concepto único
+		if _, existe := conceptosUnicos[claveUnica]; !existe {
+			log.Printf("✅ BD_DEBUG - Fila %d: ID=%d, ClaveProd='%s', Desc='%s', ClaveSAT='%s', UnidadSAT='%s', Cant=%.2f, Precio=%.2f, IVA=%.2f",
+				rowCount, id, claveProducto, concepto.Descripcion, claveSat, unidadSat, concepto.Cantidad, concepto.ValorUnitario, iva)
+
+			// Mapear campos usando los datos reales de la tabla
+			concepto.ClaveProdServ = claveProducto // Usar clave_producto como clave del producto/servicio
+			concepto.ClaveSAT = claveSat           // Usar clave_sat como clave SAT
+			concepto.ClaveUnidad = unidadSat       // Usar unidad_sat como clave de unidad
+			concepto.Importe = total               // El total ya viene calculado
+			concepto.Descuento = descuento         // Usar el descuento de la tabla
+			concepto.TasaIVA = iva                 // Usar el IVA real de la base de datos
+			concepto.TasaIEPS = 0.0                // Sin IEPS por defecto
+
+			conceptosUnicos[claveUnica] = concepto
+		} else {
+			log.Printf("⚠️ BD_DEBUG - Concepto duplicado ignorado: Desc='%s', Cant=%.2f, Precio=%.2f",
+				concepto.Descripcion, concepto.Cantidad, concepto.ValorUnitario)
+		}
+	}
+
+	// Convertir mapa a slice
+	for _, concepto := range conceptosUnicos {
+		conceptos = append(conceptos, concepto)
+	}
+
+	log.Printf("🔍 BD_DEBUG - Total filas procesadas: %d", rowCount)
+	log.Printf("🔍 BD_DEBUG - Conceptos únicos después de deduplicación: %d", len(conceptosUnicos))
+	log.Printf("🔍 BD_DEBUG - Total conceptos finales: %d", len(conceptos))
+
+	if len(conceptos) == 0 {
+		log.Printf("❌ BD_DEBUG - No se encontraron productos para la serie '%s'", claveTicket)
+		return nil, fmt.Errorf("no se encontraron productos para la serie %s", claveTicket)
+	}
+
+	log.Printf("✅ BD_DEBUG - Retornando %d conceptos para serie '%s'", len(conceptos), claveTicket)
+	return conceptos, nil
+}
 
 // procesarDatosFactura extrae los datos de la factura del request
 func procesarDatosFactura(r *http.Request) (models.Factura, []byte, error) {
@@ -50,6 +189,37 @@ func procesarMultipartForm(r *http.Request) (models.Factura, []byte, error) {
 	if err := json.Unmarshal([]byte(facturaData), &factura); err != nil {
 		return factura, nil, fmt.Errorf("error al decodificar JSON: %v", err)
 	}
+
+	// *** AGREGAR LÓGICA DE OBTENCIÓN DE CONCEPTOS DESDE BD ***
+	log.Printf("🔍 DEBUG_CONCEPTOS - Verificando conceptos recibidos:")
+	log.Printf("🔍 DEBUG_CONCEPTOS - len(factura.Conceptos) = %d", len(factura.Conceptos))
+	log.Printf("🔍 DEBUG_CONCEPTOS - ClaveTicket = '%s'", factura.ClaveTicket)
+
+	// Si no hay conceptos, intentar obtenerlos desde la base de datos usando clave_pedido
+	if len(factura.Conceptos) == 0 {
+		log.Printf("⚠️ FLUJO REAL - No se recibieron conceptos en el JSON")
+		log.Printf("⚠️ FLUJO REAL - ClaveTicket recibida: '%s'", factura.ClaveTicket)
+
+		if factura.ClaveTicket != "" {
+			log.Printf("🔍 FLUJO REAL - Intentando obtener conceptos desde BD para ticket: '%s'", factura.ClaveTicket)
+			conceptosBD, err := obtenerConceptosDesdeVentas(factura.ClaveTicket)
+			if err != nil {
+				log.Printf("❌ FLUJO REAL - Error al obtener conceptos desde BD: %v", err)
+				log.Printf("🔄 FLUJO REAL - Continuando sin conceptos")
+			} else {
+				log.Printf("✅ Obtenidos %d conceptos desde BD usando clave_pedido", len(conceptosBD))
+				for i, concepto := range conceptosBD {
+					log.Printf("  [BD] Concepto %d: ClaveProdServ='%s', Desc='%s', Cant=%.2f, Precio=%.2f, Importe=%.2f",
+						i+1, concepto.ClaveProdServ, concepto.Descripcion, concepto.Cantidad, concepto.ValorUnitario, concepto.Importe)
+				}
+				factura.Conceptos = conceptosBD
+			}
+		} else {
+			log.Printf("⚠️ No hay clave_ticket disponible")
+		}
+	}
+
+	log.Printf("🔍 FINAL_DEBUG - Total conceptos finales: %d", len(factura.Conceptos))
 
 	// Leer plantilla si existe
 	plantillaFile, _, err := r.FormFile("plantilla")
@@ -102,11 +272,20 @@ func generarArchivos(factura models.Factura, plantillaBytes []byte) (*bytes.Buff
 	var pdfBuffer *bytes.Buffer
 	var err error
 
+	// Cargar logo del usuario admin (ID=1) - se usa en todas las facturas
+	logoBytes, err := services.CargarLogoPlantilla("1") // Siempre usar el logo del admin
+	if err != nil {
+		log.Printf("Error al cargar logo del admin: %v", err)
+		// Continuar sin logo en caso de error
+		logoBytes = nil
+	}
+
 	// Generar PDF
 	if len(plantillaBytes) > 0 {
 		pdfBuffer, err = services.ProcesarPlantilla(factura, plantillaBytes)
 	} else {
-		pdfBuffer, err = services.GenerarPDF(factura, nil)
+		// Usar el logo de plantillas cargado
+		pdfBuffer, err = services.GenerarPDF(factura, nil, logoBytes)
 	}
 	if err != nil {
 		return nil, nil, fmt.Errorf("error al generar PDF: %v", err)
@@ -164,6 +343,58 @@ func GenerarFacturaHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Llenar datos del emisor automáticamente desde los datos fiscales del usuario
+	if factura.IdUsuario > 0 {
+		err := LlenarDatosEmisor(&factura, factura.IdUsuario)
+		if err != nil {
+			log.Printf("INFO - No se llenaron datos del emisor: %v", err)
+			log.Printf("INFO - La factura se generará sin datos del emisor predefinidos")
+			// No devolvemos error, continuamos con los datos disponibles
+		} else {
+			log.Printf("SUCCESS - Datos del emisor llenados correctamente")
+		}
+	} else {
+		log.Printf("WARNING: No se encontró ID de usuario válido en la factura (IdUsuario=%d)", factura.IdUsuario)
+	}
+
+	// Convertir el ID del régimen fiscal al código del SAT
+	if factura.RegimenFiscal != "" {
+		codigo, err := ObtenerCodigoRegimenFiscal(factura.RegimenFiscal)
+		if err != nil {
+			log.Printf("Error al obtener código de régimen fiscal: %v", err)
+			// No devolvemos error, usamos el valor original
+		} else {
+			log.Printf("DEBUG - Convertido régimen fiscal: '%s' -> '%s'", factura.RegimenFiscal, codigo)
+			factura.RegimenFiscal = codigo
+		}
+	}
+
+	if factura.RegimenFiscalReceptor != "" {
+		codigo, err := ObtenerCodigoRegimenFiscal(factura.RegimenFiscalReceptor)
+		if err != nil {
+			log.Printf("Error al obtener código de régimen fiscal receptor: %v", err)
+			// No devolvemos error, usamos el valor original
+		} else {
+			log.Printf("DEBUG - Convertido régimen fiscal receptor: '%s' -> '%s'", factura.RegimenFiscalReceptor, codigo)
+			factura.RegimenFiscalReceptor = codigo
+		}
+	}
+
+	// Convertir el ID del estado al nombre del estado si viene como número Y no tenemos ya el nombre
+	if factura.EstadoNombre == "" && factura.Estado != 0 {
+		estadoStr := fmt.Sprintf("%d", factura.Estado)
+		nombreEstado, err := ObtenerNombreEstado(estadoStr)
+		if err != nil {
+			log.Printf("Error al obtener nombre de estado: %v", err)
+			// No devolvemos error, usamos el valor original
+		} else if nombreEstado != "" {
+			log.Printf("DEBUG - Convertido estado: ID '%d' -> Nombre '%s'", factura.Estado, nombreEstado)
+			factura.EstadoNombre = nombreEstado
+		}
+	} else if factura.EstadoNombre != "" {
+		log.Printf("DEBUG - Estado ya viene como nombre: '%s'", factura.EstadoNombre)
+	}
+
 	// Generar archivos
 	pdfBuffer, xmlBytes, err := generarArchivos(factura, plantillaBytes)
 	if err != nil {
@@ -190,6 +421,5 @@ func GenerarFacturaHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("Error al enviar archivo ZIP: %v", err)
 	}
-
 	log.Printf("Factura generada exitosamente con folio: %s", factura.NumeroFolio)
 }

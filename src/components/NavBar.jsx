@@ -40,7 +40,15 @@ const NavBar = () => {
     <nav className="navbar">
       <div className="logo">
         <Link to="/home">
-          <img src="/upscalemedia-transformed.png" alt="Logo" />
+          <img 
+            src="/upscalemedia-transformed.png" 
+            alt="Logo" 
+            style={{
+              maxHeight: '40px',
+              maxWidth: '150px',
+              objectFit: 'contain'
+            }}
+          />
         </Link>
       </div>
       
