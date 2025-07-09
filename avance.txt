@@ -1,0 +1,113 @@
+package services
+
+import (
+	"encoding/xml"
+	"fmt"
+	"time"
+
+	"carlos/Facts/Backend/internal/models"
+)
+
+// Estructuras CFDI 4.0 SAT
+type CFDIComprobante struct {
+	XMLName           xml.Name        `xml:"cfdi:Comprobante"`
+	XmlnsCfdi         string          `xml:"xmlns:cfdi,attr"`
+	XmlnsXsi          string          `xml:"xmlns:xsi,attr"`
+	XsiSchemaLocation string          `xml:"xsi:schemaLocation,attr"`
+	Version           string          `xml:"Version,attr"`
+	Serie             string          `xml:"Serie,attr,omitempty"`
+	Folio             string          `xml:"Folio,attr,omitempty"`
+	Fecha             string          `xml:"Fecha,attr"`
+	Sello             string          `xml:"Sello,attr,omitempty"`
+	FormaPago         string          `xml:"FormaPago,attr,omitempty"`
+	NoCertificado     string          `xml:"NoCertificado,attr,omitempty"`
+	Certificado       string          `xml:"Certificado,attr,omitempty"`
+	SubTotal          string          `xml:"SubTotal,attr"`
+	Moneda            string          `xml:"Moneda,attr"`
+	Total             string          `xml:"Total,attr"`
+	TipoDeComprobante string          `xml:"TipoDeComprobante,attr"`
+	MetodoPago        string          `xml:"MetodoPago,attr,omitempty"`
+	LugarExpedicion   string          `xml:"LugarExpedicion,attr"`
+	Emisor            CFDIEmisor      `xml:"cfdi:Emisor"`
+	Receptor          CFDIReceptor    `xml:"cfdi:Receptor"`
+	Conceptos         CFDIConceptos   `xml:"cfdi:Conceptos"`
+	// Impuestos, Complemento, Addenda, etc van aquí si los necesitas
+}
+
+type CFDIEmisor struct {
+	Rfc           string `xml:"Rfc,attr"`
+	Nombre        string `xml:"Nombre,attr"`
+	RegimenFiscal string `xml:"RegimenFiscal,attr"`
+}
+
+type CFDIReceptor struct {
+	Rfc                    string `xml:"Rfc,attr"`
+	Nombre                 string `xml:"Nombre,attr"`
+	DomicilioFiscalReceptor string `xml:"DomicilioFiscalReceptor,attr"`
+	RegimenFiscalReceptor   string `xml:"RegimenFiscalReceptor,attr,omitempty"`
+	UsoCFDI                string `xml:"UsoCFDI,attr"`
+}
+
+type CFDIConceptos struct {
+	Conceptos []CFDIConcepto `xml:"cfdi:Concepto"`
+}
+
+type CFDIConcepto struct {
+	ClaveProdServ  string `xml:"ClaveProdServ,attr"`
+	Cantidad       string `xml:"Cantidad,attr"`
+	ClaveUnidad    string `xml:"ClaveUnidad,attr"`
+	Descripcion    string `xml:"Descripcion,attr"`
+	ValorUnitario  string `xml:"ValorUnitario,attr"`
+	Importe        string `xml:"Importe,attr"`
+	// Puedes agregar Descuento, ObjetoImp, etc, según tus necesidades
+}
+
+// GenerarXMLCFDI40 convierte los datos de la factura en un XML CFDI 4.0 válido
+func GenerarXMLCFDI40(factura models.Factura) ([]byte, error) {
+	now := time.Now().Format("2006-01-02T15:04:05")
+	// Armar conceptos
+	conceptos := make([]CFDIConcepto, len(factura.Conceptos))
+	for i, c := range factura.Conceptos {
+		conceptos[i] = CFDIConcepto{
+			ClaveProdServ: c.ClaveProdServ,
+			Cantidad:      fmt.Sprintf("%.2f", c.Cantidad),
+			ClaveUnidad:   c.ClaveUnidad,
+			Descripcion:   c.Descripcion,
+			ValorUnitario: fmt.Sprintf("%.2f", c.ValorUnitario),
+			Importe:       fmt.Sprintf("%.2f", c.Importe),
+		}
+	}
+	comprobante := CFDIComprobante{
+		XmlnsCfdi:         "http://www.sat.gob.mx/cfd/4",
+		XmlnsXsi:          "http://www.w3.org/2001/XMLSchema-instance",
+		XsiSchemaLocation: "http://www.sat.gob.mx/cfd/4 http://www.sat.gob.mx/sitio_internet/cfd/4/cfdv40.xsd",
+		Version:           "4.0",
+		Serie:             factura.Serie,
+		Folio:             factura.NumeroFolio,
+		Fecha:             now,
+		SubTotal:          fmt.Sprintf("%.2f", factura.Subtotal),
+		Moneda:            "MXN", // O usa factura.Moneda si lo tienes
+		Total:             fmt.Sprintf("%.2f", factura.Total),
+		TipoDeComprobante: "I", // Ingreso (puede ser E/G/T/P)
+		MetodoPago:        factura.MetodoPago,
+		FormaPago:         factura.FormaPago,
+		LugarExpedicion:   factura.CodigoPostal,
+		Emisor: CFDIEmisor{
+			Rfc:           factura.EmisorRFC,
+			Nombre:        factura.EmisorRazonSocial,
+			RegimenFiscal: factura.EmisorRegimenFiscal,
+		},
+		Receptor: CFDIReceptor{
+			Rfc:                    factura.ReceptorRFC,
+			Nombre:                 factura.ReceptorRazonSocial,
+			DomicilioFiscalReceptor: factura.ReceptorCodigoPostal,
+			RegimenFiscalReceptor:   factura.RegimenFiscalReceptor,
+			UsoCFDI:                factura.UsoCFDI,
+		},
+		Conceptos: CFDIConceptos{
+			Conceptos: conceptos,
+		},
+	}
+
+	return xml.MarshalIndent(comprobante, "", "  ")
+}   

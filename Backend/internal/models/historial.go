@@ -13,24 +13,24 @@ type HistorialFactura struct {
 	RFCReceptor         string  `json:"rfc_receptor"`
 	RazonSocialReceptor string  `json:"razon_social_receptor"`
 	ClaveTicket         string  `json:"clave_ticket"`
-	Folio               string  `json:"folio"`
+	NumeroFolio         string  `json:"numero_folio"` // Ahora es NumeroFolio en vez de Folio
 	Total               float64 `json:"total"`
 	UsoCFDI             string  `json:"uso_cfdi"`
-	FechaGeneracion     string  `json:"fecha_generacion"` // Cambiado de time.Time a string
+	FechaGeneracion     string  `json:"fecha_generacion"`
 	Estado              string  `json:"estado"`
 	Observaciones       string  `json:"observaciones"`
 }
 
 // InsertarHistorialFactura inserta una nueva entrada en el historial de facturas
 func InsertarHistorialFactura(idUsuario int, rfcReceptor string, razonSocialReceptor string,
-	claveTicket string, folio string, total float64, usoCFDI string, observaciones string) (int64, error) {
+	claveTicket string, numeroFolio string, total float64, usoCFDI string, observaciones string) (int64, error) {
 	dbConn := db.GetDB()
 
 	result, err := dbConn.Exec(
 		`INSERT INTO historial_facturas 
-        (id_usuario, rfc_receptor, razon_social_receptor, clave_ticket, folio, total, uso_cfdi, observaciones) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		idUsuario, rfcReceptor, razonSocialReceptor, claveTicket, folio, total, usoCFDI, observaciones,
+		(id_usuario, rfc_receptor, razon_social_receptor, clave_ticket, folio, total, uso_cfdi, observaciones) 
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		idUsuario, rfcReceptor, razonSocialReceptor, claveTicket, numeroFolio, total, usoCFDI, observaciones,
 	)
 
 	if err != nil {
@@ -51,12 +51,12 @@ func ObtenerHistorialFacturasPorUsuario(idUsuario int) ([]HistorialFactura, erro
 
 	rows, err := dbConn.Query(
 		`SELECT id, id_usuario, rfc_receptor, razon_social_receptor, 
-        clave_ticket, folio, total, uso_cfdi, 
-        DATE_FORMAT(fecha_generacion, '%Y-%m-%d %H:%i:%s') as fecha_generacion, 
-        estado, observaciones 
-        FROM historial_facturas 
-        WHERE id_usuario = ? 
-        ORDER BY fecha_generacion DESC`,
+		clave_ticket, folio AS numero_folio, total, uso_cfdi, 
+		DATE_FORMAT(fecha_generacion, '%Y-%m-%d %H:%i:%s') as fecha_generacion, 
+		estado, observaciones 
+		FROM historial_facturas 
+		WHERE id_usuario = ? 
+		ORDER BY fecha_generacion DESC`,
 		idUsuario,
 	)
 
@@ -76,7 +76,7 @@ func ObtenerHistorialFacturasPorUsuario(idUsuario int) ([]HistorialFactura, erro
 			&factura.RFCReceptor,
 			&factura.RazonSocialReceptor,
 			&factura.ClaveTicket,
-			&factura.Folio,
+			&factura.NumeroFolio,
 			&factura.Total,
 			&factura.UsoCFDI,
 			&factura.FechaGeneracion,
@@ -102,11 +102,11 @@ func ObtenerFacturaPorID(id int) (*HistorialFactura, error) {
 
 	err := dbConn.QueryRow(
 		`SELECT id, id_usuario, rfc_receptor, razon_social_receptor, 
-        clave_ticket, folio, total, uso_cfdi, 
-        DATE_FORMAT(fecha_generacion, '%Y-%m-%d %H:%i:%s') as fecha_generacion, 
-        estado, observaciones 
-        FROM historial_facturas 
-        WHERE id = ?`,
+		clave_ticket, folio AS numero_folio, total, uso_cfdi, 
+		DATE_FORMAT(fecha_generacion, '%Y-%m-%d %H:%i:%s') as fecha_generacion, 
+		estado, observaciones 
+		FROM historial_facturas 
+		WHERE id = ?`,
 		id,
 	).Scan(
 		&factura.ID,
@@ -114,7 +114,7 @@ func ObtenerFacturaPorID(id int) (*HistorialFactura, error) {
 		&factura.RFCReceptor,
 		&factura.RazonSocialReceptor,
 		&factura.ClaveTicket,
-		&factura.Folio,
+		&factura.NumeroFolio,
 		&factura.Total,
 		&factura.UsoCFDI,
 		&factura.FechaGeneracion,
@@ -138,11 +138,11 @@ func BuscarHistorialFacturas(idUsuario int, folio, rfcReceptor, razonSocial stri
 
 	// Construir la consulta dinámicamente basándose en los criterios proporcionados
 	query := `SELECT id, id_usuario, rfc_receptor, razon_social_receptor, 
-        clave_ticket, folio, total, uso_cfdi, 
-        DATE_FORMAT(fecha_generacion, '%Y-%m-%d %H:%i:%s') as fecha_generacion, 
-        estado, observaciones 
-        FROM historial_facturas 
-        WHERE id_usuario = ?`
+		clave_ticket, folio, total, uso_cfdi, 
+		DATE_FORMAT(fecha_generacion, '%Y-%m-%d %H:%i:%s') as fecha_generacion, 
+		estado, observaciones 
+		FROM historial_facturas 
+		WHERE id_usuario = ?`
 
 	var args []interface{}
 	args = append(args, idUsuario)
@@ -186,7 +186,7 @@ func BuscarHistorialFacturas(idUsuario int, folio, rfcReceptor, razonSocial stri
 			&factura.RFCReceptor,
 			&factura.RazonSocialReceptor,
 			&factura.ClaveTicket,
-			&factura.Folio,
+			&factura.NumeroFolio,
 			&factura.Total,
 			&factura.UsoCFDI,
 			&factura.FechaGeneracion,
@@ -223,13 +223,13 @@ func ObtenerHistorialFacturasPorUsuarioConPaginacion(idUsuario, pagina, limite i
 	// Obtener las facturas con paginación
 	rows, err := dbConn.Query(
 		`SELECT id, id_usuario, rfc_receptor, razon_social_receptor, 
-        clave_ticket, folio, total, uso_cfdi, 
-        DATE_FORMAT(fecha_generacion, '%Y-%m-%d %H:%i:%s') as fecha_generacion, 
-        estado, observaciones 
-        FROM historial_facturas 
-        WHERE id_usuario = ? 
-        ORDER BY fecha_generacion DESC
-        LIMIT ? OFFSET ?`,
+		clave_ticket, folio, total, uso_cfdi, 
+		DATE_FORMAT(fecha_generacion, '%Y-%m-%d %H:%i:%s') as fecha_generacion, 
+		estado, observaciones 
+		FROM historial_facturas 
+		WHERE id_usuario = ? 
+		ORDER BY fecha_generacion DESC
+		LIMIT ? OFFSET ?`,
 		idUsuario, limite, offset,
 	)
 
@@ -249,7 +249,7 @@ func ObtenerHistorialFacturasPorUsuarioConPaginacion(idUsuario, pagina, limite i
 			&factura.RFCReceptor,
 			&factura.RazonSocialReceptor,
 			&factura.ClaveTicket,
-			&factura.Folio,
+			&factura.NumeroFolio,
 			&factura.Total,
 			&factura.UsoCFDI,
 			&factura.FechaGeneracion,
@@ -277,11 +277,11 @@ func BuscarHistorialFacturasConPaginacion(idUsuario int, folio, rfcReceptor, raz
 	// Construir la consulta base para el conteo
 	queryCount := `SELECT COUNT(*) FROM historial_facturas WHERE id_usuario = ?`
 	querySelect := `SELECT id, id_usuario, rfc_receptor, razon_social_receptor, 
-        clave_ticket, folio, total, uso_cfdi, 
-        DATE_FORMAT(fecha_generacion, '%Y-%m-%d %H:%i:%s') as fecha_generacion, 
-        estado, observaciones 
-        FROM historial_facturas 
-        WHERE id_usuario = ?`
+		clave_ticket, folio, total, uso_cfdi, 
+		DATE_FORMAT(fecha_generacion, '%Y-%m-%d %H:%i:%s') as fecha_generacion, 
+		estado, observaciones 
+		FROM historial_facturas 
+		WHERE id_usuario = ?`
 
 	var args []interface{}
 	args = append(args, idUsuario)
@@ -333,7 +333,7 @@ func BuscarHistorialFacturasConPaginacion(idUsuario int, folio, rfcReceptor, raz
 			&factura.RFCReceptor,
 			&factura.RazonSocialReceptor,
 			&factura.ClaveTicket,
-			&factura.Folio,
+			&factura.NumeroFolio,
 			&factura.Total,
 			&factura.UsoCFDI,
 			&factura.FechaGeneracion,

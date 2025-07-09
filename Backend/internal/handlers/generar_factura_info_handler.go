@@ -15,6 +15,7 @@ import (
 	"carlos/Facts/Backend/internal/utils"
 )
 
+
 // GenerarFacturaConInfoHandler genera una factura y devuelve información sobre ella
 func GenerarFacturaConInfoHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -51,29 +52,6 @@ func GenerarFacturaConInfoHandler(w http.ResponseWriter, r *http.Request) {
 			log.Printf("Error al decodificar JSON en multipart: %v", err)
 			http.Error(w, "Error al procesar los datos: "+err.Error(), http.StatusBadRequest)
 			return
-		}
-
-		// Debug: imprimir todos los campos recibidos de la factura
-		log.Printf("DEBUG - Datos recibidos de la factura:")
-		log.Printf("  Estado (int): %d", factura.Estado)
-		log.Printf("  EstadoNombre: '%s'", factura.EstadoNombre)
-		log.Printf("  Total conceptos recibidos: %d", len(factura.Conceptos))
-		log.Printf("  ClaveTicket: '%s'", factura.ClaveTicket)
-		log.Printf("  Total: %.2f", factura.Total)
-		log.Printf("  Conceptos recibidos (JSON): %v", factura.Conceptos)
-
-		// Imprimir detalles de cada concepto recibido
-		for i, concepto := range factura.Conceptos {
-			log.Printf("  Concepto %d:", i+1)
-			log.Printf("    ClaveProdServ: '%s'", concepto.ClaveProdServ)
-			log.Printf("    Descripcion: '%s'", concepto.Descripcion)
-			log.Printf("    ClaveUnidad: '%s'", concepto.ClaveUnidad)
-			log.Printf("    Cantidad: %.2f", concepto.Cantidad)
-			log.Printf("    ValorUnitario: %.2f", concepto.ValorUnitario)
-			log.Printf("    Importe: %.2f", concepto.Importe)
-			log.Printf("    TasaIVA: %.1f", concepto.TasaIVA)
-			log.Printf("    TasaIEPS: %.1f", concepto.TasaIEPS)
-			log.Printf("    Descuento: %.2f", concepto.Descuento)
 		}
 
 		// Leer el archivo de la plantilla
@@ -231,7 +209,7 @@ func GenerarFacturaConInfoHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		// Usar el logo del admin cargado
-		pdfBuffer, err2 = services.GenerarPDF(factura, nil, logoBytes)
+		pdfBuffer, _, err2 = services.GenerarPDF(factura, nil, logoBytes)
 
 		if err2 != nil {
 			log.Printf("Error al generar PDF: %v", err2)
@@ -248,10 +226,20 @@ func GenerarFacturaConInfoHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Usar la función CrearZIP para empaquetar PDF y XML
-	zipBuffer, err2 := services.CrearZIP(pdfBuffer.Bytes(), xmlBytes)
-	if err2 != nil {
-		log.Printf("Error al crear ZIP: %v", err2)
+	// Obtener los bytes del PDF y XML
+	pdfBytes := pdfBuffer.Bytes()
+	// xmlBytes ya es []byte
+
+	// Obtener la serie y el folio
+	serieDF := factura.Serie
+	numeroFolio := factura.NumeroFolio
+	nombrePDF := GenerarNombreArchivoFactura(serieDF, numeroFolio, "pdf")
+	nombreXML := GenerarNombreArchivoFactura(serieDF, numeroFolio, "xml")
+
+	// Usar la función CrearZIP para empaquetar PDF y XML con nombre correcto
+	zipBuffer, err := services.CrearZIPConNombres(pdfBytes, xmlBytes, nombrePDF, nombreXML)
+	if err != nil {
+		log.Printf("Error al crear ZIP: %v", err)
 		http.Error(w, "Error al crear archivo ZIP", http.StatusInternalServerError)
 		return
 	}
@@ -295,7 +283,7 @@ func GenerarFacturaConInfoHandler(w http.ResponseWriter, r *http.Request) {
 	// Aquí podrías guardar el ZIP en un almacenamiento temporal si es necesario
 
 	utils.RespondWithJSON(w, http.StatusOK, response)
-	log.Printf("Factura generada exitosamente con folio: %s", factura.NumeroFolio)
+	log.Printf("Factura generada exitosamente con folio: %s", numeroFolio)
 }
 
 // DebugVentasDetHandler - endpoint de debug para ver datos en ventas_det

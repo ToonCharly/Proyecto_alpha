@@ -7,12 +7,25 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"carlos/Facts/Backend/internal/db"
 	"carlos/Facts/Backend/internal/models"
 	"carlos/Facts/Backend/internal/services"
 )
+
+func GenerarNombreArchivoFactura(serieDF, numeroFolio, extension string) string {
+	re := regexp.MustCompile(`\d+$`)
+	soloNumero := re.FindString(numeroFolio)
+	// Quitar ceros a la izquierda:
+	numeroSinCeros := soloNumero
+	if n, err := strconv.Atoi(soloNumero); err == nil {
+		numeroSinCeros = fmt.Sprintf("%d", n)
+	}
+	return fmt.Sprintf("Factura %s%s.%s", serieDF, numeroSinCeros, extension)
+}
 
 // obtenerConceptosDesdeVentas obtiene los productos desde la tabla ventas_det usando la serie
 // NOTA: Actualmente la tabla ventas_det no tiene columna 'serie', usando como fallback los productos más recientes
@@ -285,7 +298,7 @@ func generarArchivos(factura models.Factura, plantillaBytes []byte) (*bytes.Buff
 		pdfBuffer, err = services.ProcesarPlantilla(factura, plantillaBytes)
 	} else {
 		// Usar el logo de plantillas cargado
-		pdfBuffer, err = services.GenerarPDF(factura, nil, logoBytes)
+		pdfBuffer, _, err = services.GenerarPDF(factura, nil, logoBytes)
 	}
 	if err != nil {
 		return nil, nil, fmt.Errorf("error al generar PDF: %v", err)
@@ -328,98 +341,159 @@ func GenerarFacturaHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Procesar datos del request
-	factura, plantillaBytes, err := procesarDatosFactura(r)
-	if err != nil {
-		log.Printf("Error al procesar datos: %v", err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	var factura models.Factura
+	var plantillaBytes []byte
+
+	contentType := r.Header.Get("Content-Type")
+	if contentType == "" {
+		http.Error(w, "Content-Type no especificado", http.StatusBadRequest)
 		return
 	}
 
-	// Manejar folio
-	if err := manejarFolio(&factura); err != nil {
-		log.Printf("Error con folio: %v", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+	if strings.Contains(contentType, "multipart/form-data") {
+		if err := r.ParseMultipartForm(10 << 20); err != nil {
+			log.Printf("Error al parsear multipart form: %v", err)
+			http.Error(w, "Error al procesar el formulario", http.StatusBadRequest)
+			return
+		}
+
+		facturaData := r.FormValue("datos")
+		if facturaData == "" {
+			http.Error(w, "No se encontraron datos de factura", http.StatusBadRequest)
+			return
+		}
+
+		if err := json.Unmarshal([]byte(facturaData), &factura); err != nil {
+			log.Printf("Error al decodificar JSON en multipart: %v", err)
+			http.Error(w, "Error al procesar los datos: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		plantillaFile, _, err := r.FormFile("plantilla")
+		if err == nil {
+			defer plantillaFile.Close()
+			plantillaBytes, err = io.ReadAll(plantillaFile)
+			if err != nil {
+				log.Printf("Error al leer la plantilla: %v", err)
+				http.Error(w, "Error al leer la plantilla", http.StatusInternalServerError)
+				return
+			}
+		}
+	} else if strings.Contains(contentType, "application/json") {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			log.Printf("Error al leer el cuerpo de la solicitud: %v", err)
+			http.Error(w, "Error al leer la solicitud", http.StatusBadRequest)
+			return
+		}
+
+		if err := json.Unmarshal(body, &factura); err != nil {
+			log.Printf("Error al decodificar JSON: %v", err)
+			http.Error(w, "Error al procesar los datos: "+err.Error(), http.StatusBadRequest)
+			return
+		}
 	}
 
-	// Llenar datos del emisor automáticamente desde los datos fiscales del usuario
+	// Si no hay conceptos, intentar obtenerlos desde la base de datos usando clave_ticket
+	if len(factura.Conceptos) == 0 && factura.ClaveTicket != "" {
+		conceptosBD, err := obtenerConceptosDesdeVentas(factura.ClaveTicket)
+		if err == nil {
+			factura.Conceptos = conceptosBD
+		}
+	}
+
+	// Generar folio automáticamente si no se proporcionó uno
+	if factura.NumeroFolio == "" {
+		err := factura.GenerarFolioAutomatico()
+		if err != nil {
+			log.Printf("Error al generar folio automático: %v", err)
+			http.Error(w, "Error al generar folio de factura", http.StatusInternalServerError)
+			return
+		}
+	} else {
+		err := factura.ValidarFolio()
+		if err != nil {
+			log.Printf("Error al validar folio: %v", err)
+			http.Error(w, "Folio duplicado o inválido: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+	}
+
 	if factura.IdUsuario > 0 {
 		err := LlenarDatosEmisor(&factura, factura.IdUsuario)
 		if err != nil {
 			log.Printf("INFO - No se llenaron datos del emisor: %v", err)
-			log.Printf("INFO - La factura se generará sin datos del emisor predefinidos")
-			// No devolvemos error, continuamos con los datos disponibles
-		} else {
-			log.Printf("SUCCESS - Datos del emisor llenados correctamente")
 		}
-	} else {
-		log.Printf("WARNING: No se encontró ID de usuario válido en la factura (IdUsuario=%d)", factura.IdUsuario)
 	}
-
-	// Convertir el ID del régimen fiscal al código del SAT
 	if factura.RegimenFiscal != "" {
 		codigo, err := ObtenerCodigoRegimenFiscal(factura.RegimenFiscal)
-		if err != nil {
-			log.Printf("Error al obtener código de régimen fiscal: %v", err)
-			// No devolvemos error, usamos el valor original
-		} else {
-			log.Printf("DEBUG - Convertido régimen fiscal: '%s' -> '%s'", factura.RegimenFiscal, codigo)
+		if err == nil {
 			factura.RegimenFiscal = codigo
 		}
 	}
-
 	if factura.RegimenFiscalReceptor != "" {
 		codigo, err := ObtenerCodigoRegimenFiscal(factura.RegimenFiscalReceptor)
-		if err != nil {
-			log.Printf("Error al obtener código de régimen fiscal receptor: %v", err)
-			// No devolvemos error, usamos el valor original
-		} else {
-			log.Printf("DEBUG - Convertido régimen fiscal receptor: '%s' -> '%s'", factura.RegimenFiscalReceptor, codigo)
+		if err == nil {
 			factura.RegimenFiscalReceptor = codigo
 		}
 	}
-
-	// Convertir el ID del estado al nombre del estado si viene como número Y no tenemos ya el nombre
 	if factura.EstadoNombre == "" && factura.Estado != 0 {
 		estadoStr := fmt.Sprintf("%d", factura.Estado)
 		nombreEstado, err := ObtenerNombreEstado(estadoStr)
-		if err != nil {
-			log.Printf("Error al obtener nombre de estado: %v", err)
-			// No devolvemos error, usamos el valor original
-		} else if nombreEstado != "" {
-			log.Printf("DEBUG - Convertido estado: ID '%d' -> Nombre '%s'", factura.Estado, nombreEstado)
+		if err == nil && nombreEstado != "" {
 			factura.EstadoNombre = nombreEstado
 		}
-	} else if factura.EstadoNombre != "" {
-		log.Printf("DEBUG - Estado ya viene como nombre: '%s'", factura.EstadoNombre)
 	}
 
-	// Generar archivos
-	pdfBuffer, xmlBytes, err := generarArchivos(factura, plantillaBytes)
+	// Cargar logo del usuario admin (ID=1)
+	logoBytes, err := services.CargarLogoPlantilla("1")
 	if err != nil {
-		log.Printf("Error al generar archivos: %v", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("Error al cargar logo del admin: %v", err)
+		logoBytes = nil
+	}
+
+	var pdfBuffer *bytes.Buffer
+	if len(plantillaBytes) > 0 {
+		pdfBuffer, err = services.ProcesarPlantilla(factura, plantillaBytes)
+		if err != nil {
+			log.Printf("Error al procesar plantilla: %v", err)
+			http.Error(w, "Error al procesar la plantilla", http.StatusInternalServerError)
+			return
+		}
+	} else {
+		pdfBuffer, _, err = services.GenerarPDF(factura, nil, logoBytes)
+		if err != nil {
+			log.Printf("Error al generar PDF: %v", err)
+			http.Error(w, "Error al generar la factura", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	xmlBytes, err := services.GenerarXML(factura)
+	if err != nil {
+		log.Printf("Error al generar XML: %v", err)
+		http.Error(w, "Error al generar XML de la factura", http.StatusInternalServerError)
 		return
 	}
 
-	// Crear ZIP
-	zipBuffer, err := services.CrearZIP(pdfBuffer.Bytes(), xmlBytes)
+	serieDF := factura.Serie
+	numeroFolio := factura.NumeroFolio
+	nombrePDF := GenerarNombreArchivoFactura(serieDF, numeroFolio, "pdf")
+	nombreXML := GenerarNombreArchivoFactura(serieDF, numeroFolio, "xml")
+	pdfBytes := pdfBuffer.Bytes()
+
+	zipBuffer, err := services.CrearZIPConNombres(pdfBytes, xmlBytes, nombrePDF, nombreXML)
 	if err != nil {
 		log.Printf("Error al crear ZIP: %v", err)
 		http.Error(w, "Error al crear archivo ZIP", http.StatusInternalServerError)
 		return
 	}
 
-	// Guardar en historial
-	guardarEnHistorial(factura)
-
-	// Enviar respuesta
 	w.Header().Set("Content-Type", "application/zip")
-	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=factura_%s.zip", factura.NumeroFolio))
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=factura_%s.zip", numeroFolio))
 	_, err = w.Write(zipBuffer.Bytes())
 	if err != nil {
 		log.Printf("Error al enviar archivo ZIP: %v", err)
 	}
-	log.Printf("Factura generada exitosamente con folio: %s", factura.NumeroFolio)
+	log.Printf("Factura generada exitosamente con folio: %s", numeroFolio)
 }

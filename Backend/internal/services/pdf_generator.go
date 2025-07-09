@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"carlos/Facts/Backend/internal/db"
+
 	"carlos/Facts/Backend/internal/models"
 
 	"github.com/phpdave11/gofpdf"
@@ -76,7 +78,8 @@ func obtenerDescripcionRegimenFiscalPDF(clave string) string {
 	return clave
 }
 
-func GenerarPDF(factura models.Factura, empresa *models.Empresa, logoBytes []byte) (*bytes.Buffer, error) {
+// Modificada para incluir nombre de archivo con serie_df y folio sin ceros a la izquierda
+func GenerarPDF(factura models.Factura, empresa *models.Empresa, logoBytes []byte) (*bytes.Buffer, string, error) {
 	pdf := gofpdf.New("P", "mm", "A4", "")
 	pdf.SetAuthor("Sistema de Facturación", true)
 	pdf.SetTitle("Factura Electrónica", true)
@@ -96,6 +99,30 @@ func GenerarPDF(factura models.Factura, empresa *models.Empresa, logoBytes []byt
 			pdf.Image(tmpfileName, 10, 10, 30, 30, false, "", 0, "")
 		}
 	}
+
+	// === OBTENER SERIE_DF DEL USUARIO (idUsuario de la factura) ===
+	serieDF := ""
+	idUsuario := 1
+	if factura.EmpresaID != nil {
+		if id, ok := factura.EmpresaID.(int); ok {
+			idUsuario = id
+		}
+	}
+	datosFiscales, err := db.ObtenerDatosFiscales(idUsuario)
+	if err == nil {
+		if s, ok := datosFiscales["serie_df"].(string); ok {
+			serieDF = s
+		}
+	}
+
+	// === OBTENER FOLIO COMO INT (sin ceros a la izquierda) ===
+	folioInt := 0
+	if factura.NumeroFolio != "" {
+		folioInt, _ = strconv.Atoi(factura.NumeroFolio)
+	}
+
+	// === GENERAR NOMBRE DE ARCHIVO ===
+	nombreArchivo := fmt.Sprintf("Factura_%s%d.pdf", serieDF, folioInt)
 
 	y := 45.0
 	pdf.SetTextColor(0, 0, 0)
@@ -376,145 +403,129 @@ func GenerarPDF(factura models.Factura, empresa *models.Empresa, logoBytes []byt
 	pdf.Cell(180, 8, tr("DETALLE DE PRODUCTOS"))
 	y += 12
 
-	// Definir anchos de columnas optimizados con mejor distribución - AÑADIENDO COLUMNA TOTAL
+	// NUEVOS anchos de columna, quitando IEPS y el viejo IVA (%)
 	colWidths := []float64{
 		18, // Clave Prod/Ser
-		70, // Producto (descripción) - Reducido para dar espacio a TOTAL
+		62, // Producto
 		13, // Clave SAT
 		16, // Unidad SAT
 		15, // Cantidad
 		15, // Precio
-		12, // IVA (%)
-		12, // IEPS (%)
-		16, // TOTAL (nueva columna)
+		16, // IVA ($)
+		20, // TOTAL
 	}
 
 	headers := []string{
 		"Clave Prod/Ser", "Producto", "Clave SAT", "Unidad SAT",
-		"Cantidad", "Precio", "IVA (%)", "IEPS (%)", "TOTAL",
+		"Cantidad", "Precio", "IVA ($)", "TOTAL",
 	}
 
-	// Dibujar encabezados de la tabla con líneas negras
-	pdf.SetFont("Arial", "B", 7)    // Reducir tamaño de fuente para encabezados
-	pdf.SetFillColor(60, 120, 180)  // Color azul para encabezados
-	pdf.SetTextColor(255, 255, 255) // Texto blanco
-	pdf.SetDrawColor(0, 0, 0)       // Líneas negras
-
+	// Encabezados
+	pdf.SetFont("Arial", "B", 7)
+	pdf.SetFillColor(60, 120, 180)
+	pdf.SetTextColor(255, 255, 255)
+	pdf.SetDrawColor(0, 0, 0)
 	x := 15.0
 	for i, header := range headers {
 		pdf.SetXY(x, y)
 		pdf.CellFormat(colWidths[i], 8, tr(header), "1", 0, "C", true, 0, "")
-		x += colWidths[i] // Sin espacios entre columnas - tabla compacta
+		x += colWidths[i]
 	}
 	y += 8
 
 	// Configurar para el contenido de la tabla
-	pdf.SetFont("Arial", "", 7) // Reducir tamaño de fuente para contenido
+	pdf.SetFont("Arial", "", 7)
 	pdf.SetTextColor(40, 40, 40)
-	pdf.SetFillColor(248, 248, 248) // Color gris claro alternado
-	pdf.SetDrawColor(0, 0, 0)       // Líneas negras para el contenido
+	pdf.SetFillColor(248, 248, 248)
+	pdf.SetDrawColor(0, 0, 0)
 
 	// Dibujar filas de la tabla
 	for i, concepto := range conceptosParaPDF {
-		// Alternar color de fondo
 		fillColor := i%2 == 0
 
 		// Verificar si necesitamos una nueva página
-		if y > 265 { // Ajustar el límite para dar más espacio
+		if y > 265 {
 			pdf.AddPage()
 			y = 20
 			// Redibujar encabezados en la nueva página
 			pdf.SetFont("Arial", "B", 7)
 			pdf.SetFillColor(60, 120, 180)
 			pdf.SetTextColor(255, 255, 255)
-			pdf.SetDrawColor(0, 0, 0) // Líneas negras también en nueva página
+			pdf.SetDrawColor(0, 0, 0)
 			x = 15.0
 			for j, header := range headers {
 				pdf.SetXY(x, y)
 				pdf.CellFormat(colWidths[j], 8, tr(header), "1", 0, "C", true, 0, "")
-				x += colWidths[j] // Sin espacios - tabla compacta
+				x += colWidths[j]
 			}
 			y += 8
 			pdf.SetFont("Arial", "", 7)
 			pdf.SetTextColor(40, 40, 40)
 			pdf.SetFillColor(248, 248, 248)
-			pdf.SetDrawColor(0, 0, 0) // Líneas negras en nueva página
+			pdf.SetDrawColor(0, 0, 0)
 		}
 
 		// Calcular altura de la fila basada en el texto más largo
 		maxLines := 1
-		descripcionLines := splitTextSafely(pdf, tr(concepto.Descripcion), colWidths[1]-4) // Más margen
+		descripcionLines := splitTextSafely(pdf, tr(concepto.Descripcion), colWidths[1]-4)
 		if len(descripcionLines) > maxLines {
 			maxLines = len(descripcionLines)
 		}
 
-		// Aumentar altura mínima de filas para mejor legibilidad
-		rowHeight := float64(maxLines) * 3.5 // Ajustar espaciado entre líneas
+		rowHeight := float64(maxLines) * 3.5
 		if rowHeight < 10 {
-			rowHeight = 10 // Altura mínima aumentada
+			rowHeight = 10
 		}
 
 		x = 15.0
-
-		// Clave Prod/Ser
 		pdf.SetXY(x, y)
 		pdf.CellFormat(colWidths[0], rowHeight, concepto.ClaveProdServ, "1", 0, "C", fillColor, 0, "")
 		x += colWidths[0]
 
-		// Producto (descripción con texto multilínea)
+		// Producto (descripción multilínea igual que antes)
 		pdf.SetXY(x, y)
 		pdf.CellFormat(colWidths[1], rowHeight, "", "1", 0, "L", fillColor, 0, "")
-
-		// Renderizar texto multilínea para la descripción con mejor espaciado
-		for j, line := range descripcionLines {
-			lineY := y + float64(j)*3.5 + 2.5   // Ajustar posición vertical
-			pdf.SetXY(x+2, lineY)               // Más margen izquierdo
-			pdf.Cell(colWidths[1]-4, 3.5, line) // Más margen total
+		for j, line := range splitTextSafely(pdf, tr(concepto.Descripcion), colWidths[1]-4) {
+			lineY := y + float64(j)*3.5 + 2.5
+			pdf.SetXY(x+2, lineY)
+			pdf.Cell(colWidths[1]-4, 3.5, line)
 		}
 		x += colWidths[1]
 
-		// Clave SAT
-		pdf.SetXY(x, y)
 		claveSAT := concepto.ClaveSAT
 		if claveSAT == "" || claveSAT == "0" {
 			claveSAT = "N/A"
 		}
+		pdf.SetXY(x, y)
 		pdf.CellFormat(colWidths[2], rowHeight, claveSAT, "1", 0, "C", fillColor, 0, "")
 		x += colWidths[2]
 
-		// Unidad SAT
-		pdf.SetXY(x, y)
 		unidadSAT := concepto.ClaveUnidad
 		if unidadSAT == "" || unidadSAT == "0" {
 			unidadSAT = "PZA"
 		}
+		pdf.SetXY(x, y)
 		pdf.CellFormat(colWidths[3], rowHeight, unidadSAT, "1", 0, "C", fillColor, 0, "")
 		x += colWidths[3]
 
-		// Cantidad
 		pdf.SetXY(x, y)
 		pdf.CellFormat(colWidths[4], rowHeight, fmt.Sprintf("%.0f", concepto.Cantidad), "1", 0, "C", fillColor, 0, "")
 		x += colWidths[4]
 
-		// Precio (centrado como las demás columnas)
 		pdf.SetXY(x, y)
 		pdf.CellFormat(colWidths[5], rowHeight, fmt.Sprintf("$%.2f", concepto.ValorUnitario), "1", 0, "C", fillColor, 0, "")
 		x += colWidths[5]
 
-		// IVA (%)
+		// IVA ($) SOLO IMPORTE
+		importeConcepto := concepto.Cantidad * concepto.ValorUnitario
+		importeIVA := importeConcepto * (concepto.TasaIVA / 100)
 		pdf.SetXY(x, y)
-		pdf.CellFormat(colWidths[6], rowHeight, fmt.Sprintf("%.0f%%", concepto.TasaIVA), "1", 0, "C", fillColor, 0, "")
+		pdf.CellFormat(colWidths[6], rowHeight, fmt.Sprintf("$%.2f", importeIVA), "1", 0, "C", fillColor, 0, "")
 		x += colWidths[6]
 
-		// IEPS (%)
+		// TOTAL
 		pdf.SetXY(x, y)
-		pdf.CellFormat(colWidths[7], rowHeight, fmt.Sprintf("%.0f%%", concepto.TasaIEPS), "1", 0, "C", fillColor, 0, "")
-		x += colWidths[7]
-
-		// TOTAL (nueva columna)
-		pdf.SetXY(x, y)
-		totalConcepto := concepto.Cantidad * concepto.ValorUnitario
-		pdf.CellFormat(colWidths[8], rowHeight, fmt.Sprintf("$%.2f", totalConcepto), "1", 0, "C", fillColor, 0, "")
+		pdf.CellFormat(colWidths[7], rowHeight, fmt.Sprintf("$%.2f", importeConcepto), "1", 0, "C", fillColor, 0, "")
 
 		y += rowHeight
 	}
@@ -591,12 +602,13 @@ func GenerarPDF(factura models.Factura, empresa *models.Empresa, logoBytes []byt
 
 	// Guardar el PDF en un buffer
 	var pdfBuffer bytes.Buffer
-	err := pdf.Output(&pdfBuffer)
+	err = pdf.Output(&pdfBuffer)
 	if err != nil {
-		return nil, fmt.Errorf("error al generar PDF: %w", err)
+		return nil, "", fmt.Errorf("error al generar PDF: %w", err)
 	}
 
-	return &pdfBuffer, nil
+	// Regresa el buffer y el nombre de archivo sugerido
+	return &pdfBuffer, nombreArchivo, nil
 }
 
 // CargarLogoDesdeBaseDatos carga el logo de un usuario desde la base de datos

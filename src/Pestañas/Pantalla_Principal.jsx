@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import '../styles/Pantalla_Principal.css';
-import '../styles/Notificaciones.css'; // Si ya existe este archivo de estilos
+import '../styles/Notificaciones.css'; 
 
 const formatCurrency = (amount) => {
-  // Si no hay valor o es 0, mostrar $0.00
   if (!amount) return '$ 0.00';
   
   // Formatear con separadores de miles y 2 decimales
@@ -185,24 +184,34 @@ function InicioFacturacion() {
       mostrarNotificacion('La clave del ticket debe tener al menos 32 caracteres alfanuméricos.', 'error');
       return;
     }
-    
     setBuscandoVentas(true); // Mostrar pantalla de carga
-  
     try {
       const response = await fetch(`http://localhost:8080/api/ventas?serie=${encodeURIComponent(claveTicket)}`);
-      
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(errorText || 'Error al buscar las ventas.');
       }
-    
       const data = await response.json();
       console.log("Datos de ventas recibidos:", data);
-      
       // Mapear los datos para incluir información de impuestos más detallada
       const ventasConImpuestos = data.ventas || [];
       setVentas(ventasConImpuestos);
-      
+      // Guardar el resumen de totales si viene en la respuesta
+      if (data.resumen) {
+        setResumenVentas(data.resumen);
+      } else if (data.ventas && data.ventas.length > 0 && data.total) {
+        // Compatibilidad: si el backend manda los totales en la raíz
+        setResumenVentas({
+          subtotal: data.subtotal || 0,
+          iva: data.iva || 0,
+          ieps1: data.ieps1 || 0,
+          ieps2: data.ieps2 || 0,
+          ieps3: data.ieps3 || 0,
+          total: data.total || 0
+        });
+      } else {
+        setResumenVentas(null);
+      }
       // Si no hay ventas, mostrar mensaje
       if (!data.ventas || data.ventas.length === 0) {
         mostrarNotificacion('No se encontraron ventas para la clave de ticket proporcionada', 'error');
@@ -223,6 +232,7 @@ function InicioFacturacion() {
       console.error('Error al buscar ventas:', err);
       mostrarNotificacion('Error al buscar ventas: ' + err.message, 'error');
       setVentas([]);
+      setResumenVentas(null);
     } finally {
       setBuscandoVentas(false); // Ocultar pantalla de carga
     }
@@ -544,6 +554,9 @@ const guardarVentasEnBD = async (mostrarNotif = false) => {
   }
 };
 
+// Estado para el resumen de ventas (totales globales)
+const [resumenVentas, setResumenVentas] = useState(null);
+
   return (
     <div className="empresa-container" style={{ marginTop: '60px', marginLeft: '290px' }}>
       {generando && <PantallaDeCarga mensaje="Generando factura, por favor espera..." />}
@@ -852,64 +865,78 @@ const guardarVentasEnBD = async (mostrarNotif = false) => {
           {ventas.length > 0 && (
             <div className="tabla-productos">
               <h3 className="titulo-productos">Detallado de productos</h3>
-              {/* Tabla corregida sin columna de acciones extra */}
+
+
 <table className="tabla-ventas">
   <thead>
     <tr>
       <th>Clave Prod/Ser</th>
       <th>Producto</th>
-      <th>Clave SAT</th>  
-      <th>Unidad SAT</th> 
+      <th>Clave SAT</th>
+      <th>Unidad SAT</th>
       <th>Cantidad</th>
       <th>Precio</th>
       <th>IVA (%)</th>
+      <th>IVA ($)</th>
       <th>IEPS (%)</th>
+      <th>IEPS ($)</th>
       <th>Descuento</th>
+      <th>Total</th> {/* NUEVA COLUMNA */}
     </tr>
   </thead>
   <tbody>
     {ventas.map((venta, index) => {
-      // Obtener los valores de impuestos del producto
-      const ivaProducto = venta.iva || 0;
-      const ieps1Producto = venta.ieps1 || 0;
-      const ieps2Producto = venta.ieps2 || 0;
-      const ieps3Producto = venta.ieps3 || 0;
-      const totalIEPS = ieps1Producto + ieps2Producto + ieps3Producto;
-      
+      // Cálculos de importes:
+      const cantidad = parseFloat(venta.cantidad) || 0;
+      const precio = parseFloat(venta.precio) || 0;
+      const descuento = parseFloat(venta.descuento) || 0;
+      const subtotal = cantidad * precio - descuento;
+      const iva = venta.iva || 0;
+      const ieps1 = venta.ieps1 || 0;
+      const ieps2 = venta.ieps2 || 0;
+      const ieps3 = venta.ieps3 || 0;
+      const ivaImporte = subtotal * (iva / 100);
+      const iepsImporte = subtotal * ((ieps1 + ieps2 + ieps3) / 100);
+      const totalConImpuestos = subtotal + ivaImporte + iepsImporte;
+
       return (
         <tr key={index}>
-          <td>{venta.codigo_producto || 'N/A'}</td>  
-          <td>{venta.producto}</td>                  
-          <td>{venta.sat_clave || 'No disponible'}</td>     
+          <td>{venta.codigo_producto || 'N/A'}</td>
+          <td>{venta.producto}</td>
+          <td>{venta.sat_clave || 'No disponible'}</td>
           <td>{venta.sat_medida || 'No disponible'}</td>
           <td>{venta.cantidad}</td>
-          <td>${venta.precio.toFixed(2)}</td>
-          <td style={{
-            backgroundColor: ivaProducto > 0 ? '#e8f5e8' : '#fff3cd',
-            fontWeight: 'bold',
-            color: ivaProducto > 0 ? '#2d5016' : '#856404'
-          }}>
-            {ivaProducto > 0 ? `${ivaProducto.toFixed(1)}%` : '0.0%'}
-          </td>
-          <td style={{
-            backgroundColor: totalIEPS > 0 ? '#e1f5fe' : '#f5f5f5',
-            fontWeight: totalIEPS > 0 ? 'bold' : 'normal',
-            color: totalIEPS > 0 ? '#01579b' : '#666'
-          }}>
-            {totalIEPS > 0 ? `${totalIEPS.toFixed(1)}%` : '0.0%'}
-          </td>
-          <td>${venta.descuento.toFixed(2)}</td>
+          <td>${precio.toFixed(2)}</td>
+          <td>{iva.toFixed(1)}%</td>
+          <td>${ivaImporte.toFixed(2)}</td>
+          <td>{(ieps1 + ieps2 + ieps3).toFixed(1)}%</td>
+          <td>${iepsImporte.toFixed(2)}</td>
+          <td>${descuento.toFixed(2)}</td>
+          <td><b>${totalConImpuestos.toFixed(2)}</b></td> {/* NUEVO */}
         </tr>
       );
     })}
     {/* Fila del total */}
     <tr style={{ backgroundColor: '#f8f9fa', fontWeight: 'bold', borderTop: '2px solid #dee2e6' }}>
-      <td colSpan="8" style={{ textAlign: 'right', padding: '12px' }}>
-        TOTAL DE TODOS LOS PRODUCTOS:
+      <td colSpan="5" style={{ textAlign: 'right', padding: '12px' }}>
+        TOTALES:
       </td>
-      <td style={{ fontSize: '16px', color: '#28a745' }}>
-        ${ventas.reduce((total, venta) => total + venta.total, 0).toFixed(2)}
+      <td colSpan="1"></td>
+      <td></td>
+      <td>
+        ${resumenVentas ? resumenVentas.iva.toFixed(2) : '0.00'}
       </td>
+      <td></td>
+      <td>
+        ${resumenVentas ? (Number(resumenVentas.ieps1) + Number(resumenVentas.ieps2) + Number(resumenVentas.ieps3 || 0)).toFixed(2) : '0.00'}
+      </td>
+      <td></td>
+      <td><b>${resumenVentas ? resumenVentas.total.toFixed(2) : '0.00'}</b></td> {/* NUEVO */}
+    </tr>
+    {/* Fila de subtotal opcional */}
+    <tr style={{ backgroundColor: '#f8f9fa', fontWeight: 'bold' }}>
+      <td colSpan="11" style={{ textAlign: 'right', padding: '8px' }}>Subtotal:</td>
+      <td>${resumenVentas ? resumenVentas.subtotal.toFixed(2) : '0.00'}</td>
     </tr>
   </tbody>
 </table>

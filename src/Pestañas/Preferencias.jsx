@@ -968,16 +968,14 @@ const descargarPlantillaEjemploDirecto = () => {
       if (response.ok) {
         const data = await response.json();
         if (data.exists && data.imagen_base64) {
-          // Forzar recarga agregando timestamp
+          // NO agregar timestamp a data URL, solo usar el base64 puro
           const logoDataUrl = `data:${data.tipo};base64,${data.imagen_base64}`;
-          setLogoPlantillaPreview(logoDataUrl + `?t=${Date.now()}`);
+          setLogoPlantillaPreview(logoDataUrl);
           if (data.id) {
             setLogoPlantillaId(data.id);
           }
-          // Limpia localStorage si usabas alguna clave antigua
           localStorage.removeItem('logoPlantillaPreview');
         } else {
-          // Si no hay logo, limpiar estado y localStorage
           setLogoPlantillaPreview('');
           setLogoPlantillaId(null);
           localStorage.removeItem('logoPlantillaPreview');
@@ -1757,42 +1755,17 @@ const descargarPlantillaEjemploDirecto = () => {
             </div>
           </div>
 
-          {/* 1. Lista de plantillas */}
-          {plantillas.length > 0 && (
-            <div className="plantillas-lista-modern" style={{display:'flex',flexWrap:'wrap',gap:'18px',marginBottom:'32px',marginTop:'18px'}}>
-              {plantillas.map(plantilla => (
-                <div key={plantilla.id} className="plantilla-card" style={{
-                  flex:'1 1 320px',minWidth:'320px',maxWidth:'420px',background:plantilla.activa?'#e3f2fd':'#fff',border:plantilla.activa?'2px solid #1976d2':'1.5px solid #e0e0e0',borderRadius:'12px',padding:'18px 20px',boxShadow:plantilla.activa?'0 2px 8px #90caf9':'0 1px 4px rgba(0,0,0,0.04)',display:'flex',flexDirection:'column',gap:'8px',position:'relative'}}>
-                  <div style={{display:'flex',alignItems:'center',gap:'12px'}}>
-                    <span style={{fontSize:'1.7rem',color:'#2b579a'}}></span>
-                    <div style={{fontWeight:'bold',fontSize:'1.1rem',color:plantilla.activa?'#1976d2':'#333'}}>{plantilla.nombre}</div>
-                    {plantilla.activa && <span style={{color:'#2e7d32',fontWeight:'bold',marginLeft:'8px'}}>• Activa</span>}
-                  </div>
-                  {plantilla.descripcion && <div style={{fontSize:'0.98em',color:'#555'}}>{plantilla.descripcion}</div>}
-                  <div style={{fontSize:'0.92em',color:'#888'}}>Fecha: {plantilla.fecha_creacion}</div>
-                  <div style={{display:'flex',gap:'10px',marginTop:'8px'}}>
-                    {!plantilla.activa && (
-                      <button className="action-button" style={{padding:'7px 16px',borderRadius:'6px',fontWeight:'bold',fontSize:'0.98em',border:'none',cursor:'pointer'}} onClick={()=>activarPlantilla(plantilla.id)}>Activar</button>
-                    )}
-                    <button className="delete-button" style={{padding:'7px 16px',borderRadius:'6px',fontWeight:'bold',fontSize:'0.98em',border:'none',cursor:'pointer'}} onClick={()=>eliminarPlantilla(plantilla.id)}>Eliminar</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* 2. Subir/cambiar plantilla y logo */}
-          {/* Card: Subir Plantilla Word */}
+          {/* 1. Subir/cambiar plantilla Word */}
           <div className="plantilla-upload-modern" style={{
             background:'#f9f9fb',
             border:'1.5px solid #e0e0e0',
             borderRadius:'14px',
-            padding:'28px 38px',
-            marginBottom:'22px',
-            boxShadow:'0 2px 10px rgba(0,0,0,0.06)',
-            maxWidth:'700px',
-            minWidth:'420px',
-            minHeight:'140px',
+            padding:'38px 48px',
+            marginBottom:'32px',
+            boxShadow:'0 2px 14px rgba(0,0,0,0.09)',
+            maxWidth:'950px',
+            minWidth:'520px',
+            minHeight:'220px',
             width:'100%',
             marginRight:'auto',
             marginLeft:'auto',
@@ -1834,16 +1807,35 @@ const descargarPlantillaEjemploDirecto = () => {
               <small style={{color:'#888'}}>Formatos permitidos: DOC, DOCX. Máx: 5MB</small>
             </div>
             <div className="info-group" style={{marginBottom:'8px'}}>
-              <label htmlFor="descripcion-plantilla" style={{fontWeight:'bold',fontSize:'0.97em'}}>Descripción (opcional):</label>
-              <input 
-                type="text"
-                id="descripcion-plantilla"
-                value={descripcionPlantilla}
-                onChange={(e) => setDescripcionPlantilla(e.target.value)}
-                className="theme-select"
-                placeholder="Ej: Plantilla para facturas de servicios"
-                style={{marginTop:'4px',fontSize:'0.97em'}}
-              />
+              <div style={{display:'flex',flexDirection:'column',alignItems:'flex-start',textAlign:'left',width:'100%'}}>
+                <span style={{fontWeight:'bold',fontSize:'0.97em',marginBottom:'0'}}>
+                  Descripción <span style={{fontWeight:400,fontSize:'0.97em',color:'#888',marginLeft:'7px'}}>(opcional)</span>
+                </span>
+              </div>
+              <div style={{display:'flex',justifyContent:'flex-start',width:'100%'}}>
+                <input 
+                  type="text"
+                  id="descripcion-plantilla"
+                  value={descripcionPlantilla}
+                  onChange={(e) => setDescripcionPlantilla(e.target.value)}
+                  className="theme-select"
+                  placeholder="Ej: Plantilla para facturas de servicios"
+                  style={{
+                    marginTop: '4px',
+                    fontSize: '0.97em',
+                    width: '100%',
+                    minWidth: '320px',
+                    maxWidth: '700px',
+                    padding: '10px 14px',
+                    borderRadius: '7px',
+                    border: '1.5px solid #b0b0b0',
+                    background: '#fff',
+                    boxSizing: 'border-box',
+                    fontWeight: 500,
+                    textAlign: 'left'
+                  }}
+                />
+              </div>
             </div>
             <div className="plantilla-actions" style={{ 
               display: 'flex', 
@@ -1888,17 +1880,63 @@ const descargarPlantillaEjemploDirecto = () => {
             </div>
           </div>
 
+          {/* 2. Lista de plantillas */}
+          {plantillas.length > 0 && (
+            <div className="plantillas-lista-modern" style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '18px',
+              marginBottom: '32px',
+              marginTop: '18px',
+              justifyContent: 'center', // Centra las cards horizontalmente
+              alignItems: 'flex-start', // Opcional: alinea arriba si hay varias filas
+              width: '100%'
+            }}>
+              {plantillas.map(plantilla => (
+                <div key={plantilla.id} className="plantilla-card" style={{
+                  flex: '1 1 320px',
+                  minWidth: '320px',
+                  maxWidth: '420px',
+                  background: plantilla.activa ? '#e3f2fd' : '#fff',
+                  border: plantilla.activa ? '2px solid #1976d2' : '1.5px solid #e0e0e0',
+                  borderRadius: '12px',
+                  padding: '18px 20px',
+                  boxShadow: plantilla.activa ? '0 2px 8px #90caf9' : '0 1px 4px rgba(0,0,0,0.04)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                  position: 'relative',
+                  margin: '0 auto' // Centra la card si hay espacio extra
+                }}>
+                  <div style={{display:'flex',alignItems:'center',gap:'12px'}}>
+                    <span style={{fontSize:'1.7rem',color:'#2b579a'}}></span>
+                    <div style={{fontWeight:'bold',fontSize:'1.1rem',color:plantilla.activa?'#1976d2':'#333'}}>{plantilla.nombre}</div>
+                    {plantilla.activa && <span style={{color:'#2e7d32',fontWeight:'bold',marginLeft:'8px'}}>• Activa</span>}
+                  </div>
+                  {plantilla.descripcion && <div style={{fontSize:'0.98em',color:'#555'}}>{plantilla.descripcion}</div>}
+                  <div style={{fontSize:'0.92em',color:'#888'}}>Fecha: {plantilla.fecha_creacion}</div>
+                  <div style={{display:'flex',gap:'10px',marginTop:'8px'}}>
+                    {!plantilla.activa && (
+                      <button className="action-button" style={{padding:'7px 16px',borderRadius:'6px',fontWeight:'bold',fontSize:'0.98em',border:'none',cursor:'pointer'}} onClick={()=>activarPlantilla(plantilla.id)}>Activar</button>
+                    )}
+                    <button className="delete-button" style={{padding:'7px 16px',borderRadius:'6px',fontWeight:'bold',fontSize:'0.98em',border:'none',cursor:'pointer'}} onClick={()=>eliminarPlantilla(plantilla.id)}>Eliminar</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Card: Logo para Plantillas */}
           <div className="plantilla-upload-modern" style={{
             background:'#f9f9fb',
             border:'1.5px solid #e0e0e0',
             borderRadius:'14px',
-            padding:'28px 38px',
-            marginBottom:'22px',
-            boxShadow:'0 2px 10px rgba(0,0,0,0.06)',
-            maxWidth:'700px',
-            minWidth:'420px',
-            minHeight:'140px',
+            padding:'38px 48px',
+            marginBottom:'32px',
+            boxShadow:'0 2px 14px rgba(0,0,0,0.09)',
+            maxWidth:'950px',
+            minWidth:'520px',
+            minHeight:'220px',
             width:'100%',
             marginRight:'auto',
             marginLeft:'auto',
@@ -1940,42 +1978,59 @@ const descargarPlantillaEjemploDirecto = () => {
               <small style={{color:'#888'}}>Formatos permitidos: JPG, PNG, GIF, SVG. Máx: 2MB. Recomendado: 300x100px</small>
             </div>
             {logoPlantillaPreview && (
-              <div className="logo-preview-container" style={{ marginTop: '10px',textAlign:'center' }}>
-                <div className="logo-preview" style={{ 
-                  border: '1px solid #ddd', 
-                  borderRadius: '8px', 
-                  padding: '10px', 
-                  backgroundColor: '#f9f9f9',
-                  display:'inline-block',
-                  maxWidth: '220px'
-                }}>
-                  <img 
-                    src={logoPlantillaPreview} 
-                    alt="Logo preview" 
-                    style={{ 
-                      maxWidth: '100%', 
-                      maxHeight: '80px', 
-                      objectFit: 'contain' 
-                    }} 
-                  />
+              <div className="logo-preview-container" style={{ marginTop: '10px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                {logoPlantillaPreview.startsWith('data:image') ? (
+                  <div className="logo-preview" style={{
+                    border: '1px solid #ddd',
+                    borderRadius: '10px',
+                    padding: '18px',
+                    backgroundColor: '#f9f9f9',
+                    display: 'inline-block',
+                    maxWidth: '480px',
+                    minWidth: '320px',
+                    minHeight: '160px',
+                    height: 'auto',
+                    textAlign: 'center',
+                  }}>
+                    <img
+                      src={logoPlantillaPreview}
+                      alt="Logo preview"
+                      style={{
+                        maxWidth: '100%',
+                        maxHeight: '120px',
+                        minHeight: '60px',
+                        objectFit: 'contain',
+                        display: 'block',
+                        margin: '0 auto',
+                        background: '#fff',
+                        borderRadius: '8px',
+                        boxShadow: '0 1px 8px rgba(0,0,0,0.10)'
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div style={{ color: '#888', fontSize: '0.98em', padding: '12px' }}>No se pudo mostrar la vista previa del logo.</div>
+                )}
+                <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+                  <button
+                    type="button"
+                    onClick={eliminarLogoPlantilla}
+                    style={{
+                      marginTop: '18px',
+                      backgroundColor: deleteButtonsColorFactura,
+                      color: 'white',
+                      border: 'none',
+                      padding: '8px 22px',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '15px',
+                      fontWeight: 'bold',
+                      boxShadow: '0 1px 6px rgba(0,0,0,0.07)'
+                    }}
+                  >
+                    Eliminar Logo
+                  </button>
                 </div>
-                <button 
-                  type="button" 
-                  onClick={eliminarLogoPlantilla}
-                  style={{ 
-                    marginTop: '8px',
-                    backgroundColor: deleteButtonsColorFactura,
-                    color: 'white',
-                    border: 'none',
-                    padding: '5px 10px',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    fontSize: '12px',
-                    fontWeight:'bold'
-                  }}
-                >
-                  Eliminar Logo
-                </button>
               </div>
             )}
           </div>
