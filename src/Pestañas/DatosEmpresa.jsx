@@ -19,7 +19,9 @@ function DatosEmpresa() {
     tipoPago: '',
     claveArchivoCSD: '',
     condicionPago: '',
-    serie: ''
+    serie: '',
+    nombreArchivoKey: '',
+    nombreArchivoCer: ''
   });
   
   // Estados para el buscador de empresas
@@ -92,7 +94,9 @@ function DatosEmpresa() {
             metodoPago: data.metodoPago || '',
             descripcionRegimen: data.descripcionRegimen || '',
             tipoPago: data.tipoPago || '',
-            condicionPago: data.condicionPago || ''
+            condicionPago: data.condicionPago || '',
+            nombreArchivoKey: data.nombre_archivo_key || '',
+            nombreArchivoCer: data.nombre_archivo_cer || ''
           };
           
           setDatosFiscales(nuevosData);
@@ -1194,7 +1198,9 @@ function DatosEmpresa() {
                     </div>
                   ) : (
                     <div className="read-only-field">
-                      {csdKey ? `📄 ${csdKey.name}` : '—'}
+                      {datosFiscales.nombreArchivoKey
+                        ? `📄 ${datosFiscales.nombreArchivoKey}`
+                        : '—'}
                     </div>
                   )}
                 </div>

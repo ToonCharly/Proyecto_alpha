@@ -7,7 +7,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -402,12 +401,12 @@ func main() {
 
 		// Consultar las ventas en la base de datos optimus uniendo las tablas crm_pedidos y crm_pedidos_det
 		rows, err := optimusDB.Query(`
-        SELECT p.id_pedido, pd.descripcion AS producto, 
-               pd.cantidad, pd.precio_o AS precio, pd.descuento, 
-               (pd.precio_o * pd.cantidad) - pd.descuento AS total 
-        FROM crm_pedidos p
-        JOIN crm_pedidos_det pd ON p.id_pedido = pd.id_pedido
-        WHERE p.clave_pedido LIKE ?`, "%"+serie+"%")
+		SELECT p.id_pedido, pd.descripcion AS producto, 
+			   pd.cantidad, pd.precio_o AS precio, pd.descuento, 
+			   (pd.precio_o * pd.cantidad) - pd.descuento AS total 
+		FROM crm_pedidos p
+		JOIN crm_pedidos_det pd ON p.id_pedido = pd.id_pedido
+		WHERE p.clave_pedido LIKE ?`, "%"+serie+"%")
 		if err != nil {
 			log.Printf("Error al consultar ventas: %v", err)
 			utils.RespondWithError(w, "Error al buscar las ventas")
@@ -561,20 +560,20 @@ func main() {
 		defer alphaDB.Close()
 
 		query := `SELECT er.idempresa, er.idrfc, er.idmetodo, 
-                  COALESCE(mp.metodo, 'No disponible') AS metodo_pago,
-                  er.idregimenfiscal,
-                  COALESCE(rf.c_regimenfiscal, 'No disponible') AS c_regimenfiscal,
-                  COALESCE(rf.descripcion, 'No disponible') AS descripcion_regimen,
-                  COALESCE(er.idtipopago, 0) AS idtipopago,
-                  COALESCE(tp.tipo, 'No disponible') AS tipo_pago,
-                  COALESCE(er.idcondicion, 0) AS idcondicion,
-                  COALESCE(cp.condicion, 'No disponible') AS condicion_pago
-                  FROM adm_empresas_rfc er
-                  LEFT JOIN adm_metodopago mp ON er.idmetodo = mp.idmetodo
-                  LEFT JOIN efac_regimenfiscal rf ON er.idregimenfiscal = rf.idregimenfiscal
-                  LEFT JOIN adm_tipopagos tp ON er.idtipopago = tp.idtipo
-                  LEFT JOIN adm_condicionpago cp ON er.idcondicion = cp.idcondicion
-                  WHERE er.rfc = ?`
+				  COALESCE(mp.metodo, 'No disponible') AS metodo_pago,
+				  er.idregimenfiscal,
+				  COALESCE(rf.c_regimenfiscal, 'No disponible') AS c_regimenfiscal,
+				  COALESCE(rf.descripcion, 'No disponible') AS descripcion_regimen,
+				  COALESCE(er.idtipopago, 0) AS idtipopago,
+				  COALESCE(tp.tipo, 'No disponible') AS tipo_pago,
+				  COALESCE(er.idcondicion, 0) AS idcondicion,
+				  COALESCE(cp.condicion, 'No disponible') AS condicion_pago
+				  FROM adm_empresas_rfc er
+				  LEFT JOIN adm_metodopago mp ON er.idmetodo = mp.idmetodo
+				  LEFT JOIN efac_regimenfiscal rf ON er.idregimenfiscal = rf.idregimenfiscal
+				  LEFT JOIN adm_tipopagos tp ON er.idtipopago = tp.idtipo
+				  LEFT JOIN adm_condicionpago cp ON er.idcondicion = cp.idcondicion
+				  WHERE er.rfc = ?`
 		err = alphaDB.QueryRow(query, rfc).Scan(&result.IDEmpresa, &result.IDRFC, &result.IDMetodo, &result.MetodoPago, &result.IDRegimenFiscal, &result.CRegimenFiscal, &result.DescripcionRegimen, &result.IDTipoPago, &result.TipoPago, &result.IDCondicion, &result.CondicionPago)
 		if err != nil {
 			if err == sql.ErrNoRows {
@@ -630,17 +629,17 @@ func main() {
 		}
 
 		query := `SELECT e.idempresa, 
-              COALESCE(e.nombre_comercial, 'No disponible') AS nombre_comercial,
-              COALESCE(e.razon_social, 'No disponible') AS razon_social,
-              COALESCE(e.rfc, 'No disponible') AS rfc,
-              COALESCE(e.direccion1, 'No disponible') AS direccion1,
-              COALESCE(e.colonia, 'No disponible') AS colonia,
-              COALESCE(e.cp, 'No disponible') AS cp,
-              COALESCE(e.ciudad, 'No disponible') AS ciudad,
-              COALESCE(est.estado, 'No disponible') AS estado
-              FROM adm_empresas e
-              LEFT JOIN adm_estados_mex est ON e.estado = est.idestado
-              WHERE e.idempresa = ?`
+			  COALESCE(e.nombre_comercial, 'No disponible') AS nombre_comercial,
+			  COALESCE(e.razon_social, 'No disponible') AS razon_social,
+			  COALESCE(e.rfc, 'No disponible') AS rfc,
+			  COALESCE(e.direccion1, 'No disponible') AS direccion1,
+			  COALESCE(e.colonia, 'No disponible') AS colonia,
+			  COALESCE(e.cp, 'No disponible') AS cp,
+			  COALESCE(e.ciudad, 'No disponible') AS ciudad,
+			  COALESCE(est.estado, 'No disponible') AS estado
+			  FROM adm_empresas e
+			  LEFT JOIN adm_estados_mex est ON e.estado = est.idestado
+			  WHERE e.idempresa = ?`
 
 		err = alphaDB.QueryRow(query, idEmpresa).Scan(
 			&empresa.IDEmpresa,
@@ -710,9 +709,9 @@ func main() {
 
 		// Obtener datos fiscales para el usuario específico
 		query := `SELECT id, rfc, razon_social, direccion_fiscal, direccion, 
-              codigo_postal, ruta_csd_key, ruta_csd_cer, clave_csd, regimen_fiscal,
-              nombre_comercial, colonia, ciudad, estado, serie_df
-              FROM datos_fiscales WHERE id_usuario = ?`
+		  codigo_postal, clave_csd, regimen_fiscal,
+		  nombre_comercial, colonia, ciudad, estado, serie_df
+		  FROM datos_fiscales WHERE id_usuario = ?`
 
 		var datosFiscales struct {
 			ID              int    `json:"id"`
@@ -721,8 +720,7 @@ func main() {
 			DireccionFiscal string `json:"direccionFiscal"`
 			Direccion       string `json:"direccion"`
 			CodigoPostal    string `json:"cp"`
-			RutaCsdKey      string `json:"rutaCsdKey"`
-			RutaCsdCer      string `json:"rutaCsdCer"`
+			// RutaCsdKey and RutaCsdCer removed (now handled as binary in DB)
 			ClaveCsd        string `json:"claveArchivoCSD"`
 			RegimenFiscal   string `json:"regimenFiscal"`
 			NombreComercial string `json:"nombreComercial"`
@@ -739,8 +737,7 @@ func main() {
 			&datosFiscales.DireccionFiscal,
 			&datosFiscales.Direccion,
 			&datosFiscales.CodigoPostal,
-			&datosFiscales.RutaCsdKey,
-			&datosFiscales.RutaCsdCer,
+			// RutaCsdKey and RutaCsdCer removed from scan
 			&datosFiscales.ClaveCsd,
 			&datosFiscales.RegimenFiscal,
 			&datosFiscales.NombreComercial,
@@ -823,134 +820,36 @@ func main() {
 			return
 		}
 
-		// Crear directorio para certificados si no existe
-		certDir := "./certificados"
-		if err := utils.CreateDirectory(certDir); err != nil {
-			log.Printf("Error al crear directorio para certificados: %v", err)
-			http.Error(w, "Error al procesar los archivos", http.StatusInternalServerError)
-			return
-		}
+		// Leer archivos del form (si existen)
+		var archivoCSDKey, archivoCSDCer []byte
+		var nombreArchivoKey, nombreArchivoCer string
 
-		// Variables para rutas de archivos
-		var rutaCsdKey, rutaCsdCer string
-
-		// Manejar archivo CSD Key
-		csdKeyFile, _, err := r.FormFile("csdKey")
-		if err == nil {
+		csdKeyFile, fileCSDKeyHeader, err := r.FormFile("csdKey")
+		if err == nil && csdKeyFile != nil {
 			defer csdKeyFile.Close()
-
-			// Crear ruta única para el archivo
-			rutaCsdKey = fmt.Sprintf("%s/%s_key.key", certDir, rfc)
-
-			// Guardar archivo
-			keyFile, err := os.Create(rutaCsdKey)
-			if err != nil {
-				log.Printf("Error al crear archivo key: %v", err)
-				http.Error(w, "Error al guardar archivo CSD Key", http.StatusInternalServerError)
-				return
-			}
-			defer keyFile.Close()
-
-			_, err = io.Copy(keyFile, csdKeyFile)
-			if err != nil {
-				log.Printf("Error al copiar archivo key: %v", err)
-				http.Error(w, "Error al guardar archivo CSD Key", http.StatusInternalServerError)
-				return
+			archivoCSDKey, _ = io.ReadAll(csdKeyFile)
+			if fileCSDKeyHeader != nil {
+				nombreArchivoKey = fileCSDKeyHeader.Filename
 			}
 		}
 
-		// Manejar archivo CSD Cer
-		csdCerFile, _, err := r.FormFile("csdCer")
-		if err == nil {
+		csdCerFile, fileCSDCerHeader, err := r.FormFile("csdCer")
+		if err == nil && csdCerFile != nil {
 			defer csdCerFile.Close()
-
-			// Crear ruta única para el archivo
-			rutaCsdCer = fmt.Sprintf("%s/%s_cer.cer", certDir, rfc)
-
-			// Guardar archivo
-			cerFile, err := os.Create(rutaCsdCer)
-			if err != nil {
-				log.Printf("Error al crear archivo cer: %v", err)
-				http.Error(w, "Error al guardar archivo CSD Cer", http.StatusInternalServerError)
-				return
-			}
-			defer cerFile.Close()
-
-			_, err = io.Copy(cerFile, csdCerFile)
-			if err != nil {
-				log.Printf("Error al copiar archivo cer: %v", err)
-				http.Error(w, "Error al guardar archivo CSD Cer", http.StatusInternalServerError)
-				return
+			archivoCSDCer, _ = io.ReadAll(csdCerFile)
+			if fileCSDCerHeader != nil {
+				nombreArchivoCer = fileCSDCerHeader.Filename
 			}
 		}
 
-		// Conectar a la base de datos
-		dbConn, err := db.ConnectUserDB()
-		if err != nil {
-			log.Printf("Error al conectar a la base de datos: %v", err)
-			http.Error(w, "Error al conectar a la base de datos", http.StatusInternalServerError)
-			return
-		}
-		defer dbConn.Close()
-
-		// Verificar si ya existen datos fiscales para este usuario
-		var count int
-		err = dbConn.QueryRow("SELECT COUNT(*) FROM datos_fiscales WHERE id_usuario = ?", idUsuario).Scan(&count)
-		if err != nil {
-			log.Printf("Error al verificar datos existentes: %v", err)
-			http.Error(w, "Error al procesar la solicitud", http.StatusInternalServerError)
-			return
-		}
-
-		var query string
-		var args []interface{}
-
-		if count == 0 {
-			// Insertar nuevos datos incluyendo los campos administrativos
-			query = `INSERT INTO datos_fiscales 
-                (id_usuario, rfc, razon_social, nombre_comercial, direccion_fiscal, 
-                direccion, colonia, ciudad, estado, codigo_postal, 
-                ruta_csd_key, ruta_csd_cer, clave_csd, regimen_fiscal, serie_df) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-			args = []interface{}{
-				idUsuario, rfc, razonSocial, nombreComercial, direccionFiscal,
-				direccion, colonia, ciudad, estado, codigoPostal,
-				rutaCsdKey, rutaCsdCer, claveCsd, regimenFiscal, serieDf,
-			}
-		} else {
-			// Actualizar datos existentes incluyendo los campos administrativos
-			query = `UPDATE datos_fiscales SET 
-                rfc = ?, razon_social = ?, nombre_comercial = ?, direccion_fiscal = ?, 
-                direccion = ?, colonia = ?, ciudad = ?, estado = ?, codigo_postal = ?,
-                regimen_fiscal = ?, serie_df = ?`
-			args = []interface{}{
-				rfc, razonSocial, nombreComercial, direccionFiscal,
-				direccion, colonia, ciudad, estado, codigoPostal,
-				regimenFiscal, serieDf,
-			}
-
-			// Añadir campos opcionales solo si se proporcionaron
-			if claveCsd != "" {
-				query += ", clave_csd = ?"
-				args = append(args, claveCsd)
-			}
-
-			if rutaCsdKey != "" {
-				query += ", ruta_csd_key = ?"
-				args = append(args, rutaCsdKey)
-			}
-
-			if rutaCsdCer != "" {
-				query += ", ruta_csd_cer = ?"
-				args = append(args, rutaCsdCer)
-			}
-
-			query += " WHERE id_usuario = ?"
-			args = append(args, idUsuario)
-		}
-
-		// Ejecutar consulta
-		_, err = dbConn.Exec(query, args...)
+		// Llama a la función de tu capa db que guarda todo correctamente (incluyendo archivos)
+		err = db.GuardarDatosFiscales(
+			rfc, razonSocial, direccionFiscal, codigoPostal,
+			archivoCSDKey, archivoCSDCer,
+			nombreArchivoKey, nombreArchivoCer,
+			claveCsd, regimenFiscal, serieDf,
+			idUsuario,
+		)
 		if err != nil {
 			log.Printf("Error al guardar datos fiscales: %v", err)
 			http.Error(w, "Error al guardar los datos fiscales", http.StatusInternalServerError)
@@ -1033,7 +932,7 @@ func main() {
 		// Añadir detalles adicionales si existen
 		var direccion, codigoPostal, ciudad, estado sql.NullString
 		queryDetalles := `SELECT direccion, codigo_postal, ciudad, estado 
-                      FROM usuario_detalles WHERE usuario_id = ?`
+					  FROM usuario_detalles WHERE usuario_id = ?`
 
 		err = userDB.QueryRow(queryDetalles, user.ID).Scan(&direccion, &codigoPostal, &ciudad, &estado)
 		if err == nil {

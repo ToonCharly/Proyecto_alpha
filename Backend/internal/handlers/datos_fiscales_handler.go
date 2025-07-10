@@ -151,16 +151,16 @@ func UpdateDatosFiscalesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Variables para archivos binarios
+	// Variables para archivos binarios y nombres
 	var archivoCSDKey, archivoCSDCer []byte
+	var nombreArchivoKey, nombreArchivoCer string
 
 	// Procesar archivo CSD KEY si se proporciona
-	fileCSDKey, _, err := r.FormFile("csdKey") // Cambiado para evitar variable no utilizada
-	if err == nil {                            // Solo si se proporcionó un archivo
+	fileCSDKey, fileCSDKeyHeader, err := r.FormFile("csdKey")
+	if err == nil {
 		defer fileCSDKey.Close()
-
-		// Leer el archivo como bytes
 		archivoCSDKey, err = ioutil.ReadAll(fileCSDKey)
+		nombreArchivoKey = fileCSDKeyHeader.Filename
 		if err != nil {
 			http.Error(w, "Error al leer archivo CSD KEY", http.StatusInternalServerError)
 			return
@@ -168,12 +168,11 @@ func UpdateDatosFiscalesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Procesar archivo CSD CER si se proporciona
-	fileCSDCer, _, err := r.FormFile("csdCer") // Cambiado para evitar variable no utilizada
-	if err == nil {                            // Solo si se proporcionó un archivo
+	fileCSDCer, fileCSDCerHeader, err := r.FormFile("csdCer")
+	if err == nil {
 		defer fileCSDCer.Close()
-
-		// Leer el archivo como bytes
 		archivoCSDCer, err = ioutil.ReadAll(fileCSDCer)
+		nombreArchivoCer = fileCSDCerHeader.Filename
 		if err != nil {
 			http.Error(w, "Error al leer archivo CSD CER", http.StatusInternalServerError)
 			return
@@ -184,8 +183,10 @@ func UpdateDatosFiscalesHandler(w http.ResponseWriter, r *http.Request) {
 	err = db.GuardarDatosFiscales(
 		rfc, razonSocial, direccionFiscal, codigoPostal,
 		archivoCSDKey, archivoCSDCer,
-		claveCSD, regimenFiscal, serieDf, // AGREGAR: Pasar serie_df
-		userID) // Usar userID correctamente
+		nombreArchivoKey, nombreArchivoCer, // <--- aquí los nombres
+		claveCSD, regimenFiscal, serieDf,
+		userID,
+	)
 
 	if err != nil {
 		fmt.Printf("Error al guardar datos fiscales para usuario %d: %v\n", userID, err)

@@ -15,7 +15,6 @@ import (
 	"carlos/Facts/Backend/internal/utils"
 )
 
-
 // GenerarFacturaConInfoHandler genera una factura y devuelve información sobre ella
 func GenerarFacturaConInfoHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -208,9 +207,17 @@ func GenerarFacturaConInfoHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else {
-		// Usar el logo del admin cargado
-		pdfBuffer, _, err2 = services.GenerarPDF(factura, nil, logoBytes)
+		// Obtener UUID y NoCertificado de la base de datos usando el folio generado
+		uuid, noCert, err := db.ObtenerUUIDyNoCertificado(factura.NumeroFolio)
+		if err != nil {
+			log.Printf("No se pudo obtener UUID o NoCertificado para el folio %s: %v", factura.NumeroFolio, err)
+			// Puedes decidir continuar, pero los campos estarán vacíos
+		}
+		factura.UUID = uuid
+		factura.NoCertificado = noCert
 
+		// Ahora sí, genera el PDF y los datos se mostrarán correctamente
+		pdfBuffer, _, err2 = services.GenerarPDF(factura, nil, logoBytes)
 		if err2 != nil {
 			log.Printf("Error al generar PDF: %v", err2)
 			http.Error(w, "Error al generar la factura", http.StatusInternalServerError)
@@ -246,6 +253,7 @@ func GenerarFacturaConInfoHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Devolver información sobre la factura generada
 	response := map[string]interface{}{
+
 		"success":       true,
 		"message":       "Factura generada exitosamente",
 		"numero_folio":  factura.NumeroFolio,

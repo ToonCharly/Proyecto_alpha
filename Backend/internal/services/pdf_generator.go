@@ -289,24 +289,25 @@ func GenerarPDF(factura models.Factura, empresa *models.Empresa, logoBytes []byt
 	yFiscal := 45.0
 
 	// Folio fiscal
-	pdf.SetXY(110, yFiscal)
-	pdf.SetFont("Arial", "B", 8) // Negrita para la etiqueta
-	pdf.SetTextColor(0, 0, 0)
-	pdf.Cell(50, 4, tr("Folio fiscal:"))
-	pdf.SetFont("Arial", "", 8) // Normal para los datos
-	pdf.SetTextColor(64, 64, 64)
-	pdf.Cell(80, 4, tr(""))
-	yFiscal += 4
+// Folio fiscal (UUID del timbre)
+pdf.SetXY(110, yFiscal)
+pdf.SetFont("Arial", "B", 8)
+pdf.SetTextColor(0, 0, 0)
+pdf.Cell(50, 4, tr("Folio fiscal:"))
+pdf.SetFont("Arial", "", 8)
+pdf.SetTextColor(64, 64, 64)
+pdf.Cell(80, 4, tr(factura.UUID))
+yFiscal += 4
 
-	// No. de serie del CSD
-	pdf.SetXY(110, yFiscal)
-	pdf.SetFont("Arial", "B", 8) // Negrita para la etiqueta
-	pdf.SetTextColor(0, 0, 0)
-	pdf.Cell(50, 4, tr("No. de serie del CSD:"))
-	pdf.SetFont("Arial", "", 8) // Normal para los datos
-	pdf.SetTextColor(64, 64, 64)
-	pdf.Cell(80, 4, tr(""))
-	yFiscal += 4
+// No. de serie del CSD (emisor)
+pdf.SetXY(110, yFiscal)
+pdf.SetFont("Arial", "B", 8)
+pdf.SetTextColor(0, 0, 0)
+pdf.Cell(50, 4, tr("No. de serie del CSD:"))
+pdf.SetFont("Arial", "", 8)
+pdf.SetTextColor(64, 64, 64)
+pdf.Cell(80, 4, tr(factura.NoCertificado))
+yFiscal += 4
 
 	// Código postal, fecha y hora de emisión
 	pdf.SetXY(110, yFiscal)
