@@ -179,25 +179,26 @@ func UpdateDatosFiscalesHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Guardar datos fiscales
-	err = db.GuardarDatosFiscales(
+	// Guardar datos fiscales y obtener el idDatosFiscales
+	idDatosFiscales, err := db.GuardarDatosFiscales(
 		rfc, razonSocial, direccionFiscal, codigoPostal,
 		archivoCSDKey, archivoCSDCer,
-		nombreArchivoKey, nombreArchivoCer, // <--- aquí los nombres
+		nombreArchivoKey, nombreArchivoCer,
 		claveCSD, regimenFiscal, serieDf,
 		userID,
 	)
-
 	if err != nil {
 		fmt.Printf("Error al guardar datos fiscales para usuario %d: %v\n", userID, err)
 		http.Error(w, "Error al guardar datos fiscales", http.StatusInternalServerError)
 		return
 	}
 
-	// Responder con éxito
+	// Responder con éxito y el idDatosFiscales
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
-		"mensaje": "Datos fiscales actualizados correctamente",
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":            "success",
+		"message":           "Datos fiscales actualizados correctamente",
+		"id_datos_fiscales": idDatosFiscales,
 	})
 }
 

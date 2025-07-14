@@ -321,7 +321,7 @@ func guardarEnHistorial(factura models.Factura) {
 			factura.ReceptorRFC,
 			factura.ReceptorRazonSocial,
 			factura.ClaveTicket,
-			factura.NumeroFolio, // Incluir el folio generado
+			factura.NumeroFolio,
 			factura.Total,
 			factura.UsoCFDI,
 			factura.Observaciones,
@@ -369,6 +369,34 @@ func GenerarFacturaHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// Justo después de decodificar el JSON o los datos del form en 'factura'
+		// Checa si tienes el ID (o RFC) de la empresa en la factura recibida
+		if factura.EmpresaID != nil {
+			// Si viene como float64 del JSON
+			if empresaID, ok := factura.EmpresaID.(float64); ok {
+				empresa, err := models.ObtenerEmpresaPorID(int(empresaID))
+				if err == nil && empresa != nil {
+					factura.EmpresaRFC = empresa.RFC
+					factura.RazonSocial = empresa.RazonSocial
+					factura.Direccion = empresa.Direccion
+					factura.CodigoPostal = empresa.CodigoPostal
+					factura.RegimenFiscal = empresa.RegimenFiscal
+					// Otros campos que quieras mapear
+				}
+			}
+		} else if factura.IdEmpresa > 0 {
+			// Si usas el campo IdEmpresa (int)
+			empresa, err := models.ObtenerEmpresaPorID(factura.IdEmpresa)
+			if err == nil && empresa != nil {
+				factura.EmpresaRFC = empresa.RFC
+				factura.RazonSocial = empresa.RazonSocial
+				factura.Direccion = empresa.Direccion
+				factura.CodigoPostal = empresa.CodigoPostal
+				factura.RegimenFiscal = empresa.RegimenFiscal
+				// Otros campos que quieras mapear
+			}
+		}
+
 		plantillaFile, _, err := r.FormFile("plantilla")
 		if err == nil {
 			defer plantillaFile.Close()
@@ -391,6 +419,62 @@ func GenerarFacturaHandler(w http.ResponseWriter, r *http.Request) {
 			log.Printf("Error al decodificar JSON: %v", err)
 			http.Error(w, "Error al procesar los datos: "+err.Error(), http.StatusBadRequest)
 			return
+		}
+
+		// Justo después de decodificar el JSON o los datos del form en 'factura'
+		// Checa si tienes el ID (o RFC) de la empresa en la factura recibida
+		if factura.EmpresaID != nil {
+			// Si viene como float64 del JSON
+			if empresaID, ok := factura.EmpresaID.(float64); ok {
+				empresa, err := models.ObtenerEmpresaPorID(int(empresaID))
+				if err == nil && empresa != nil {
+					factura.EmpresaRFC = empresa.RFC
+					factura.RazonSocial = empresa.RazonSocial
+					factura.Direccion = empresa.Direccion
+					factura.CodigoPostal = empresa.CodigoPostal
+					factura.RegimenFiscal = empresa.RegimenFiscal
+					// Otros campos que quieras mapear
+				}
+			}
+		} else if factura.IdEmpresa > 0 {
+			// Si usas el campo IdEmpresa (int)
+			empresa, err := models.ObtenerEmpresaPorID(factura.IdEmpresa)
+			if err == nil && empresa != nil {
+				factura.EmpresaRFC = empresa.RFC
+				factura.RazonSocial = empresa.RazonSocial
+				factura.Direccion = empresa.Direccion
+				factura.CodigoPostal = empresa.CodigoPostal
+				factura.RegimenFiscal = empresa.RegimenFiscal
+				// Otros campos que quieras mapear
+			}
+		}
+	}
+
+	// --- Mapear datos de empresa si viene EmpresaID, IdEmpresa o EmpresaRFC ---
+	// Si tienes el ID (o RFC) de la empresa en la factura recibida
+	if factura.EmpresaID != nil {
+		// Si viene como float64 del JSON
+		if empresaID, ok := factura.EmpresaID.(float64); ok {
+			empresa, err := models.ObtenerEmpresaPorID(int(empresaID))
+			if err == nil && empresa != nil {
+				factura.EmpresaRFC = empresa.RFC
+				factura.RazonSocial = empresa.RazonSocial
+				factura.Direccion = empresa.Direccion
+				factura.CodigoPostal = empresa.CodigoPostal
+				factura.RegimenFiscal = empresa.RegimenFiscal
+				// Otros campos que quieras mapear
+			}
+		}
+	} else if factura.IdEmpresa > 0 {
+		// Si usas el campo IdEmpresa (int)
+		empresa, err := models.ObtenerEmpresaPorID(factura.IdEmpresa)
+		if err == nil && empresa != nil {
+			factura.EmpresaRFC = empresa.RFC
+			factura.RazonSocial = empresa.RazonSocial
+			factura.Direccion = empresa.Direccion
+			factura.CodigoPostal = empresa.CodigoPostal
+			factura.RegimenFiscal = empresa.RegimenFiscal
+			// Otros campos que quieras mapear
 		}
 	}
 

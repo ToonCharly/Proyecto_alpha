@@ -65,6 +65,8 @@ func main() {
 	// Añadir endpoint adicional con guion bajo para compatibilidad
 	http.Handle("/api/generar_factura", utils.EnableCors(http.HandlerFunc(handlers.GenerarFacturaHandler)))
 
+	http.HandleFunc("/api/historial-emisor", handlers.HistorialEmisorHandler)
+
 	// Endpoint que devuelve información sobre la factura generada
 	http.Handle("/api/generar-factura-info", utils.EnableCors(http.HandlerFunc(handlers.GenerarFacturaConInfoHandler)))
 

@@ -36,6 +36,15 @@ const NavBar = () => {
     navigate('/login');
   };
 
+  // Mostrar menú especial solo para administradores de empresa emisora
+  let isAdminEmpresa = false;
+  try {
+    const userData = JSON.parse(sessionStorage.getItem('userData'));
+    isAdminEmpresa = userData && userData.rol === 'ADMIN_EMPRESA';
+  } catch {
+    // Si ocurre un error al parsear userData, simplemente no mostramos el menú admin
+  }
+
   return (
     <nav className="navbar">
       <div className="logo">
@@ -51,13 +60,16 @@ const NavBar = () => {
           />
         </Link>
       </div>
-      
+
       <div className="nav-links">
         <Link to="/home">Inicio</Link>
         <Link to="/facturas">Facturas</Link>
-        <Link to="/historial">Historial</Link>
+        <Link to="/historial-facturas">Historial de Facturas</Link>
+        {isAdminEmpresa && (
+          <Link to="/historial-emisor">Historial de Empresa</Link>
+        )}
       </div>
-      
+
       <div className="user-section">
         <span className="username">Hola, {username}</span>
         <div className="user-menu">

@@ -10,6 +10,7 @@ import Home from './Pestañas/Home';
 import InformacionPersonal from './Pestañas/InformacionPersonal';
 import Empresas from './Pestañas/Empresas'; 
 import HistorialFacturas from './Pestañas/HistorialFacturas';
+import HistorialEmisor from './Pestañas/HistorialEmisor';
 import RestablecerPassword from './Pestañas/RestablecerPassword';
 import HomeAdmin from './Pestañas/HomeAdmin';
 import AdministrarUsuarios from './Pestañas/AdministrarUsuarios'; 
@@ -74,6 +75,8 @@ function App() {
               {/* Nueva ruta para historial de facturas */}
               <Route path="/historial-facturas" element={<HistorialFacturas />} />
               <Route path="/historial-facturas/:userId" element={<HistorialFacturas />} />
+              {/* Nueva ruta para historial de empresa emisora (solo admin empresa) */}
+              <Route path="/historial-emisor" element={<HistorialEmisor />} />
               
               {/* Nueva ruta para administrar usuarios */}
               <Route path="/admin/usuarios" element={<AdministrarUsuarios />} />

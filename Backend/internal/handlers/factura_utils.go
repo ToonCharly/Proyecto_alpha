@@ -1,11 +1,13 @@
 package handlers
 
 import (
+	"encoding/base64"
 	"fmt"
 	"log"
 
 	"carlos/Facts/Backend/internal/db"
 	"carlos/Facts/Backend/internal/models"
+	"carlos/Facts/Backend/internal/utils"
 )
 
 // LlenarDatosEmisor llena automáticamente los datos del emisor desde los datos fiscales activos del usuario
@@ -56,12 +58,16 @@ func obtenerDatosFiscalesUsuario(userID int) (map[string]interface{}, error) {
 	log.Printf("DEBUG - Datos fiscales obtenidos de BD exitosamente")
 	log.Printf("DEBUG - Serie obtenida de BD: '%v'", datosFiscales["serie_df"])
 	log.Printf("DEBUG - Tipo de serie_df: %T", datosFiscales["serie_df"])
-	
+
 	return datosFiscales, nil
 }
 
 // mapearDatosFiscales mapea los datos fiscales a los campos del emisor en la factura
 func mapearDatosFiscales(factura *models.Factura, datosFiscales map[string]interface{}) {
+	// DEBUG: Mostrar todas las llaves presentes en el mapa de datos fiscales
+	for k := range datosFiscales {
+		log.Printf("DEBUG - Key en datosFiscales: %s", k)
+	}
 	if rfc, ok := datosFiscales["rfc"].(string); ok {
 		factura.EmisorRFC = rfc
 		log.Printf("DEBUG - EmisorRFC asignado: %s", rfc)
@@ -122,5 +128,24 @@ func mapearDatosFiscales(factura *models.Factura, datosFiscales map[string]inter
 		log.Printf("DEBUG - Serie asignada a factura: %s", serie)
 	} else {
 		log.Printf("DEBUG - No se encontró serie o está vacía en datos fiscales")
+	}
+
+	// Extraer y asignar el número de serie del CSD (.cer)
+	if archivoCer, ok := datosFiscales["archivo_cer"].([]byte); ok && len(archivoCer) > 0 {
+		noSerie, err := utils.ObtenerNoSerieCER(archivoCer)
+		if err != nil {
+			log.Printf("ERROR - No se pudo extraer el número de serie del CSD: %v", err)
+			factura.NoCertificado = ""
+		} else {
+			factura.NoCertificado = noSerie
+			log.Printf("DEBUG - NoCertificado (número de serie del CSD) asignado: %s", noSerie)
+		}
+		// ===== AÑADIDO: Extraer el contenido largo (base64) del .cer para el campo Certificado =====
+		certBase64 := base64.StdEncoding.EncodeToString(archivoCer)
+		factura.Certificado = certBase64
+		log.Printf("DEBUG - Certificado (Base64) asignado, longitud: %d", len(certBase64))
+	} else {
+		log.Printf("DEBUG - No se encontró archivo_cer o está vacío en datos fiscales")
+		factura.Certificado = ""
 	}
 }

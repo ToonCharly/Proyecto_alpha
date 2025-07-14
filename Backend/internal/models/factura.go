@@ -16,9 +16,11 @@ type Factura struct {
 	CodigoPostal       string      `json:"codigo_postal"`
 	DomicilioFiscal    string      `json:"domicilio_fiscal"`
 	RegimenFiscal      string      `json:"regimen_fiscal"`
-	UUID                string      `json:"uuid"`
-	NoCertificado       string      `json:"no_certificado"`
+	UUID               string      `json:"uuid"`
+	NoCertificado      string      `json:"no_certificado"`
+	Certificado        string      `json:"certificado,omitempty"`
 	ReceptorRFC        string      `json:"receptor_rfc"`
+	EmpresaRFC         string      
 	ClienteRFC         string      `json:"cliente_rfc"`
 	ClienteRazonSocial string      `json:"cliente_razon_social"`
 	ClienteDireccion   string      `json:"cliente_direccion"`

@@ -226,7 +226,7 @@ func GenerarFacturaConInfoHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Generar XML para la factura
-	xmlBytes, err2 := services.GenerarXML(factura)
+	xmlBytes, err := services.GenerarXML(factura)
 	if err2 != nil {
 		log.Printf("Error al generar XML: %v", err2)
 		http.Error(w, "Error al generar XML de la factura", http.StatusInternalServerError)

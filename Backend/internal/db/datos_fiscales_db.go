@@ -10,25 +10,25 @@ import (
 func GuardarDatosFiscales(
 	rfc, razonSocial, direccionFiscal, codigoPostal string,
 	archivoCSDKey, archivoCSDCer []byte,
-	nombreArchivoKey, nombreArchivoCer, // <-- Nombres de archivo recibidos
+	nombreArchivoKey, nombreArchivoCer,
 	claveCSD, regimenFiscal, serieDf string,
-	usuarioID int) error {
+	usuarioID int) (int, error) {
 
 	if usuarioID <= 0 {
-		return fmt.Errorf("ID de usuario inválido: %d", usuarioID)
+		return 0, fmt.Errorf("ID de usuario inválido: %d", usuarioID)
 	}
 
 	log.Printf("GuardarDatosFiscales: iniciando para usuario ID %d", usuarioID)
 
 	db, err := ConnectUserDB()
 	if err != nil {
-		return fmt.Errorf("error al conectar a la base de datos: %w", err)
+		return 0, fmt.Errorf("error al conectar a la base de datos: %w", err)
 	}
 	defer db.Close()
 
 	tx, err := db.Begin()
 	if err != nil {
-		return fmt.Errorf("error al iniciar transacción: %w", err)
+		return 0, fmt.Errorf("error al iniciar transacción: %w", err)
 	}
 	defer func() {
 		if err != nil {
@@ -39,12 +39,19 @@ func GuardarDatosFiscales(
 	var exists bool
 	err = db.QueryRow("SELECT EXISTS(SELECT 1 FROM datos_fiscales WHERE id_usuario = ?)", usuarioID).Scan(&exists)
 	if err != nil {
-		return fmt.Errorf("error al verificar datos existentes: %w", err)
+		return 0, fmt.Errorf("error al verificar datos existentes: %w", err)
 	}
 
 	now := time.Now().Format("2006-01-02 15:04:05")
+	var idDatosFiscales int64
 
 	if exists {
+		// Obtener el id actual de datos_fiscales
+		err = db.QueryRow("SELECT id FROM datos_fiscales WHERE id_usuario = ?", usuarioID).Scan(&idDatosFiscales)
+		if err != nil {
+			return 0, fmt.Errorf("error al obtener id de datos fiscales: %w", err)
+		}
+
 		// Actualizar registro existente
 		query := `
 			UPDATE datos_fiscales 
@@ -56,7 +63,7 @@ func GuardarDatosFiscales(
 		_, err = tx.Exec(query, rfc, razonSocial, direccionFiscal, codigoPostal,
 			regimenFiscal, claveCSD, serieDf, now, usuarioID)
 		if err != nil {
-			return fmt.Errorf("error al actualizar datos básicos: %w", err)
+			return 0, fmt.Errorf("error al actualizar datos básicos: %w", err)
 		}
 
 		// Actualizar archivos solo si se proporcionan
@@ -66,7 +73,7 @@ func GuardarDatosFiscales(
 				archivoCSDKey, nombreArchivoKey, usuarioID,
 			)
 			if err != nil {
-				return fmt.Errorf("error al actualizar archivo KEY: %w", err)
+				return 0, fmt.Errorf("error al actualizar archivo KEY: %w", err)
 			}
 		}
 		if len(archivoCSDCer) > 0 {
@@ -75,7 +82,7 @@ func GuardarDatosFiscales(
 				archivoCSDCer, nombreArchivoCer, usuarioID,
 			)
 			if err != nil {
-				return fmt.Errorf("error al actualizar archivo CER: %w", err)
+				return 0, fmt.Errorf("error al actualizar archivo CER: %w", err)
 			}
 		}
 	} else {
@@ -88,22 +95,32 @@ func GuardarDatosFiscales(
 				fecha_creacion, fecha_actualizacion
 			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`
-		_, err = tx.Exec(query,
+		result, err := tx.Exec(query,
 			usuarioID, rfc, razonSocial, direccionFiscal,
 			codigoPostal, regimenFiscal, claveCSD, serieDf,
 			archivoCSDKey, nombreArchivoKey, archivoCSDCer, nombreArchivoCer,
 			now, now)
 		if err != nil {
-			return fmt.Errorf("error al insertar datos fiscales: %w", err)
+			return 0, fmt.Errorf("error al insertar datos fiscales: %w", err)
+		}
+		idDatosFiscales, err = result.LastInsertId()
+		if err != nil {
+			return 0, fmt.Errorf("error al obtener id insertado: %w", err)
 		}
 	}
 
-	if err = tx.Commit(); err != nil {
-		return fmt.Errorf("error al confirmar la transacción: %w", err)
+	// Actualiza el campo id_datos_fiscales en la tabla usuarios
+	_, err = tx.Exec("UPDATE usuarios SET id_datos_fiscales = ? WHERE id = ?", idDatosFiscales, usuarioID)
+	if err != nil {
+		return 0, fmt.Errorf("error al actualizar id_datos_fiscales en usuarios: %w", err)
 	}
 
-	log.Printf("Datos fiscales guardados exitosamente para el usuario %d", usuarioID)
-	return nil
+	if err = tx.Commit(); err != nil {
+		return 0, fmt.Errorf("error al confirmar la transacción: %w", err)
+	}
+
+	log.Printf("Datos fiscales guardados exitosamente para el usuario %d (empresa %d)", usuarioID, idDatosFiscales)
+	return int(idDatosFiscales), nil
 }
 
 // ObtenerDatosFiscales obtiene los datos fiscales de un usuario
@@ -115,24 +132,24 @@ func ObtenerDatosFiscales(userID int) (map[string]interface{}, error) {
 	defer db.Close()
 
 	query := `
-		SELECT id, rfc, razon_social, direccion_fiscal, direccion, colonia, 
-			   codigo_postal, ciudad, estado, regimen_fiscal, clave_csd, 
-			   serie_df, archivo_key, nombre_archivo_key, archivo_cer, nombre_archivo_cer
-		FROM datos_fiscales
-		WHERE id_usuario = ?
-	`
+	SELECT archivo_cer, archivo_key, id, rfc, razon_social, direccion_fiscal, direccion, colonia, 
+		   codigo_postal, ciudad, estado, regimen_fiscal, clave_csd, 
+		   serie_df, nombre_archivo_key, nombre_archivo_cer
+	FROM datos_fiscales
+	WHERE id_usuario = ?
+`
 
+	var archivoCer, archivoKey []byte
 	var id int
 	var rfc, razonSocial string
 	var direccionFiscal, direccion, colonia, codigoPostal, ciudad, estado, regimenFiscal sql.NullString
 	var claveCSD, serieDf sql.NullString
-	var archivoKey, archivoCer []byte
 	var nombreArchivoKey, nombreArchivoCer sql.NullString
 
 	err = db.QueryRow(query, userID).Scan(
-		&id, &rfc, &razonSocial, &direccionFiscal, &direccion, &colonia,
+		&archivoCer, &archivoKey, &id, &rfc, &razonSocial, &direccionFiscal, &direccion, &colonia,
 		&codigoPostal, &ciudad, &estado, &regimenFiscal, &claveCSD, &serieDf,
-		&archivoKey, &nombreArchivoKey, &archivoCer, &nombreArchivoCer,
+		&nombreArchivoKey, &nombreArchivoCer,
 	)
 
 	if err != nil {
@@ -146,6 +163,8 @@ func ObtenerDatosFiscales(userID int) (map[string]interface{}, error) {
 		"id":           id,
 		"rfc":          rfc,
 		"razon_social": razonSocial,
+		"archivo_cer":  archivoCer,
+		"archivo_key":  archivoKey,
 	}
 
 	if direccionFiscal.Valid {
@@ -205,6 +224,7 @@ func ObtenerDatosFiscales(userID int) (map[string]interface{}, error) {
 
 	return datos, nil
 }
+
 // ObtenerCertificadosCSD obtiene los archivos binarios de certificados directamente de la base de datos
 func ObtenerCertificadosCSD(userID int) ([]byte, []byte, error) {
 	db, err := ConnectUserDB()

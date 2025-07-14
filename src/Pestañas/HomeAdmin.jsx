@@ -7,6 +7,7 @@ import HistorialFacturas from './HistorialFacturas';
 import Preferencias from './Preferencias';
 import DatosEmpresa from './DatosEmpresa';
 import AdministrarUsuarios from './AdministrarUsuarios';
+import HistorialEmisor from './HistorialEmisor';
 
 // iconos
 const ClockIcon = () => <img src="/transaction-history_18281961.png" alt="Historial de Facturas" className="icon" />;
@@ -59,7 +60,8 @@ const HomeAdmin = () => {
     const savedLogo = localStorage.getItem('appLogo');
     if (savedLogo) {
       setCompanyLogo(savedLogo);
-    }    return () => {
+    }
+    return () => {
       window.removeEventListener('navigateToSection', handleNavigateEvent);
     };
   }, []);
@@ -136,11 +138,21 @@ const HomeAdmin = () => {
     window.location.href = '/login';
   };
 
+  // Centraliza la navegación
+  // Nueva lógica: Mantener configMode=true mientras se navega entre subsecciones de configuración
   const handleNavigation = (section) => {
     if (section === 'configuracion') {
       setConfigMode(true);
       setActiveSection('informacionPersonal');
+    } else if (
+      section === 'informacionPersonal' ||
+      section === 'datosEmpresa' ||
+      section === 'preferencias'
+    ) {
+      setConfigMode(true);
+      setActiveSection(section);
     } else {
+      setConfigMode(false);
       setActiveSection(section);
     }
   };
@@ -150,18 +162,19 @@ const HomeAdmin = () => {
     setActiveSection('historialFacturas');
   };
 
-  const facturasCount = historialFacturas ? historialFacturas.length : 0;
+const facturasCount = historialFacturas ? historialFacturas.length : 0;
 
-  // Asegúrate de que la función renderActiveSection incluya el caso para datosEmpresa
   const renderActiveSection = () => {
     switch (activeSection) {
       case 'historialFacturas':
         return <HistorialFacturas />;
-      case 'administrarUsuarios': // Nuevo caso
+      case 'historialEmisor':
+        return <HistorialEmisor />;
+      case 'administrarUsuarios':
         return <AdministrarUsuarios />;
       case 'informacionPersonal':
         return <InformacionPersonal />;
-      case 'datosEmpresa': // Importante: usa exactamente este nombre
+      case 'datosEmpresa':
         return <DatosEmpresa />;
       case 'preferencias':
         return <Preferencias />;
@@ -183,7 +196,6 @@ const HomeAdmin = () => {
         </div>
         
         <div className="navbar-right">
-          {/* Logo de la empresa en el lado derecho */}
           {companyLogo && (
             <div className="company-logo">
               <img src={companyLogo} alt="Logo de la empresa" style={{ height: '40px', maxWidth: '150px' }} />
@@ -204,32 +216,29 @@ const HomeAdmin = () => {
               <>
                 <div>
                   <div className="nav-section">
-                    <div className="nav-item" onClick={() => setActiveSection('historialFacturas')}>
+                    <div className="nav-item" onClick={() => handleNavigation('historialFacturas')}>
                       <div className="nav-item-content">
                         <ClockIcon />
                         <span>Historial de Facturas</span>
                         {facturasCount > 0 && (
-                          <span className="facturas-badge" style={{
-                            backgroundColor: '#4caf50',
-                            color: 'white',
-                            borderRadius: '50%',
-                            padding: '2px 8px',
-                            fontSize: '0.8rem',
-                            marginLeft: '8px',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}>
+                          <span className="facturas-badge">
                             {facturasCount}
                           </span>
                         )}
                       </div>
                     </div>
                   </div>
-                  
-                  {/* Nueva sección para Administrar Usuarios */}
                   <div className="nav-section">
-                    <div className="nav-item" onClick={() => setActiveSection('administrarUsuarios')}>
+                    <div className="nav-item" onClick={() => handleNavigation('historialEmisor')}>
+                      <div className="nav-item-content">
+                        <ClockIcon />
+                        <span>Historial Emisor</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="nav-section">
+                    <div className="nav-item" onClick={() => handleNavigation('administrarUsuarios')}>
                       <div className="nav-item-content">
                         <UsersIcon />
                         <span>Administrar Usuarios</span>
@@ -238,7 +247,6 @@ const HomeAdmin = () => {
                   </div>
                 </div>
                 
-                {/* Footer options - Configuration and Logout */}
                 <div>
                   <div className="nav-section">
                     <div className="nav-item" onClick={() => handleNavigation('configuracion')}>
@@ -258,7 +266,6 @@ const HomeAdmin = () => {
                     </div>
                   </div>
                   
-                  {/* User info section - responsive version */}
                   {userData && (
                     <div className="user-info-section">
                       <div className="user-info-content">
@@ -289,7 +296,7 @@ const HomeAdmin = () => {
                   </div>
                   
                   <div className="nav-section" style={{ marginTop: '20px' }}>
-                    <div className="nav-item" onClick={() => setActiveSection('informacionPersonal')}>
+                    <div className="nav-item" onClick={() => handleNavigation('informacionPersonal')}>
                       <div className="nav-item-content">
                         <InfoIcon />
                         <span>Información del Usuario</span>
@@ -298,7 +305,7 @@ const HomeAdmin = () => {
                   </div>
                   
                   <div className="nav-section">
-                    <div className="nav-item" onClick={() => setActiveSection('datosEmpresa')}>
+                    <div className="nav-item" onClick={() => handleNavigation('datosEmpresa')}>
                       <div className="nav-item-content">
                         <EmpresaIcon />
                         <span>Información de la Empresa</span>
@@ -307,7 +314,7 @@ const HomeAdmin = () => {
                   </div>
                   
                   <div className="nav-section">
-                    <div className="nav-item" onClick={() => setActiveSection('preferencias')}>
+                    <div className="nav-item" onClick={() => handleNavigation('preferencias')}>
                       <div className="nav-item-content">
                         <PreferenciasIcon />
                         <span>Preferencias</span>

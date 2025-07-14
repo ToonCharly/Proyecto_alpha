@@ -14,12 +14,7 @@ import (
     "carlos/Facts/Backend/internal/models"
 )
 
-func ifEmpty(value, defaultValue string) string {
-    if strings.TrimSpace(value) == "" {
-        return defaultValue
-    }
-    return value
-}
+
 func formatearFecha(fechaISO string) string {
     // Parsear la fecha ISO
     t, err := time.Parse("2006-01-02T15:04:05", fechaISO)

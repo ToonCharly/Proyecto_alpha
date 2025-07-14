@@ -223,7 +223,7 @@ func GenerarPDF(factura models.Factura, empresa *models.Empresa, logoBytes []byt
 		}
 	}
 
-	// Código postal del receptor
+	// Código postal del receptor (formato solicitado)
 	cpReceptor := ""
 	if factura.CodigoPostal != "" {
 		cpReceptor = factura.CodigoPostal
@@ -231,17 +231,22 @@ func GenerarPDF(factura models.Factura, empresa *models.Empresa, logoBytes []byt
 		cpReceptor = factura.ReceptorCodigoPostal
 	}
 	if cpReceptor != "" {
+		// Primer línea de la etiqueta
 		pdf.SetXY(10, y)
-		pdf.SetFont("Arial", "B", 8) // Negrita para la etiqueta
+		pdf.SetFont("Arial", "B", 8)
 		pdf.SetTextColor(0, 0, 0)
-		pdf.Cell(40, 4, tr("Código postal del"))
+		pdf.Cell(40, 4, "Código postal del")
 		y += 4
+
+		// Segunda línea de la etiqueta (y el valor)
 		pdf.SetXY(10, y)
-		pdf.SetFont("Arial", "B", 8) // Negrita para la etiqueta
-		pdf.Cell(40, 4, tr("receptor:"))
-		pdf.SetFont("Arial", "", 8) // Normal para los datos
+		pdf.Cell(40, 4, "receptor:")
+
+		// Valor alineado a la derecha de la segunda línea
+		pdf.SetFont("Arial", "", 8)
 		pdf.SetTextColor(64, 64, 64)
-		pdf.Cell(70, 4, tr(cpReceptor))
+		pdf.SetXY(50, y)
+		pdf.Cell(70, 4, cpReceptor)
 		y += 4
 	}
 
@@ -289,25 +294,49 @@ func GenerarPDF(factura models.Factura, empresa *models.Empresa, logoBytes []byt
 	yFiscal := 45.0
 
 	// Folio fiscal
-// Folio fiscal (UUID del timbre)
-pdf.SetXY(110, yFiscal)
-pdf.SetFont("Arial", "B", 8)
-pdf.SetTextColor(0, 0, 0)
-pdf.Cell(50, 4, tr("Folio fiscal:"))
-pdf.SetFont("Arial", "", 8)
-pdf.SetTextColor(64, 64, 64)
-pdf.Cell(80, 4, tr(factura.UUID))
-yFiscal += 4
+	// Folio fiscal (UUID del timbre)
+	pdf.SetXY(110, yFiscal)
+	pdf.SetFont("Arial", "B", 8)
+	pdf.SetTextColor(0, 0, 0)
+	pdf.Cell(50, 4, tr("Folio fiscal:"))
+	pdf.SetFont("Arial", "", 8)
+	pdf.SetTextColor(64, 64, 64)
+	pdf.Cell(80, 4, tr(factura.UUID))
+	yFiscal += 4
 
-// No. de serie del CSD (emisor)
-pdf.SetXY(110, yFiscal)
-pdf.SetFont("Arial", "B", 8)
-pdf.SetTextColor(0, 0, 0)
-pdf.Cell(50, 4, tr("No. de serie del CSD:"))
-pdf.SetFont("Arial", "", 8)
-pdf.SetTextColor(64, 64, 64)
-pdf.Cell(80, 4, tr(factura.NoCertificado))
-yFiscal += 4
+	// Etiqueta completa en una sola línea
+	leftX := 110.0
+	labelWidth := 50.0
+	lineHeight := 4.0
+	pdf.SetXY(leftX, yFiscal)
+	pdf.SetFont("Arial", "B", 8)
+	pdf.SetTextColor(0, 0, 0)
+	pdf.Cell(labelWidth, lineHeight, "No. de serie del CSD:")
+
+	// Valor en varias líneas si es necesario
+	pdf.SetFont("Arial", "", 8)
+	pdf.SetTextColor(64, 64, 64)
+	noSerie := factura.NoCertificado
+	splitByLength := func(text string, length int) []string {
+		var out []string
+		for len(text) > length {
+			out = append(out, text[:length])
+			text = text[length:]
+		}
+		if len(text) > 0 {
+			out = append(out, text)
+		}
+		return out
+	}
+	lines := splitByLength(noSerie, 22)
+	pdf.SetXY(leftX+labelWidth, yFiscal)
+	pdf.Cell(80, lineHeight, lines[0])
+	yFiscal += lineHeight
+	for i := 1; i < len(lines); i++ {
+		pdf.SetXY(leftX+labelWidth, yFiscal)
+		pdf.Cell(80, lineHeight, lines[i])
+		yFiscal += lineHeight
+	}
 
 	// Código postal, fecha y hora de emisión
 	pdf.SetXY(110, yFiscal)
@@ -330,7 +359,8 @@ yFiscal += 4
 	if factura.FechaEmision != "" {
 		fechaEmision = factura.FechaEmision
 	} else {
-		fechaEmision = time.Now().Format("2006-01-02 15:04:05")
+		t := time.Now().Format(time.RFC3339)
+		_ = t
 	}
 	cpyFecha := fmt.Sprintf("%s %s", codigoPostalEmisor, fechaEmision)
 	pdf.Cell(80, 4, tr(cpyFecha))
