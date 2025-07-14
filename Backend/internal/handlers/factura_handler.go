@@ -211,6 +211,7 @@ func GenerarFacturaDesdeDB(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error al registrar factura en base de datos: %v", err)
 		// Continuamos a pesar del error para que el usuario reciba su factura
 	}
+	
 
 	// Al final, devolver la URL donde se puede descargar la factura
 	w.Header().Set("Content-Type", "application/json")
