@@ -41,9 +41,6 @@ func main() {
 	fs := http.FileServer(http.Dir("./public/assets"))
 	http.Handle("/assets/", http.StripPrefix("/assets/", fs))
 
-	// Los logos ahora se manejan únicamente desde la base de datos
-	// Eliminado el servicio de archivos estáticos para logos
-
 	// Definir endpoints
 	http.Handle("/api/factura", utils.EnableCors(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
@@ -845,7 +842,7 @@ func main() {
 		}
 
 		// Llama a la función de tu capa db que guarda todo correctamente (incluyendo archivos)
-		err = db.GuardarDatosFiscales(
+		_, err = db.GuardarDatosFiscales(
 			rfc, razonSocial, direccionFiscal, codigoPostal,
 			archivoCSDKey, archivoCSDCer,
 			nombreArchivoKey, nombreArchivoCer,

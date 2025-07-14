@@ -96,7 +96,7 @@ func GenerarFacturaDesdeDB(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Decodificar datos de la factura
+	// Decodificar datos de la factura (incluyendo emisor y receptor)
 	var facturaRequest struct {
 		IDUsuario int    `json:"id_usuario"`
 		Empresa   string `json:"empresa"`
@@ -106,6 +106,24 @@ func GenerarFacturaDesdeDB(w http.ResponseWriter, r *http.Request) {
 			Cantidad    int     `json:"cantidad"`
 			PrecioUni   float64 `json:"precio_unitario"`
 		} `json:"conceptos"`
+
+		// Emisor
+		EmisorRFC           string `json:"emisor_rfc"`
+		EmisorRazonSocial   string `json:"emisor_razon_social"`
+		EmisorRegimenFiscal string `json:"emisor_regimen_fiscal"`
+		EmisorCodigoPostal  string `json:"emisor_codigo_postal"`
+
+		// Receptor
+		ReceptorRFC           string `json:"receptor_rfc"`
+		ReceptorRazonSocial   string `json:"receptor_razon_social"`
+		ReceptorCodigoPostal  string `json:"receptor_codigo_postal"`
+		RegimenFiscalReceptor string `json:"regimen_fiscal_receptor"`
+
+		// Otros campos relevantes
+		UsoCFDI    string `json:"uso_cfdi"`
+		FormaPago  string `json:"forma_pago"`
+		MetodoPago string `json:"metodo_pago"`
+		Moneda     string `json:"moneda"`
 	}
 
 	err := json.NewDecoder(r.Body).Decode(&facturaRequest)
@@ -159,7 +177,6 @@ func GenerarFacturaDesdeDB(w http.ResponseWriter, r *http.Request) {
 	nombreArchivo := fmt.Sprintf("factura_%d_%s.pdf", facturaRequest.IDUsuario, timestamp)
 	rutaDestino := filepath.Join(facturasDir, nombreArchivo)
 
-
 	// Simulamos la generación para este ejemplo
 	log.Printf("Generando factura para %s con RFC %s usando plantilla %s",
 		facturaRequest.Empresa, facturaRequest.RFC, plantillaNombre)
@@ -176,10 +193,18 @@ func GenerarFacturaDesdeDB(w http.ResponseWriter, r *http.Request) {
 	impuestos := subtotal * 0.16
 	total = subtotal + impuestos
 
-	// Insertar en la base de datos
+	// Insertar en la base de datos incluyendo emisor y receptor
 	_, err = dbConn.Exec(
-		"INSERT INTO facturas (id_usuario, empresa, rfc, subtotal, impuestos, total, fecha_emision, ruta_pdf) VALUES (?, ?, ?, ?, ?, ?, NOW(), ?)",
+		`INSERT INTO facturas (
+			id_usuario, empresa, rfc, subtotal, impuestos, total, fecha_emision, ruta_pdf,
+			emisor_rfc, emisor_razon_social, emisor_regimen_fiscal, emisor_codigo_postal,
+			receptor_rfc, receptor_razon_social, receptor_codigo_postal, regimen_fiscal_receptor,
+			uso_cfdi, forma_pago, metodo_pago, moneda
+		) VALUES (?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		facturaRequest.IDUsuario, facturaRequest.Empresa, facturaRequest.RFC, subtotal, impuestos, total, rutaDestino,
+		facturaRequest.EmisorRFC, facturaRequest.EmisorRazonSocial, facturaRequest.EmisorRegimenFiscal, facturaRequest.EmisorCodigoPostal,
+		facturaRequest.ReceptorRFC, facturaRequest.ReceptorRazonSocial, facturaRequest.ReceptorCodigoPostal, facturaRequest.RegimenFiscalReceptor,
+		facturaRequest.UsoCFDI, facturaRequest.FormaPago, facturaRequest.MetodoPago, facturaRequest.Moneda,
 	)
 
 	if err != nil {
