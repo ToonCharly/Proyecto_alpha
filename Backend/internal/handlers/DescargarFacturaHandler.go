@@ -10,7 +10,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strconv"
 	"time"
 
@@ -43,28 +42,24 @@ func DescargarFacturaHandler(w http.ResponseWriter, r *http.Request, facturaID i
 		factura.NumeroFolio = folio
 	}
 
-	directorioFacturas := filepath.Join("facturas", strconv.Itoa(factura.IDUsuario))
-	nombreArchivo := fmt.Sprintf("factura_%d.zip", factura.ID)
-	rutaArchivo := filepath.Join(directorioFacturas, nombreArchivo)
-
-	if err := os.MkdirAll(directorioFacturas, 0755); err != nil {
-		log.Printf("Error al crear directorio para facturas: %v", err)
+	// Siempre regenerar el ZIP en un archivo temporal, servirlo y eliminarlo
+	tmpFile, err := os.CreateTemp("", fmt.Sprintf("factura_%d_*.zip", factura.ID))
+	if err != nil {
+		log.Printf("Error al crear archivo temporal para factura: %v", err)
 		utils.RespondWithError(w, "Error al preparar la descarga de la factura")
 		return
 	}
+	tmpFilePath := tmpFile.Name()
+	tmpFile.Close()
+	defer os.Remove(tmpFilePath)
 
-	if _, err := os.Stat(rutaArchivo); err == nil {
-		servirArchivoFactura(w, r, rutaArchivo, nombreArchivo)
-		return
-	}
-
-	if err := regenerarFactura(factura, rutaArchivo, serieDF); err != nil {
+	if err := regenerarFactura(factura, tmpFilePath, serieDF); err != nil {
 		log.Printf("Error al regenerar factura: %v", err)
 		utils.RespondWithError(w, "Error al regenerar la factura para descarga")
 		return
 	}
 
-	servirArchivoFactura(w, r, rutaArchivo, nombreArchivo)
+	servirArchivoFactura(w, r, tmpFilePath, fmt.Sprintf("factura_%d.zip", factura.ID))
 }
 
 func servirArchivoFactura(w http.ResponseWriter, r *http.Request, rutaArchivo, nombreArchivo string) {

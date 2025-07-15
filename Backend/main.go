@@ -20,6 +20,89 @@ import (
 )
 
 func main() {
+	// Endpoint para descargar una factura del historial (ZIP con PDF, XML y JSON)
+	// ...existing code...
+	// Endpoint para obtener facturas de la empresa activa del usuario
+	http.Handle("/api/facturas-empresa-activa", utils.EnableCors(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+			return
+		}
+
+		idUsuarioStr := r.URL.Query().Get("id_usuario")
+		if idUsuarioStr == "" {
+			log.Printf("[facturas-empresa-activa] Falta parámetro id_usuario")
+			http.Error(w, "El parámetro id_usuario es requerido", http.StatusBadRequest)
+			return
+		}
+		idUsuario, err := strconv.Atoi(idUsuarioStr)
+		if err != nil {
+			log.Printf("[facturas-empresa-activa] id_usuario no es entero: %v", idUsuarioStr)
+			http.Error(w, "El parámetro id_usuario debe ser un número entero", http.StatusBadRequest)
+			return
+		}
+
+		log.Printf("[facturas-empresa-activa] Buscando empresa activa para usuario ID: %d", idUsuario)
+		var idDatosFiscales int
+		err = db.GetDB().QueryRow("SELECT id FROM datos_fiscales WHERE id_usuario = ? AND activo = 1 LIMIT 1", idUsuario).Scan(&idDatosFiscales)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				log.Printf("[facturas-empresa-activa] No hay empresa activa para usuario %d", idUsuario)
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode([]interface{}{})
+				return
+			}
+			log.Printf("[facturas-empresa-activa] Error SQL al obtener idDatosFiscales para usuario %d: %v", idUsuario, err)
+			http.Error(w, "Error al buscar la empresa activa: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		log.Printf("[facturas-empresa-activa] idDatosFiscales encontrado: %d", idDatosFiscales)
+		rows, err := db.GetDB().Query("SELECT * FROM facturas WHERE id_datos_fiscales = ?", idDatosFiscales)
+		if err != nil {
+			log.Printf("[facturas-empresa-activa] Error SQL al consultar facturas para id_datos_fiscales %d: %v", idDatosFiscales, err)
+			http.Error(w, "Error al buscar facturas: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		defer rows.Close()
+
+		cols, err := rows.Columns()
+		if err != nil {
+			log.Printf("[facturas-empresa-activa] Error al obtener columnas: %v", err)
+			http.Error(w, "Error al procesar resultados: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		var facturas []map[string]interface{}
+		for rows.Next() {
+			values := make([]interface{}, len(cols))
+			valuePtrs := make([]interface{}, len(cols))
+			for i := range values {
+				valuePtrs[i] = &values[i]
+			}
+			if err := rows.Scan(valuePtrs...); err != nil {
+				log.Printf("[facturas-empresa-activa] Error al escanear fila: %v", err)
+				continue
+			}
+			factura := make(map[string]interface{})
+			for i, col := range cols {
+				var v interface{}
+				val := values[i]
+				b, ok := val.([]byte)
+				if ok {
+					v = string(b)
+				} else {
+					v = val
+				}
+				factura[col] = v
+			}
+			facturas = append(facturas, factura)
+		}
+
+		log.Printf("[facturas-empresa-activa] Facturas encontradas: %d", len(facturas))
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(facturas)
+	})))
 	// Inicializar la conexión a la base de datos
 	db.InitDB()
 
@@ -41,6 +124,9 @@ func main() {
 	fs := http.FileServer(http.Dir("./public/assets"))
 	http.Handle("/assets/", http.StripPrefix("/assets/", fs))
 
+	// Los logos ahora se manejan únicamente desde la base de datos
+	// Eliminado el servicio de archivos estáticos para logos
+
 	// Definir endpoints
 	http.Handle("/api/factura", utils.EnableCors(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
@@ -55,12 +141,8 @@ func main() {
 		handlers.BuscarFactura(db.GetDB(), w, criterio)
 	})))
 
-	http.Handle("/api/generar-factura-db", utils.EnableCors(http.HandlerFunc(handlers.GenerarFacturaDesdeDB)))
-
+	// Endpoint robusto único para generar factura
 	http.Handle("/api/generar-factura", utils.EnableCors(http.HandlerFunc(handlers.GenerarFacturaHandler)))
-
-	// Añadir endpoint adicional con guion bajo para compatibilidad
-	http.Handle("/api/generar_factura", utils.EnableCors(http.HandlerFunc(handlers.GenerarFacturaHandler)))
 
 	http.HandleFunc("/api/historial-emisor", handlers.HistorialEmisorHandler)
 
@@ -452,27 +534,7 @@ func main() {
 	http.Handle("/api/historial-facturas", utils.EnableCors(http.HandlerFunc(handlers.HistorialFacturasHandler(db.GetDB()))))
 
 	// Endpoint para descargar una factura del historial
-	http.Handle("/api/descargar-factura/", utils.EnableCors(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
-			return
-		}
-
-		// Obtener el ID de la factura de la URL
-		pathParts := strings.Split(r.URL.Path, "/")
-		if len(pathParts) < 4 {
-			http.Error(w, "URL inválida. Se esperaba /api/descargar-factura/{id}", http.StatusBadRequest)
-			return
-		}
-
-		// Convertir el ID de string a entero
-		facturaID, err := strconv.Atoi(pathParts[3])
-		if err != nil {
-			http.Error(w, "ID de factura inválido. Debe ser un número entero.", http.StatusBadRequest)
-			return
-		}
-		handlers.DescargarFacturaHandler(w, r, facturaID)
-	})))
+	// ...existing code...
 
 	// Añadir nuevos endpoints (corregido)
 	http.Handle("/api/reset-password-request", utils.EnableCors(http.HandlerFunc(handlers.ResetPasswordRequestHandler(db.GetDB()))))
@@ -736,7 +798,6 @@ func main() {
 			&datosFiscales.DireccionFiscal,
 			&datosFiscales.Direccion,
 			&datosFiscales.CodigoPostal,
-			// RutaCsdKey and RutaCsdCer removed from scan
 			&datosFiscales.ClaveCsd,
 			&datosFiscales.RegimenFiscal,
 			&datosFiscales.NombreComercial,

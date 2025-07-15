@@ -184,7 +184,7 @@ func procesarDatosFactura(r *http.Request) (models.Factura, []byte, error) {
 	return factura, plantillaBytes, fmt.Errorf("tipo de contenido no soportado")
 }
 
-// procesarMultipartForm procesa datos multipart/form-data
+// procesarMultipartForm procesa datos multipart/form-data con validación mejorada
 func procesarMultipartForm(r *http.Request) (models.Factura, []byte, error) {
 	var factura models.Factura
 	var plantillaBytes []byte
@@ -199,11 +199,22 @@ func procesarMultipartForm(r *http.Request) (models.Factura, []byte, error) {
 		return factura, nil, fmt.Errorf("no se encontraron datos de factura")
 	}
 
+	log.Printf("[DEBUG] Datos de factura recibidos: %s", facturaData)
+
+	// Validar formato antes de hacer Unmarshal
+	if err := validarFormatoJSON(facturaData); err != nil {
+		return factura, nil, err
+	}
+
+	// Intentar decodificar con manejo de errores específico
 	if err := json.Unmarshal([]byte(facturaData), &factura); err != nil {
+		if strings.Contains(err.Error(), "invalid character '-'") {
+			return factura, nil, fmt.Errorf("JSON en form-data contiene un valor numérico inválido con guión. Los campos con guiones deben ser strings. Error: %v", err)
+		}
 		return factura, nil, fmt.Errorf("error al decodificar JSON: %v", err)
 	}
 
-	// *** AGREGAR LÓGICA DE OBTENCIÓN DE CONCEPTOS DESDE BD ***
+	// *** LÓGICA DE OBTENCIÓN DE CONCEPTOS DESDE BD ***
 	log.Printf("🔍 DEBUG_CONCEPTOS - Verificando conceptos recibidos:")
 	log.Printf("🔍 DEBUG_CONCEPTOS - len(factura.Conceptos) = %d", len(factura.Conceptos))
 	log.Printf("🔍 DEBUG_CONCEPTOS - ClaveTicket = '%s'", factura.ClaveTicket)
@@ -247,7 +258,7 @@ func procesarMultipartForm(r *http.Request) (models.Factura, []byte, error) {
 	return factura, plantillaBytes, nil
 }
 
-// procesarJSON procesa datos JSON
+// procesarJSON procesa datos JSON con validación mejorada
 func procesarJSON(r *http.Request) (models.Factura, []byte, error) {
 	var factura models.Factura
 
@@ -256,11 +267,102 @@ func procesarJSON(r *http.Request) (models.Factura, []byte, error) {
 		return factura, nil, fmt.Errorf("error al leer el cuerpo de la solicitud: %v", err)
 	}
 
+	// Log para depuración
+	jsonStr := string(body)
+	log.Printf("[DEBUG] JSON recibido: %s", jsonStr)
+
+	// Validaciones mejoradas para detectar problemas con guiones
+	if err := validarFormatoJSON(jsonStr); err != nil {
+		// Hacer debugging adicional si hay error
+		debugJSON(jsonStr)
+		return factura, nil, err
+	}
+
+	// Intentar decodificar JSON con manejo de errores específico
 	if err := json.Unmarshal(body, &factura); err != nil {
+		// Si el error contiene información sobre guiones, hacer debugging y proporcionar mensaje específico
+		if strings.Contains(err.Error(), "invalid character '-'") {
+			log.Printf("[ERROR] Detectado error de guión en JSON:")
+			debugJSON(jsonStr)
+
+			// Opción temporal: intentar sanitizar el JSON
+			log.Printf("[DEBUG] Intentando sanitizar JSON...")
+			jsonSanitizado := sanitizarJSONProblematico(jsonStr)
+			log.Printf("[DEBUG] JSON sanitizado: %s", jsonSanitizado)
+
+			// Intentar de nuevo con JSON sanitizado
+			if err2 := json.Unmarshal([]byte(jsonSanitizado), &factura); err2 == nil {
+				log.Printf("[DEBUG] ✅ JSON sanitizado exitosamente")
+				return factura, nil, nil
+			}
+
+			return factura, nil, fmt.Errorf("JSON contiene un valor numérico inválido con guión. Ejemplo: '001-002' debe ser string (con comillas): \"001-002\". Error original: %v", err)
+		}
 		return factura, nil, fmt.Errorf("error al decodificar JSON: %v", err)
 	}
 
 	return factura, nil, nil
+}
+
+// validarFormatoJSON realiza validaciones específicas del formato JSON
+func validarFormatoJSON(jsonStr string) error {
+	// Detectar números con guion en contexto JSON (más preciso)
+	// Busca patrones como: "campo": 001-002 o "campo":001-002
+	reNumGuion := regexp.MustCompile(`"[^"]*"\s*:\s*[0-9]+-[0-9]+`)
+	if reNumGuion.MatchString(jsonStr) {
+		matches := reNumGuion.FindAllString(jsonStr, -1)
+		return fmt.Errorf("JSON contiene números con guión (no válidos): %v. Los campos con guiones deben ser strings (entre comillas). Ejemplo: '001-002' debe ser \"001-002\"", matches)
+	}
+
+	// Detectar valores numéricos con guion fuera de comillas
+	reNumCeroGuion := regexp.MustCompile(`:\s*\d+-\d+`)
+	if reNumCeroGuion.MatchString(jsonStr) {
+		matches := reNumCeroGuion.FindAllString(jsonStr, -1)
+		return fmt.Errorf("JSON contiene valores numéricos con guión: %v. Deben ser strings (entre comillas). Ejemplo: '001-002' debe ser \"001-002\"", matches)
+	}
+
+	// Detectar casos específicos como folios mal formateados
+	reFolioMalFormato := regexp.MustCompile(`"(numero_folio|folio|serie)"\s*:\s*[0-9]+-[0-9]+`)
+	if reFolioMalFormato.MatchString(jsonStr) {
+		matches := reFolioMalFormato.FindAllString(jsonStr, -1)
+		return fmt.Errorf("Campo de folio mal formateado: %v. Los folios deben ser strings (entre comillas). Ejemplo: \"numero_folio\": \"001-002\"", matches)
+	}
+
+	return nil
+}
+
+// Función auxiliar para debuggear el JSON problemático
+func debugJSON(jsonStr string) {
+	log.Printf("[DEBUG] Analizando JSON problemático:")
+	log.Printf("[DEBUG] Longitud: %d caracteres", len(jsonStr))
+
+	// Buscar patrones problemáticos
+	reNumGuion := regexp.MustCompile(`"[^"]*"\s*:\s*[0-9]+-[0-9]+`)
+	matches := reNumGuion.FindAllString(jsonStr, -1)
+	if len(matches) > 0 {
+		log.Printf("[DEBUG] Números con guión encontrados: %v", matches)
+	}
+
+	// Buscar líneas específicas con problemas
+	lines := strings.Split(jsonStr, "\n")
+	for i, line := range lines {
+		if strings.Contains(line, "-") && (strings.Contains(line, ":") || strings.Contains(line, "folio")) {
+			log.Printf("[DEBUG] Línea %d sospechosa: %s", i+1, strings.TrimSpace(line))
+		}
+	}
+}
+
+// Función para sanitizar JSON problemático (uso temporal para debugging)
+func sanitizarJSONProblematico(jsonStr string) string {
+	// Convertir números con guión a strings
+	re := regexp.MustCompile(`("numero_folio"|"folio"|"serie")\s*:\s*([0-9]+-[0-9]+)`)
+	jsonStr = re.ReplaceAllString(jsonStr, `$1: "$2"`)
+
+	// Patrón más general para otros campos numéricos con guión
+	re2 := regexp.MustCompile(`("\w+")\s*:\s*([0-9]+-[0-9]+)`)
+	jsonStr = re2.ReplaceAllString(jsonStr, `$1: "$2"`)
+
+	return jsonStr
 }
 
 // manejarFolio genera o valida el folio de la factura
@@ -341,113 +443,12 @@ func GenerarFacturaHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var factura models.Factura
-	var plantillaBytes []byte
-
-	contentType := r.Header.Get("Content-Type")
-	if contentType == "" {
-		http.Error(w, "Content-Type no especificado", http.StatusBadRequest)
+	// Usar procesarDatosFactura para unificar validación y decodificación
+	factura, plantillaBytes, err := procesarDatosFactura(r)
+	if err != nil {
+		log.Printf("Error al decodificar solicitud: %v", err)
+		http.Error(w, "Error al procesar los datos: "+err.Error(), http.StatusBadRequest)
 		return
-	}
-
-	if strings.Contains(contentType, "multipart/form-data") {
-		if err := r.ParseMultipartForm(10 << 20); err != nil {
-			log.Printf("Error al parsear multipart form: %v", err)
-			http.Error(w, "Error al procesar el formulario", http.StatusBadRequest)
-			return
-		}
-
-		facturaData := r.FormValue("datos")
-		if facturaData == "" {
-			http.Error(w, "No se encontraron datos de factura", http.StatusBadRequest)
-			return
-		}
-
-		if err := json.Unmarshal([]byte(facturaData), &factura); err != nil {
-			log.Printf("Error al decodificar JSON en multipart: %v", err)
-			http.Error(w, "Error al procesar los datos: "+err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		// Justo después de decodificar el JSON o los datos del form en 'factura'
-		// Checa si tienes el ID (o RFC) de la empresa en la factura recibida
-		if factura.EmpresaID != nil {
-			// Si viene como float64 del JSON
-			if empresaID, ok := factura.EmpresaID.(float64); ok {
-				empresa, err := models.ObtenerEmpresaPorID(int(empresaID))
-				if err == nil && empresa != nil {
-					factura.EmpresaRFC = empresa.RFC
-					factura.RazonSocial = empresa.RazonSocial
-					factura.Direccion = empresa.Direccion
-					factura.CodigoPostal = empresa.CodigoPostal
-					factura.RegimenFiscal = empresa.RegimenFiscal
-					// Otros campos que quieras mapear
-				}
-			}
-		} else if factura.IdEmpresa > 0 {
-			// Si usas el campo IdEmpresa (int)
-			empresa, err := models.ObtenerEmpresaPorID(factura.IdEmpresa)
-			if err == nil && empresa != nil {
-				factura.EmpresaRFC = empresa.RFC
-				factura.RazonSocial = empresa.RazonSocial
-				factura.Direccion = empresa.Direccion
-				factura.CodigoPostal = empresa.CodigoPostal
-				factura.RegimenFiscal = empresa.RegimenFiscal
-				// Otros campos que quieras mapear
-			}
-		}
-
-		plantillaFile, _, err := r.FormFile("plantilla")
-		if err == nil {
-			defer plantillaFile.Close()
-			plantillaBytes, err = io.ReadAll(plantillaFile)
-			if err != nil {
-				log.Printf("Error al leer la plantilla: %v", err)
-				http.Error(w, "Error al leer la plantilla", http.StatusInternalServerError)
-				return
-			}
-		}
-	} else if strings.Contains(contentType, "application/json") {
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			log.Printf("Error al leer el cuerpo de la solicitud: %v", err)
-			http.Error(w, "Error al leer la solicitud", http.StatusBadRequest)
-			return
-		}
-
-		if err := json.Unmarshal(body, &factura); err != nil {
-			log.Printf("Error al decodificar JSON: %v", err)
-			http.Error(w, "Error al procesar los datos: "+err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		// Justo después de decodificar el JSON o los datos del form en 'factura'
-		// Checa si tienes el ID (o RFC) de la empresa en la factura recibida
-		if factura.EmpresaID != nil {
-			// Si viene como float64 del JSON
-			if empresaID, ok := factura.EmpresaID.(float64); ok {
-				empresa, err := models.ObtenerEmpresaPorID(int(empresaID))
-				if err == nil && empresa != nil {
-					factura.EmpresaRFC = empresa.RFC
-					factura.RazonSocial = empresa.RazonSocial
-					factura.Direccion = empresa.Direccion
-					factura.CodigoPostal = empresa.CodigoPostal
-					factura.RegimenFiscal = empresa.RegimenFiscal
-					// Otros campos que quieras mapear
-				}
-			}
-		} else if factura.IdEmpresa > 0 {
-			// Si usas el campo IdEmpresa (int)
-			empresa, err := models.ObtenerEmpresaPorID(factura.IdEmpresa)
-			if err == nil && empresa != nil {
-				factura.EmpresaRFC = empresa.RFC
-				factura.RazonSocial = empresa.RazonSocial
-				factura.Direccion = empresa.Direccion
-				factura.CodigoPostal = empresa.CodigoPostal
-				factura.RegimenFiscal = empresa.RegimenFiscal
-				// Otros campos que quieras mapear
-			}
-		}
 	}
 
 	// --- Mapear datos de empresa si viene EmpresaID, IdEmpresa o EmpresaRFC ---

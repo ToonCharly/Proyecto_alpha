@@ -18,13 +18,13 @@ function HistorialEmisor() {
     }, 5000);
   };
 
-  // Obtener id_empresa del usuario logueado
-  const getEmpresaId = () => {
+  // Obtener id_usuario del usuario logueado
+  const getUsuarioId = () => {
     const userDataString = sessionStorage.getItem('userData');
     if (!userDataString) return null;
     try {
       const userData = JSON.parse(userDataString);
-      return userData.id_empresa || userData.empresa_id || (userData.empresa && userData.empresa.id);
+      return userData.id || userData.id_usuario;
     } catch {
       return null;
     }
@@ -32,32 +32,26 @@ function HistorialEmisor() {
 
   // Mueve cargarHistorial fuera de useEffect para poder reutilizarla en el botón de refrescar
   const cargarHistorial = useCallback(async () => {
-    const idEmpresa = getEmpresaId();
-    if (!idEmpresa) {
-      setError("No se pudo identificar la empresa emisora.");
+    const idUsuario = getUsuarioId();
+    if (!idUsuario) {
+      setError("No se pudo identificar el usuario actual.");
       setCargando(false);
       return;
     }
     setCargando(true);
     setError(null);
     try {
-      const response = await fetch(`http://localhost:8080/api/historial-emisor?id_empresa=${idEmpresa}`);
+      const response = await fetch(`http://localhost:8080/api/facturas-empresa-activa?id_usuario=${idUsuario}`);
       if (!response.ok) throw new Error('Error al cargar historial');
       const data = await response.json();
-      // Si la respuesta es { facturas: [...] } usa data.facturas, si es array directo usa data
       if (Array.isArray(data)) {
         setFacturas(data);
         if (data.length === 0) {
-          mostrarNotificacion('No hay facturas generadas a nombre de esta empresa.', 'info');
-        }
-      } else if (data && Array.isArray(data.facturas)) {
-        setFacturas(data.facturas);
-        if (data.facturas.length === 0) {
-          mostrarNotificacion('No hay facturas generadas a nombre de esta empresa.', 'info');
+          mostrarNotificacion('No hay facturas generadas a nombre de la empresa vinculada.', 'info');
         }
       } else {
         setFacturas([]);
-        mostrarNotificacion('No hay facturas generadas a nombre de esta empresa.', 'info');
+        mostrarNotificacion('No hay facturas generadas a nombre de la empresa vinculada.', 'info');
       }
     } catch (err) {
       setError(err.message);

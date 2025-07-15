@@ -197,21 +197,7 @@ function InicioFacturacion() {
       const ventasConImpuestos = data.ventas || [];
       setVentas(ventasConImpuestos);
       // Guardar el resumen de totales si viene en la respuesta
-      if (data.resumen) {
-        setResumenVentas(data.resumen);
-      } else if (data.ventas && data.ventas.length > 0 && data.total) {
-        // Compatibilidad: si el backend manda los totales en la raíz
-        setResumenVentas({
-          subtotal: data.subtotal || 0,
-          iva: data.iva || 0,
-          ieps1: data.ieps1 || 0,
-          ieps2: data.ieps2 || 0,
-          ieps3: data.ieps3 || 0,
-          total: data.total || 0
-        });
-      } else {
-        setResumenVentas(null);
-      }
+      // ...existing code...
       // Si no hay ventas, mostrar mensaje
       if (!data.ventas || data.ventas.length === 0) {
         mostrarNotificacion('No se encontraron ventas para la clave de ticket proporcionada', 'error');
@@ -232,9 +218,10 @@ function InicioFacturacion() {
       console.error('Error al buscar ventas:', err);
       mostrarNotificacion('Error al buscar ventas: ' + err.message, 'error');
       setVentas([]);
-      setResumenVentas(null);
+      // ...existing code...
     } finally {
       setBuscandoVentas(false); // Ocultar pantalla de carga
+      // ...existing code...
     }
   };
 
@@ -554,8 +541,7 @@ const guardarVentasEnBD = async (mostrarNotif = false) => {
   }
 };
 
-// Estado para el resumen de ventas (totales globales)
-const [resumenVentas, setResumenVentas] = useState(null);
+// ...existing code...
 
   return (
     <div className="empresa-container" style={{ marginTop: '60px', marginLeft: '290px' }}>
@@ -876,68 +862,92 @@ const [resumenVentas, setResumenVentas] = useState(null);
       <th>Unidad SAT</th>
       <th>Cantidad</th>
       <th>Precio</th>
-      <th>IVA (%)</th>
       <th>IVA ($)</th>
-      <th>IEPS (%)</th>
       <th>IEPS ($)</th>
-      <th>Descuento</th>
+      {/* <th>Descuento</th> */}
       <th>Total</th> {/* NUEVA COLUMNA */}
     </tr>
   </thead>
   <tbody>
-    {ventas.map((venta, index) => {
-      // Cálculos de importes:
-      const cantidad = parseFloat(venta.cantidad) || 0;
-      const precio = parseFloat(venta.precio) || 0;
-      const descuento = parseFloat(venta.descuento) || 0;
-      const subtotal = cantidad * precio - descuento;
-      const iva = venta.iva || 0;
-      const ieps1 = venta.ieps1 || 0;
-      const ieps2 = venta.ieps2 || 0;
-      const ieps3 = venta.ieps3 || 0;
-      const ivaImporte = subtotal * (iva / 100);
-      const iepsImporte = subtotal * ((ieps1 + ieps2 + ieps3) / 100);
-      const totalConImpuestos = subtotal + ivaImporte + iepsImporte;
-
-      return (
-        <tr key={index}>
-          <td>{venta.codigo_producto || 'N/A'}</td>
-          <td>{venta.producto}</td>
-          <td>{venta.sat_clave || 'No disponible'}</td>
-          <td>{venta.sat_medida || 'No disponible'}</td>
-          <td>{venta.cantidad}</td>
-          <td>${precio.toFixed(2)}</td>
-          <td>{iva.toFixed(1)}%</td>
-          <td>${ivaImporte.toFixed(2)}</td>
-          <td>{(ieps1 + ieps2 + ieps3).toFixed(1)}%</td>
-          <td>${iepsImporte.toFixed(2)}</td>
-          <td>${descuento.toFixed(2)}</td>
-          <td><b>${totalConImpuestos.toFixed(2)}</b></td> {/* NUEVO */}
-        </tr>
-      );
-    })}
+    {/* Calcular totales */}
+    {(() => {
+      return ventas.map((venta, index) => {
+        const cantidad = parseFloat(venta.cantidad) || 0;
+        const precio = parseFloat(venta.precio) || 0;
+        const subtotal = cantidad * precio;
+        const iva = venta.iva || 0;
+        const ieps1 = venta.ieps1 || 0;
+        const ieps2 = venta.ieps2 || 0;
+        const ieps3 = venta.ieps3 || 0;
+        const ivaImporte = subtotal * (iva / 100);
+        const iepsImporte = subtotal * ((ieps1 + ieps2 + ieps3) / 100);
+        const totalConImpuestos = subtotal + ivaImporte + iepsImporte;
+        return (
+          <tr key={index}>
+            <td>{venta.codigo_producto || 'N/A'}</td>
+            <td>{venta.producto}</td>
+            <td>{venta.sat_clave || 'No disponible'}</td>
+            <td>{venta.sat_medida || 'No disponible'}</td>
+            <td>{venta.cantidad}</td>
+            <td>${precio.toFixed(2)}</td>
+            <td>${ivaImporte.toFixed(2)}</td>
+            <td>${iepsImporte.toFixed(2)}</td>
+            <td><b>${totalConImpuestos.toFixed(2)}</b></td>
+          </tr>
+        );
+      });
+    })()}
     {/* Fila del total */}
-    <tr style={{ backgroundColor: '#f8f9fa', fontWeight: 'bold', borderTop: '2px solid #dee2e6' }}>
-      <td colSpan="5" style={{ textAlign: 'right', padding: '12px' }}>
-        TOTALES:
-      </td>
-      <td colSpan="1"></td>
-      <td></td>
-      <td>
-        ${resumenVentas ? resumenVentas.iva.toFixed(2) : '0.00'}
-      </td>
-      <td></td>
-      <td>
-        ${resumenVentas ? (Number(resumenVentas.ieps1) + Number(resumenVentas.ieps2) + Number(resumenVentas.ieps3 || 0)).toFixed(2) : '0.00'}
-      </td>
-      <td></td>
-      <td><b>${resumenVentas ? resumenVentas.total.toFixed(2) : '0.00'}</b></td> {/* NUEVO */}
-    </tr>
-    {/* Fila de subtotal opcional */}
-    <tr style={{ backgroundColor: '#f8f9fa', fontWeight: 'bold' }}>
-      <td colSpan="11" style={{ textAlign: 'right', padding: '8px' }}>Subtotal:</td>
-      <td>${resumenVentas ? resumenVentas.subtotal.toFixed(2) : '0.00'}</td>
-    </tr>
+    {/* Fila de totales calculados en frontend */}
+    {(() => {
+      let totalSubtotal = 0;
+      let totalFinal = 0;
+      let totalIVA = 0;
+      let totalIEPS = 0;
+      ventas.forEach((venta) => {
+        const cantidad = parseFloat(venta.cantidad) || 0;
+        const precio = parseFloat(venta.precio) || 0;
+        const subtotal = cantidad * precio;
+        const iva = venta.iva || 0;
+        const ieps1 = venta.ieps1 || 0;
+        const ieps2 = venta.ieps2 || 0;
+        const ieps3 = venta.ieps3 || 0;
+        const ivaImporte = subtotal * (iva / 100);
+        const iepsImporte = subtotal * ((ieps1 + ieps2 + ieps3) / 100);
+        const totalConImpuestos = subtotal + ivaImporte + iepsImporte;
+        // Sumar el subtotal sin redondear
+        totalSubtotal += subtotal;
+        // Sumar el total redondeado por fila para evitar errores de centavos
+        totalFinal += Math.round((totalConImpuestos + Number.EPSILON) * 100) / 100;
+        totalIVA += ivaImporte;
+        totalIEPS += iepsImporte;
+      });
+      // Redondear el subtotal solo al final para mostrarlo igual que antes
+      totalSubtotal = Math.round((totalSubtotal + Number.EPSILON) * 100) / 100;
+      totalIVA = Math.round((totalIVA + Number.EPSILON) * 100) / 100;
+      totalIEPS = Math.round((totalIEPS + Number.EPSILON) * 100) / 100;
+      return (
+        <>
+          {/* Fila de subtotal */}
+          <tr style={{ backgroundColor: '#f8f9fa', fontWeight: 'bold', borderTop: '2px solid #dee2e6' }}>
+            <td colSpan="7" style={{ textAlign: 'right', padding: '12px' }}>
+              Subtotal:
+            </td>
+            <td colSpan="2">${totalSubtotal.toFixed(2)}</td>
+          </tr>
+          {/* Fila de impuestos (IVA + IEPS) */}
+          <tr style={{ backgroundColor: '#f8f9fa', fontWeight: 'bold' }}>
+            <td colSpan="7" style={{ textAlign: 'right', padding: '8px' }}>Impuestos (IVA + IEPS):</td>
+            <td colSpan="2">${(totalIVA + totalIEPS).toFixed(2)}</td>
+          </tr>
+          {/* Fila de total (impuestos incluidos) */}
+          <tr style={{ backgroundColor: '#f8f9fa', fontWeight: 'bold' }}>
+            <td colSpan="7" style={{ textAlign: 'right', padding: '8px' }}>Total (impuestos incluidos):</td>
+            <td colSpan="2"><b>${totalFinal.toFixed(2)}</b></td>
+          </tr>
+        </>
+      );
+    })()}
   </tbody>
 </table>
 
@@ -951,7 +961,6 @@ const [resumenVentas, setResumenVentas] = useState(null);
           <tr style={{ backgroundColor: '#e9ecef' }}>
             <th style={{ padding: '8px', border: '1px solid #dee2e6' }}>Producto</th>
             <th style={{ padding: '8px', border: '1px solid #dee2e6' }}>Estado Config</th>
-            <th style={{ padding: '8px', border: '1px solid #dee2e6' }}>Configs Imp</th>
             <th style={{ padding: '8px', border: '1px solid #dee2e6' }}>Empresa Prod</th>
             <th style={{ padding: '8px', border: '1px solid #dee2e6' }}>Empresa Imp</th>
             <th style={{ padding: '8px', border: '1px solid #dee2e6' }}>IVA</th>
@@ -964,11 +973,9 @@ const [resumenVentas, setResumenVentas] = useState(null);
           {ventas.map((venta, index) => {
             const totalIEPS = (venta.ieps1 || 0) + (venta.ieps2 || 0) + (venta.ieps3 || 0);
             const tieneProblema = venta.diagnostico_config !== 'Configuración completa';
-            const tieneMultiplesConfigs = venta.cantidad_configs > 1;
-            
             return (
               <tr key={index} style={{ 
-                backgroundColor: tieneProblema ? '#fff3cd' : (tieneMultiplesConfigs ? '#e1f5fe' : '#d4edda')
+                backgroundColor: tieneProblema ? '#fff3cd' : '#d4edda' 
               }}>
                 <td style={{ padding: '6px', border: '1px solid #dee2e6', fontSize: '11px' }}>
                   {venta.producto.substring(0, 30)}...
@@ -977,18 +984,9 @@ const [resumenVentas, setResumenVentas] = useState(null);
                   padding: '6px', 
                   border: '1px solid #dee2e6',
                   fontWeight: 'bold',
-                  color: tieneProblema ? '#856404' : (tieneMultiplesConfigs ? '#0c5460' : '#155724')
+                  color: tieneProblema ? '#856404' : '#155724'
                 }}>
                   {venta.diagnostico_config || 'N/A'}
-                </td>
-                <td style={{ 
-                  padding: '6px', 
-                  border: '1px solid #dee2e6',
-                  fontWeight: tieneMultiplesConfigs ? 'bold' : 'normal',
-                  color: tieneMultiplesConfigs ? '#d32f2f' : '#333'
-                }}>
-                  {venta.cantidad_configs || 0}
-                  {tieneMultiplesConfigs && ' ⚠️'}
                 </td>
                 <td style={{ padding: '6px', border: '1px solid #dee2e6' }}>
                   {venta.empresa_producto || 'N/A'}
