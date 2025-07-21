@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -467,7 +468,6 @@ func GenerarFacturaHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	} else if factura.IdEmpresa > 0 {
-		// Si usas el campo IdEmpresa (int)
 		empresa, err := models.ObtenerEmpresaPorID(factura.IdEmpresa)
 		if err == nil && empresa != nil {
 			factura.EmpresaRFC = empresa.RFC
@@ -475,11 +475,9 @@ func GenerarFacturaHandler(w http.ResponseWriter, r *http.Request) {
 			factura.Direccion = empresa.Direccion
 			factura.CodigoPostal = empresa.CodigoPostal
 			factura.RegimenFiscal = empresa.RegimenFiscal
-			// Otros campos que quieras mapear
 		}
 	}
 
-	// Si no hay conceptos, intentar obtenerlos desde la base de datos usando clave_ticket
 	if len(factura.Conceptos) == 0 && factura.ClaveTicket != "" {
 		conceptosBD, err := obtenerConceptosDesdeVentas(factura.ClaveTicket)
 		if err == nil {
@@ -487,7 +485,6 @@ func GenerarFacturaHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Generar folio automáticamente si no se proporcionó uno
 	if factura.NumeroFolio == "" {
 		err := factura.GenerarFolioAutomatico()
 		if err != nil {
@@ -509,6 +506,8 @@ func GenerarFacturaHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Printf("INFO - No se llenaron datos del emisor: %v", err)
 		}
+		// Log de depuración para KeyPath y ClaveCSD
+		log.Printf("DEBUG - KeyPath: %s, ClaveCSD: %s", factura.KeyPath, factura.ClaveCSD)
 	}
 	if factura.RegimenFiscal != "" {
 		codigo, err := ObtenerCodigoRegimenFiscal(factura.RegimenFiscal)
@@ -554,10 +553,23 @@ func GenerarFacturaHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	xmlBytes, err := services.GenerarXML(factura)
+	keyPath := factura.KeyPath
+	claveCSD := factura.ClaveCSD
+	if keyPath == "" || claveCSD == "" {
+		log.Printf("Error: No se proporcionó la ruta al archivo .key o la clave CSD")
+		http.Error(w, "Faltan datos para la firma digital (archivo .key o clave CSD)", http.StatusBadRequest)
+		return
+	}
+
+	if _, err := os.Stat(keyPath); err != nil {
+		log.Printf("Error: El archivo .key no existe en la ruta proporcionada: %s", keyPath)
+		http.Error(w, "El archivo .key no existe en la ruta proporcionada: "+keyPath, http.StatusBadRequest)
+		return
+	}
+	xmlBytes, err := services.ProcesarKeyYGenerarCFDI(factura, keyPath, claveCSD, "")
 	if err != nil {
-		log.Printf("Error al generar XML: %v", err)
-		http.Error(w, "Error al generar XML de la factura", http.StatusInternalServerError)
+		log.Printf("Error al generar XML firmado CFDI: %v", err)
+		http.Error(w, "Error al generar XML firmado CFDI: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 

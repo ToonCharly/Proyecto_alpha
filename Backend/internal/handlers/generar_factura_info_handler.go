@@ -225,11 +225,18 @@ func GenerarFacturaConInfoHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Generar XML para la factura
-	xmlBytes, err := services.GenerarXML(factura)
-	if err2 != nil {
-		log.Printf("Error al generar XML: %v", err2)
-		http.Error(w, "Error al generar XML de la factura", http.StatusInternalServerError)
+	// Generar el XML firmado CFDI usando el flujo de generación de PEM en tiempo real
+	keyPath := factura.KeyPath   // Debe contener la ruta al archivo .key
+	claveCSD := factura.ClaveCSD // Debe contener la clave privada del CSD
+	if keyPath == "" || claveCSD == "" {
+		log.Printf("Error: No se proporcionó la ruta al archivo .key o la clave CSD")
+		http.Error(w, "Faltan datos para la firma digital (archivo .key o clave CSD)", http.StatusBadRequest)
+		return
+	}
+	xmlBytes, err := services.ProcesarKeyYGenerarCFDI(factura, keyPath, claveCSD, "")
+	if err != nil {
+		log.Printf("Error al generar XML firmado CFDI: %v", err)
+		http.Error(w, "Error al generar XML firmado CFDI: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 

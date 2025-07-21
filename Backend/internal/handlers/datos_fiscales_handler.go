@@ -179,6 +179,9 @@ func UpdateDatosFiscalesHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Obtener keyPath del formulario
+	keyPath := r.FormValue("key_path")
+
 	// Guardar datos fiscales y obtener el idDatosFiscales
 	idDatosFiscales, err := db.GuardarDatosFiscales(
 		rfc, razonSocial, direccionFiscal, codigoPostal,
@@ -186,6 +189,7 @@ func UpdateDatosFiscalesHandler(w http.ResponseWriter, r *http.Request) {
 		nombreArchivoKey, nombreArchivoCer,
 		claveCSD, regimenFiscal, serieDf,
 		userID,
+		keyPath, // NUEVO argumento para la ruta .key
 	)
 	if err != nil {
 		fmt.Printf("Error al guardar datos fiscales para usuario %d: %v\n", userID, err)

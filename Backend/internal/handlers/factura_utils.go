@@ -96,6 +96,20 @@ func mapearDatosFiscales(factura *models.Factura, datosFiscales map[string]inter
 
 	if codigoPostal, ok := datosFiscales["codigo_postal"].(string); ok {
 		factura.EmisorCodigoPostal = codigoPostal
+		log.Printf("DEBUG - EmisorCodigoPostal asignado: %s", codigoPostal)
+	}
+	// Asignar código postal del receptor solo si existe campo específico
+	if cpReceptor, ok := datosFiscales["receptor_codigo_postal"].(string); ok && cpReceptor != "" {
+		factura.ReceptorCodigoPostal = cpReceptor
+		log.Printf("DEBUG - ReceptorCodigoPostal asignado: %s", cpReceptor)
+	}
+
+	// Si no viene receptor_codigo_postal pero sí codigo_postal, usarlo como respaldo para el receptor
+	if factura.ReceptorCodigoPostal == "" {
+		if codigoPostal, ok := datosFiscales["codigo_postal"].(string); ok && codigoPostal != "" {
+			factura.ReceptorCodigoPostal = codigoPostal
+			log.Printf("DEBUG - ReceptorCodigoPostal (respaldo de codigo_postal) asignado: %s", codigoPostal)
+		}
 	}
 
 	if ciudad, ok := datosFiscales["ciudad"].(string); ok {
@@ -147,5 +161,27 @@ func mapearDatosFiscales(factura *models.Factura, datosFiscales map[string]inter
 	} else {
 		log.Printf("DEBUG - No se encontró archivo_cer o está vacío en datos fiscales")
 		factura.Certificado = ""
+	}
+
+	// Asignar ruta al archivo .key desde el campo key_path (nuevo en la base de datos)
+	if keyPath, ok := datosFiscales["key_path"].(string); ok && keyPath != "" {
+		factura.KeyPath = keyPath
+		log.Printf("DEBUG - KeyPath asignado: %s", keyPath)
+	} else {
+		log.Printf("DEBUG - No se encontró key_path o está vacío en datos fiscales")
+	}
+	if claveCSD, ok := datosFiscales["clave_csd"].(string); ok && claveCSD != "" {
+		factura.ClaveCSD = claveCSD
+		log.Printf("DEBUG - ClaveCSD asignado: %s", claveCSD)
+	} else {
+		log.Printf("DEBUG - No se encontró clave_csd o está vacía en datos fiscales")
+	}
+
+	// Asignar ruta al archivo .cer desde el campo cer_path (nuevo en la base de datos)
+	if cerPath, ok := datosFiscales["cer_path"].(string); ok && cerPath != "" {
+		factura.CerPath = cerPath
+		log.Printf("DEBUG - CerPath asignado: %s", cerPath)
+	} else {
+		log.Printf("DEBUG - No se encontró cer_path o está vacío en datos fiscales")
 	}
 }

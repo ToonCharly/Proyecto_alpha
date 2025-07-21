@@ -403,6 +403,7 @@ const handleTicketChange = (e) => {
         receptor_razon_social: formData.razonSocial,
         direccion: formData.direccion,
         codigo_postal: formData.codigoPostal,
+        receptor_codigo_postal: formData.codigoPostal, // <-- Enviar explícitamente para el backend
         pais: formData.pais,
         estado: 0, // Mantener por compatibilidad
         estado_nombre: formData.estado || '', // Enviar nombre del estado directamente

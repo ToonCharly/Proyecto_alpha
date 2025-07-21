@@ -20,35 +20,35 @@ type Factura struct {
 	NoCertificado      string      `json:"no_certificado"`
 	Certificado        string      `json:"certificado,omitempty"`
 	ReceptorRFC        string      `json:"receptor_rfc"`
-	EmpresaRFC         string      
-	ClienteRFC         string      `json:"cliente_rfc"`
-	ClienteRazonSocial string      `json:"cliente_razon_social"`
-	ClienteDireccion   string      `json:"cliente_direccion"`
-	UsoCFDI            string      `json:"uso_cfdi"`
-	ClaveTicket        string      `json:"clave_ticket"`
-	Serie              string      `json:"serie,omitempty"` // Serie para datos fiscales (serie_df)
-	FechaEmision       string      `json:"fecha_emision"`
-	Subtotal           float64     `json:"subtotal"`
-	Impuestos          float64     `json:"impuestos"`
-	Total              float64     `json:"total"`
-	Observaciones      string      `json:"observaciones"`
-	Conceptos          []Concepto  `json:"conceptos"`
-	NumeroFolio        string      `json:"numero_folio,omitempty"`
-	FechaFactura       time.Time   `json:"fecha_factura,omitempty"`
-	LugarExpedicion    string      `json:"lugar_expedicion,omitempty"`
-	IVA                float64     `json:"iva,omitempty"`
-	MetodoPago         string      `json:"metodo_pago,omitempty"`
-	FormaPago          string      `json:"forma_pago,omitempty"`
-	Descuento          float64     `json:"descuento,omitempty"`
-	Moneda             string      `json:"moneda,omitempty"`
-	TipoCambio         float64     `json:"tipo_cambio,omitempty"`
-	NumeroCuentaPago   string      `json:"numero_cuenta_pago,omitempty"`
-	CondicionesPago    string      `json:"condiciones_pago,omitempty"`
-	NumeroPedido       string      `json:"numero_pedido,omitempty"`
-	NumeroContrato     string      `json:"numero_contrato,omitempty"`
-	NumeroCliente      string      `json:"numero_cliente,omitempty"`
-	NumeroProveedor    string      `json:"numero_proveedor,omitempty"`
-	FechaVencimiento   string      `json:"fecha_vencimiento,omitempty"`
+	EmpresaRFC         string
+	ClienteRFC         string     `json:"cliente_rfc"`
+	ClienteRazonSocial string     `json:"cliente_razon_social"`
+	ClienteDireccion   string     `json:"cliente_direccion"`
+	UsoCFDI            string     `json:"uso_cfdi"`
+	ClaveTicket        string     `json:"clave_ticket"`
+	Serie              string     `json:"serie,omitempty"` // Serie para datos fiscales (serie_df)
+	FechaEmision       string     `json:"fecha_emision"`
+	Subtotal           float64    `json:"subtotal"`
+	Impuestos          float64    `json:"impuestos"`
+	Total              float64    `json:"total"`
+	Observaciones      string     `json:"observaciones"`
+	Conceptos          []Concepto `json:"conceptos"`
+	NumeroFolio        string     `json:"numero_folio,omitempty"`
+	FechaFactura       time.Time  `json:"fecha_factura,omitempty"`
+	LugarExpedicion    string     `json:"lugar_expedicion,omitempty"`
+	IVA                float64    `json:"iva,omitempty"`
+	MetodoPago         string     `json:"metodo_pago,omitempty"`
+	FormaPago          string     `json:"forma_pago,omitempty"`
+	Descuento          float64    `json:"descuento,omitempty"`
+	Moneda             string     `json:"moneda,omitempty"`
+	TipoCambio         float64    `json:"tipo_cambio,omitempty"`
+	NumeroCuentaPago   string     `json:"numero_cuenta_pago,omitempty"`
+	CondicionesPago    string     `json:"condiciones_pago,omitempty"`
+	NumeroPedido       string     `json:"numero_pedido,omitempty"`
+	NumeroContrato     string     `json:"numero_contrato,omitempty"`
+	NumeroCliente      string     `json:"numero_cliente,omitempty"`
+	NumeroProveedor    string     `json:"numero_proveedor,omitempty"`
+	FechaVencimiento   string     `json:"fecha_vencimiento,omitempty"`
 
 	// Nuevos campos para el receptor
 	ReceptorRazonSocial   string `json:"receptor_razon_social,omitempty"`
@@ -81,8 +81,27 @@ type Factura struct {
 	Pagado    int    `json:"pagado"`
 	FechaPago string `json:"fecha_pago"`
 	Estado    int    `json:"estado"`
+
+	// Campos para la firma digital CFDI
+	KeyPath   string `json:"key_path"`             // Ruta al archivo .key del CSD
+	ClaveCSD  string `json:"clave_csd"`            // Contraseña de la llave privada del CSD
+	CerPath   string `json:"cer_path"`             // Ruta al archivo .cer del CSD
+	CerBase64 string `json:"cer_base64,omitempty"` // Certificado en base64 (opcional, para frontend)
+	Timbre    *TimbreFiscalDigital
+
+	// Estado de la generación/timbrado de la factura
+	EstatusFac string `json:"estatus_fac"` // F: fallo, P: pendiente, T: timbrando, G: generado
+	LogError   string `json:"log_error"`   // Mensaje de error si ocurre
 }
 
+type TimbreFiscalDigital struct {
+	UUID             string
+	FechaTimbrado    string
+	RfcProvCertif    string
+	SelloCFD         string
+	NoCertificadoSAT string
+	SelloSAT         string
+}
 type Concepto struct {
 	Descripcion   string  `json:"descripcion"`
 	Cantidad      float64 `json:"cantidad"`

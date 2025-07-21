@@ -909,6 +909,7 @@ func main() {
 			nombreArchivoKey, nombreArchivoCer,
 			claveCsd, regimenFiscal, serieDf,
 			idUsuario,
+			"", // keyPath (ruta al archivo .key), se pasa vacío por defecto
 		)
 		if err != nil {
 			log.Printf("Error al guardar datos fiscales: %v", err)

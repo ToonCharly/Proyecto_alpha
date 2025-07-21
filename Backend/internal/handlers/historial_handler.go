@@ -77,10 +77,25 @@ func HistorialFacturasHandler(db *sql.DB) func(http.ResponseWriter, *http.Reques
 			totalPaginas := (totalFacturas + limite - 1) / limite
 			tieneSiguiente := pagina < totalPaginas
 			tieneAnterior := pagina > 1
-
-			// Devolver respuesta con información de paginación
+			facturasConFolio := make([]map[string]interface{}, 0, len(facturas))
+			for _, f := range facturas {
+				m := map[string]interface{}{
+					"id":                    f.ID,
+					"id_usuario":            f.IDUsuario,
+					"rfc_receptor":          f.RFCReceptor,
+					"razon_social_receptor": f.RazonSocialReceptor,
+					"clave_ticket":          f.ClaveTicket,
+					"folio":                 f.NumeroFolio,
+					"total":                 f.Total,
+					"uso_cfdi":              f.UsoCFDI,
+					"fecha_generacion":      f.FechaGeneracion,
+					"estado":                f.Estado,
+					"observaciones":         f.Observaciones,
+				}
+				facturasConFolio = append(facturasConFolio, m)
+			}
 			response := map[string]interface{}{
-				"facturas": facturas,
+				"facturas": facturasConFolio,
 				"paginacion": map[string]interface{}{
 					"pagina_actual":   pagina,
 					"limite":          limite,
@@ -90,7 +105,6 @@ func HistorialFacturasHandler(db *sql.DB) func(http.ResponseWriter, *http.Reques
 					"tiene_anterior":  tieneAnterior,
 				},
 			}
-
 			json.NewEncoder(w).Encode(response)
 			return
 		}
@@ -151,7 +165,6 @@ func BuscarHistorialFacturasHandler(db *sql.DB) func(http.ResponseWriter, *http.
 			return
 		}
 
-		// Obtener parámetros de la URL
 		idUsuarioStr := r.URL.Query().Get("id_usuario")
 		if idUsuarioStr == "" {
 			log.Printf("Error: Se requiere id_usuario")
@@ -205,14 +218,30 @@ func BuscarHistorialFacturasHandler(db *sql.DB) func(http.ResponseWriter, *http.
 				http.Error(w, "Error al obtener facturas", http.StatusInternalServerError)
 				return
 			}
-
+			// Mapear NumeroFolio a folio para cada factura
+			facturasConFolio := make([]map[string]interface{}, 0, len(facturas))
+			for _, f := range facturas {
+				m := map[string]interface{}{
+					"id":                    f.ID,
+					"id_usuario":            f.IDUsuario,
+					"rfc_receptor":          f.RFCReceptor,
+					"razon_social_receptor": f.RazonSocialReceptor,
+					"clave_ticket":          f.ClaveTicket,
+					"folio":                 f.NumeroFolio,
+					"total":                 f.Total,
+					"uso_cfdi":              f.UsoCFDI,
+					"fecha_generacion":      f.FechaGeneracion,
+					"estado":                f.Estado,
+					"observaciones":         f.Observaciones,
+				}
+				facturasConFolio = append(facturasConFolio, m)
+			}
 			// Calcular información de paginación
 			totalPaginas := (totalFacturas + limite - 1) / limite
 			tieneSiguiente := pagina < totalPaginas
 			tieneAnterior := pagina > 1
-
 			response := map[string]interface{}{
-				"facturas": facturas,
+				"facturas": facturasConFolio,
 				"paginacion": map[string]interface{}{
 					"pagina_actual":   pagina,
 					"limite":          limite,
@@ -222,7 +251,6 @@ func BuscarHistorialFacturasHandler(db *sql.DB) func(http.ResponseWriter, *http.
 					"tiene_anterior":  tieneAnterior,
 				},
 			}
-
 			log.Printf("Se encontraron %d facturas de %d totales", len(facturas), totalFacturas)
 			json.NewEncoder(w).Encode(response)
 			return
@@ -236,14 +264,30 @@ func BuscarHistorialFacturasHandler(db *sql.DB) func(http.ResponseWriter, *http.
 			http.Error(w, "Error al buscar facturas", http.StatusInternalServerError)
 			return
 		}
-
+		// Mapear NumeroFolio a folio para cada factura
+		facturasConFolio := make([]map[string]interface{}, 0, len(facturas))
+		for _, f := range facturas {
+			m := map[string]interface{}{
+				"id":                    f.ID,
+				"id_usuario":            f.IDUsuario,
+				"rfc_receptor":          f.RFCReceptor,
+				"razon_social_receptor": f.RazonSocialReceptor,
+				"clave_ticket":          f.ClaveTicket,
+				"folio":                 f.NumeroFolio,
+				"total":                 f.Total,
+				"uso_cfdi":              f.UsoCFDI,
+				"fecha_generacion":      f.FechaGeneracion,
+				"estado":                f.Estado,
+				"observaciones":         f.Observaciones,
+			}
+			facturasConFolio = append(facturasConFolio, m)
+		}
 		// Calcular información de paginación
 		totalPaginas := (totalFacturas + limite - 1) / limite
 		tieneSiguiente := pagina < totalPaginas
 		tieneAnterior := pagina > 1
-
 		response := map[string]interface{}{
-			"facturas": facturas,
+			"facturas": facturasConFolio,
 			"paginacion": map[string]interface{}{
 				"pagina_actual":   pagina,
 				"limite":          limite,
@@ -253,7 +297,6 @@ func BuscarHistorialFacturasHandler(db *sql.DB) func(http.ResponseWriter, *http.
 				"tiene_anterior":  tieneAnterior,
 			},
 		}
-
 		log.Printf("Búsqueda completada, se encontraron %d facturas de %d totales", len(facturas), totalFacturas)
 		json.NewEncoder(w).Encode(response)
 	}
