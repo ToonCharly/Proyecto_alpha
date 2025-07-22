@@ -4,8 +4,8 @@ import (
 	"log"
 	"net/http"
 
-	"carlos/Facts/Backend/internal/db"
-	"carlos/Facts/Backend/internal/utils"
+	"Facts/internal/db"
+	"Facts/internal/utils"
 )
 
 // DebugVentasHandler muestra información de la tabla ventas_det

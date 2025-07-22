@@ -7,8 +7,8 @@ import (
 	"log"
 	"strings"
 
-	"carlos/Facts/Backend/internal/db"
-	"carlos/Facts/Backend/internal/models"
+	"Facts/internal/db"
+	"Facts/internal/models"
 )
 
 // LogoService maneja las operaciones relacionadas con logos

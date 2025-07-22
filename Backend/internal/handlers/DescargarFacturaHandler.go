@@ -13,10 +13,10 @@ import (
 	"strconv"
 	"time"
 
-	"carlos/Facts/Backend/internal/db"
-	"carlos/Facts/Backend/internal/models"
-	"carlos/Facts/Backend/internal/services"
-	"carlos/Facts/Backend/internal/utils"
+	"Facts/internal/db"
+	"Facts/internal/models"
+	"Facts/internal/services"
+	"Facts/internal/utils"
 )
 
 func DescargarFacturaHandler(w http.ResponseWriter, r *http.Request, facturaID int) {

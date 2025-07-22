@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"carlos/Facts/Backend/internal/db"
+	"Facts/internal/db"
 )
 
 // GetDatosFiscalesHandler maneja la solicitud GET para obtener datos fiscales

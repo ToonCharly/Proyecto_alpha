@@ -7,6 +7,9 @@ import (
 	"time"
 )
 
+// Alias para compatibilidad con handlers y main.go
+type FacturaCFDI = Factura
+
 type Factura struct {
 	ID                 string      `json:"id"`
 	EmpresaID          interface{} `json:"empresa_id"`
@@ -92,6 +95,167 @@ type Factura struct {
 	// Estado de la generación/timbrado de la factura
 	EstatusFac string `json:"estatus_fac"` // F: fallo, P: pendiente, T: timbrando, G: generado
 	LogError   string `json:"log_error"`   // Mensaje de error si ocurre
+}
+
+// Configuración del PAC y CSD para timbrado
+type PACConfig struct {
+	UsuarioPAC string // RFC del emisor (usuario PAC)
+	ClavePAC   string // Clave del PAC
+	Produccion bool   // Modo producción
+	CerPath    string // Ruta al .cer
+	KeyPath    string // Ruta al .key
+	ClaveCSD   string // Contraseña del CSD
+	Endpoint   string // URL del PAC
+}
+
+// Proceso principal de timbrado CFDI
+func (f *Factura) TimbrarCFDI(pac PACConfig) error {
+	// 1. Generar el XML CFDI (solo estructura, no firmado)
+	xmlCFDI, err := f.GenerarXMLCFDI()
+	if err != nil {
+		f.LogError = "Error generando XML: " + err.Error()
+		return err
+	}
+
+	// 2. Firmar el XML CFDI (usar CSD)
+	signedXML, err := FirmarXMLCFDI(xmlCFDI, pac.CerPath, pac.KeyPath, pac.ClaveCSD)
+	if err != nil {
+		f.LogError = "Error firmando XML: " + err.Error()
+		return err
+	}
+
+	// 3. Enviar el XML firmado al PAC
+	timbradoXML, err := EnviarXMLAlPAC(signedXML, pac)
+	if err != nil {
+		f.LogError = "Error enviando al PAC: " + err.Error()
+		return err
+	}
+
+	// 4. Extraer el timbre fiscal digital del XML timbrado
+	timbre, err := ExtraerTimbreFiscal(timbradoXML)
+	if err != nil {
+		f.LogError = "Error extrayendo timbre fiscal: " + err.Error()
+		return err
+	}
+	f.Timbre = timbre
+	f.EstatusFac = "T" // Timbrado exitoso
+	return nil
+}
+
+// Genera el XML CFDI a partir de la estructura Factura
+func (f *Factura) GenerarXMLCFDI() (string, error) {
+	cfdi := CFDI{
+		XmlnsCfdi:         "http://www.sat.gob.mx/cfd/4",
+		Version:           "4.0",
+		Serie:             f.Serie,
+		Folio:             f.NumeroFolio,
+		Fecha:             f.FechaEmision,
+		SubTotal:          fmt.Sprintf("%.2f", f.Subtotal),
+		Total:             fmt.Sprintf("%.2f", f.Total),
+		Moneda:            f.Moneda,
+		TipoCambio:        fmt.Sprintf("%.2f", f.TipoCambio),
+		LugarExpedicion:   f.LugarExpedicion,
+		TipoDeComprobante: "I",
+		MetodoPago:        f.MetodoPago,
+		FormaPago:         f.FormaPago,
+		CondicionesPago:   f.CondicionesPago,
+		Descuento:         fmt.Sprintf("%.2f", f.Descuento),
+		ClaveTicket:       f.ClaveTicket,
+		Emisor: struct {
+			RFC           string `xml:"Rfc,attr"`
+			Nombre        string `xml:"Nombre,attr"`
+			RegimenFiscal string `xml:"RegimenFiscal,attr"`
+		}{
+			RFC:           f.EmisorRFC,
+			Nombre:        f.EmisorRazonSocial,
+			RegimenFiscal: f.EmisorRegimenFiscal,
+		},
+		Receptor: struct {
+			RFC                   string `xml:"Rfc,attr"`
+			Nombre                string `xml:"Nombre,attr"`
+			UsoCFDI               string `xml:"UsoCFDI,attr"`
+			DomicilioFiscal       string `xml:"DomicilioFiscal,attr,omitempty"`
+			RegimenFiscalReceptor string `xml:"RegimenFiscalReceptor,attr,omitempty"`
+		}{
+			RFC:                   f.ReceptorRFC,
+			Nombre:                f.ReceptorRazonSocial,
+			UsoCFDI:               f.UsoCFDI,
+			DomicilioFiscal:       f.ReceptorCodigoPostal,
+			RegimenFiscalReceptor: f.RegimenFiscalReceptor,
+		},
+	}
+	// Conceptos
+	for _, c := range f.Conceptos {
+		cfdi.Conceptos = append(cfdi.Conceptos, struct {
+			ClaveProdServ    string `xml:"ClaveProdServ,attr"`
+			NoIdentificacion string `xml:"NoIdentificacion,attr,omitempty"`
+			Cantidad         string `xml:"Cantidad,attr"`
+			ClaveUnidad      string `xml:"ClaveUnidad,attr"`
+			Unidad           string `xml:"Unidad,attr,omitempty"`
+			Descripcion      string `xml:"Descripcion,attr"`
+			ValorUnitario    string `xml:"ValorUnitario,attr"`
+			Importe          string `xml:"Importe,attr"`
+			Descuento        string `xml:"Descuento,attr,omitempty"`
+		}{
+			ClaveProdServ:    c.ClaveProdServ,
+			NoIdentificacion: "",
+			Cantidad:         fmt.Sprintf("%.2f", c.Cantidad),
+			ClaveUnidad:      c.ClaveUnidad,
+			Unidad:           "",
+			Descripcion:      c.Descripcion,
+			ValorUnitario:    fmt.Sprintf("%.2f", c.ValorUnitario),
+			Importe:          fmt.Sprintf("%.2f", c.Importe),
+			Descuento:        fmt.Sprintf("%.2f", c.Descuento),
+		})
+	}
+	output, err := xml.MarshalIndent(cfdi, "", "  ")
+	if err != nil {
+		return "", err
+	}
+	return string(output), nil
+}
+
+// Firmar el XML CFDI usando el CSD (.cer, .key, clave)
+func FirmarXMLCFDI(xmlCFDI, cerPath, keyPath, claveCSD string) (string, error) {
+	// Aquí deberías implementar la firma digital del XML usando el CSD
+	// Puedes usar una librería externa o llamar a un ejecutable que firme el XML
+	// Por ahora, se retorna el XML sin firmar (solo para ejemplo)
+	return xmlCFDI, nil
+}
+
+// Enviar el XML firmado al PAC y recibir el XML timbrado
+func EnviarXMLAlPAC(xmlFirmado string, pac PACConfig) (string, error) {
+	// Implementa el envío HTTP POST al endpoint del PAC
+	// El cuerpo debe incluir el XML firmado y los datos de autenticación
+	// Ejemplo genérico:
+	/*
+		resp, err := http.Post(pac.Endpoint, "application/xml", strings.NewReader(xmlFirmado))
+		if err != nil {
+			return "", err
+		}
+		defer resp.Body.Close()
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return "", err
+		}
+		return string(body), nil
+	*/
+	return xmlFirmado, nil // Solo ejemplo, aquí deberías poner la respuesta real del PAC
+}
+
+// Extraer el timbre fiscal digital del XML timbrado
+func ExtraerTimbreFiscal(xmlTimbrado string) (*TimbreFiscalDigital, error) {
+	// Aquí deberías parsear el XML timbrado y extraer el nodo TimbreFiscalDigital
+	// Ejemplo genérico:
+	var tfd TimbreFiscalDigital
+	// ...parsear xmlTimbrado y llenar tfd...
+	tfd.UUID = "EJEMPLO-UUID"
+	tfd.FechaTimbrado = time.Now().Format("2006-01-02T15:04:05")
+	tfd.RfcProvCertif = "LSO1306189R5"
+	tfd.SelloCFD = "EJEMPLO-SELLO-CFD"
+	tfd.NoCertificadoSAT = "EJEMPLO-CERT-SAT"
+	tfd.SelloSAT = "EJEMPLO-SELLO-SAT"
+	return &tfd, nil
 }
 
 type TimbreFiscalDigital struct {

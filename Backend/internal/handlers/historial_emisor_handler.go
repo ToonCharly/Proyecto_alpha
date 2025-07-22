@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"carlos/Facts/Backend/internal/db"
+	"Facts/internal/db"
 )
 
 type FacturaEmisorHistorial struct {

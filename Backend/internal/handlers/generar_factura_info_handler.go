@@ -9,10 +9,10 @@ import (
 	"net/http"
 	"strings"
 
-	"carlos/Facts/Backend/internal/db"
-	"carlos/Facts/Backend/internal/models"
-	"carlos/Facts/Backend/internal/services"
-	"carlos/Facts/Backend/internal/utils"
+	"Facts/internal/db"
+	"Facts/internal/models"
+	"Facts/internal/services"
+	"Facts/internal/utils"
 )
 
 // GenerarFacturaConInfoHandler genera una factura y devuelve información sobre ella

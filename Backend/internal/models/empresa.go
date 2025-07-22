@@ -1,7 +1,7 @@
 package models
 
 import (
-	"carlos/Facts/Backend/internal/db"
+	"Facts/internal/db"
 	"fmt"
 	"log"
 )
@@ -61,11 +61,11 @@ func EliminarEmpresa(id int) error {
 // Obtiene una empresa por su ID
 func ObtenerEmpresaPorID(id int) (*Empresa, error) {
 	query := `
-        SELECT id, id_usuario, rfc, razon_social, regimen_fiscal, direccion,
-               codigo_postal, pais, estado, localidad, municipio, colonia, created_at
-        FROM empresas
-        WHERE id = ?
-    `
+		SELECT id, id_usuario, rfc, razon_social, regimen_fiscal, direccion,
+			   codigo_postal, pais, estado, localidad, municipio, colonia, created_at
+		FROM empresas
+		WHERE id = ?
+	`
 
 	var empresa Empresa
 	err := db.GetDB().QueryRow(query, id).Scan(
@@ -108,11 +108,11 @@ func InsertarEmpresa(empresa Empresa) (int64, error) {
 
 	// Query para insertar la empresa
 	query := `
-        INSERT INTO empresas (
-            id_usuario, rfc, razon_social, regimen_fiscal, direccion,
-            codigo_postal, pais, estado, localidad, municipio, colonia
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `
+		INSERT INTO empresas (
+			id_usuario, rfc, razon_social, regimen_fiscal, direccion,
+			codigo_postal, pais, estado, localidad, municipio, colonia
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`
 
 	result, err := db.GetDB().Exec(query,
 		empresa.IdUsuario, empresa.RFC, empresa.RazonSocial, empresa.RegimenFiscal,
@@ -142,12 +142,12 @@ func ActualizarEmpresa(empresa Empresa) error {
 
 	// Query para actualizar la empresa
 	query := `
-        UPDATE empresas 
-        SET rfc = ?, razon_social = ?, regimen_fiscal = ?, direccion = ?,
-            codigo_postal = ?, pais = ?, estado = ?, localidad = ?,
-            municipio = ?, colonia = ?
-        WHERE id = ?
-    `
+		UPDATE empresas 
+		SET rfc = ?, razon_social = ?, regimen_fiscal = ?, direccion = ?,
+			codigo_postal = ?, pais = ?, estado = ?, localidad = ?,
+			municipio = ?, colonia = ?
+		WHERE id = ?
+	`
 
 	_, err = db.GetDB().Exec(query,
 		empresa.RFC, empresa.RazonSocial, empresa.RegimenFiscal,
@@ -167,10 +167,10 @@ func ActualizarEmpresa(empresa Empresa) error {
 // ObtenerEmpresas devuelve todas las empresas
 func ObtenerEmpresas() ([]Empresa, error) {
 	query := `
-        SELECT id, id_usuario, rfc, razon_social, regimen_fiscal, direccion,
-               codigo_postal, pais, estado, localidad, municipio, colonia, created_at
-        FROM empresas
-    `
+		SELECT id, id_usuario, rfc, razon_social, regimen_fiscal, direccion,
+			   codigo_postal, pais, estado, localidad, municipio, colonia, created_at
+		FROM empresas
+	`
 
 	rows, err := db.GetDB().Query(query)
 	if err != nil {
@@ -199,11 +199,11 @@ func ObtenerEmpresas() ([]Empresa, error) {
 // Obtiene todas las empresas asociadas a un usuario por su ID
 func ObtenerEmpresasPorUsuario(idUsuario int) ([]Empresa, error) {
 	query := `
-        SELECT id, id_usuario, rfc, razon_social, regimen_fiscal, direccion,
-               codigo_postal, pais, estado, localidad, municipio, colonia, created_at
-        FROM empresas
-        WHERE id_usuario = ?
-    `
+		SELECT id, id_usuario, rfc, razon_social, regimen_fiscal, direccion,
+			   codigo_postal, pais, estado, localidad, municipio, colonia, created_at
+		FROM empresas
+		WHERE id_usuario = ?
+	`
 
 	rows, err := db.GetDB().Query(query, idUsuario)
 	if err != nil {

@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"carlos/Facts/Backend/internal/models"
+	"Facts/internal/models"
 	"database/sql"
 	"encoding/json"
 	"log"

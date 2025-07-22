@@ -1,8 +1,8 @@
 package services
 
 import (
+	"Facts/internal/models"
 	"bytes"
-	"carlos/Facts/Backend/internal/models"
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
@@ -12,6 +12,8 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -610,4 +612,81 @@ func GenerarXMLConSello(factura models.Factura, keyPEM string, cadenaOriginal st
 		return nil, err
 	}
 	return buf.Bytes(), nil
+}
+
+// --- PAC Integration & Timbre Extraction ---
+// Estructura para el Timbre Fiscal Digital
+type TimbreFiscalDigital struct {
+	UUID             string
+	SelloSAT         string
+	SelloCFD         string
+	NoCertificadoSAT string
+	FechaTimbrado    string
+	Version          string
+}
+
+// Envía el XML firmado al PAC y recibe el XML timbrado
+func TimbrarConPAC(xmlFirmado []byte, pacURL string, pacUser string, pacPass string) ([]byte, error) {
+	client := &http.Client{Timeout: 30 * time.Second}
+	request, err := http.NewRequest("POST", pacURL, bytes.NewReader(xmlFirmado))
+	if err != nil {
+		return nil, err
+	}
+	request.Header.Set("Content-Type", "text/xml")
+	request.SetBasicAuth(pacUser, pacPass)
+	resp, err := client.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("PAC error: %s, body: %s", resp.Status, string(body))
+	}
+	return io.ReadAll(resp.Body)
+}
+
+// Extrae el Timbre Fiscal Digital del XML timbrado
+func ExtraerTimbreFiscalDigital(xmlTimbrado []byte) (*TimbreFiscalDigital, error) {
+	type Timbre struct {
+		XMLName          xml.Name `xml:"tfd:TimbreFiscalDigital"`
+		UUID             string   `xml:"UUID,attr"`
+		SelloSAT         string   `xml:"SelloSAT,attr"`
+		SelloCFD         string   `xml:"SelloCFD,attr"`
+		NoCertificadoSAT string   `xml:"NoCertificadoSAT,attr"`
+		FechaTimbrado    string   `xml:"FechaTimbrado,attr"`
+		Version          string   `xml:"Version,attr"`
+	}
+	// Buscar el nodo TimbreFiscalDigital en el XML
+	var t Timbre
+	err := xml.Unmarshal(xmlTimbrado, &t)
+	if err == nil && t.UUID != "" {
+		return &TimbreFiscalDigital{
+			UUID:             t.UUID,
+			SelloSAT:         t.SelloSAT,
+			SelloCFD:         t.SelloCFD,
+			NoCertificadoSAT: t.NoCertificadoSAT,
+			FechaTimbrado:    t.FechaTimbrado,
+			Version:          t.Version,
+		}, nil
+	}
+	// Si falla el Unmarshal directo, buscar el nodo manualmente
+	tfdStart := bytes.Index(xmlTimbrado, []byte("<tfd:TimbreFiscalDigital"))
+	tfdEnd := bytes.Index(xmlTimbrado[tfdStart:], []byte("/>"))
+	if tfdStart >= 0 && tfdEnd > 0 {
+		tfdNode := xmlTimbrado[tfdStart : tfdStart+tfdEnd+2]
+		var t2 Timbre
+		err2 := xml.Unmarshal(tfdNode, &t2)
+		if err2 == nil && t2.UUID != "" {
+			return &TimbreFiscalDigital{
+				UUID:             t2.UUID,
+				SelloSAT:         t2.SelloSAT,
+				SelloCFD:         t2.SelloCFD,
+				NoCertificadoSAT: t2.NoCertificadoSAT,
+				FechaTimbrado:    t2.FechaTimbrado,
+				Version:          t2.Version,
+			}, nil
+		}
+	}
+	return nil, errors.New("No se encontró el nodo TimbreFiscalDigital en el XML timbrado")
 }

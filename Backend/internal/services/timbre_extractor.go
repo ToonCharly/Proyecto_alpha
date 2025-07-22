@@ -1,7 +1,6 @@
 package services
 
 import (
-	"carlos/Facts/Backend/internal/models"
 	"encoding/xml"
 )
 
@@ -19,17 +18,4 @@ type tfdXML struct {
 }
 
 // Extrae los datos del timbre fiscal digital del XML timbrado
-func ExtraerTimbreFiscalDigital(xmlTimbrado []byte) (*models.TimbreFiscalDigital, error) {
-	var tfd tfdXML
-	if err := xml.Unmarshal(xmlTimbrado, &tfd); err != nil {
-		return nil, err
-	}
-	return &models.TimbreFiscalDigital{
-		UUID:             tfd.UUID,
-		FechaTimbrado:    tfd.FechaTimbrado,
-		RfcProvCertif:    tfd.RfcProvCertif,
-		SelloCFD:         tfd.SelloCFD,
-		NoCertificadoSAT: tfd.NoCertificadoSAT,
-		SelloSAT:         tfd.SelloSAT,
-	}, nil
-}
+// ...existing code...

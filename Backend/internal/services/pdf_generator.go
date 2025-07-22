@@ -10,9 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"carlos/Facts/Backend/internal/db"
-
-	"carlos/Facts/Backend/internal/models"
+	"Facts/internal/db"
+	"Facts/internal/models"
 
 	"github.com/phpdave11/gofpdf"
 )

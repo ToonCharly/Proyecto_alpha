@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"carlos/Facts/Backend/internal/models"
+	"Facts/internal/models"
 )
 
 // HistorialFactura representa los datos para crear un registro en el historial

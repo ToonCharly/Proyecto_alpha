@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"carlos/Facts/Backend/internal/db"
+	"Facts/internal/db"
 )
 
 // LoginHandler maneja la autenticación de usuarios con enfoque simplificado
@@ -48,13 +48,13 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Crear una respuesta con JSON crudo predefinido
 	hardcodedResponse := fmt.Sprintf(`{
-        "id": %v,
-        "username": "%s",
-        "email": "%s",
-        "phone": "%s",
-        "role": "%s",
-        "token": "%s"
-    }`,
+		"id": %v,
+		"username": "%s",
+		"email": "%s",
+		"phone": "%s",
+		"role": "%s",
+		"token": "%s"
+	}`,
 		userData["id"],
 		userData["username"],
 		userData["email"],

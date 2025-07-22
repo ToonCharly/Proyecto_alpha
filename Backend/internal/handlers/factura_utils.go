@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"log"
 
-	"carlos/Facts/Backend/internal/db"
-	"carlos/Facts/Backend/internal/models"
-	"carlos/Facts/Backend/internal/utils"
+	"Facts/internal/db"
+	"Facts/internal/models"
+	"Facts/internal/utils"
 )
 
 // LlenarDatosEmisor llena automáticamente los datos del emisor desde los datos fiscales activos del usuario

@@ -1,7 +1,7 @@
 package models
 
 import (
-	"carlos/Facts/Backend/internal/db"
+	"Facts/internal/db"
 	"database/sql" // Añadir esta importación
 	"fmt"          // Añadir esta importación
 )

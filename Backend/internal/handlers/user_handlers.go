@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	"carlos/Facts/Backend/internal/db"
-	"carlos/Facts/Backend/internal/utils"
+	"Facts/internal/db"
+	"Facts/internal/utils"
 
 	"github.com/golang-jwt/jwt/v4"
 )

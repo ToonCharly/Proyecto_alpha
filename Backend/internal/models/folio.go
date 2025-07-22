@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	"carlos/Facts/Backend/internal/db"
+	"Facts/internal/db"
 )
 
 // FolioControl representa el control de folios para facturas

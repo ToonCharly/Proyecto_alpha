@@ -12,9 +12,9 @@ import (
 	"strconv"
 	"strings"
 
-	"carlos/Facts/Backend/internal/db"
-	"carlos/Facts/Backend/internal/models"
-	"carlos/Facts/Backend/internal/services"
+	"Facts/internal/db"
+	"Facts/internal/models"
+	"Facts/internal/services"
 )
 
 func GenerarNombreArchivoFactura(serieDF, numeroFolio, extension string) string {

@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 
-	"carlos/Facts/Backend/internal/db"
+	"Facts/internal/db"
 )
 
 // RegimenFiscal representa un régimen fiscal.

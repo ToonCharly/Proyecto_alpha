@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"carlos/Facts/Backend/internal/db"
-	"carlos/Facts/Backend/internal/handlers"
-	"carlos/Facts/Backend/internal/models"
-	"carlos/Facts/Backend/internal/utils"
+	"Facts/internal/db"
+	"Facts/internal/handlers"
+	"Facts/internal/models"
+	"Facts/internal/utils"
 
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -647,6 +647,41 @@ func main() {
 		}
 
 		utils.RespondWithJSON(w, http.StatusOK, result)
+	})))
+
+	// Endpoint para timbrar factura CFDI 4.0
+	http.Handle("/api/timbrar-factura", utils.EnableCors(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+			return
+		}
+
+		// Leer datos de la factura desde el body
+		var facturaData models.FacturaCFDI
+		if err := json.NewDecoder(r.Body).Decode(&facturaData); err != nil {
+			log.Printf("Error decodificando JSON de factura: %v", err)
+			utils.RespondWithError(w, "Error al leer los datos de la factura")
+			return
+		}
+
+		// Lógica de timbrado (debe estar implementada en tu módulo PAC o handlers)
+		resultadoTimbrado, err := handlers.TimbrarFacturaHandler(facturaData)
+		if err != nil {
+			log.Printf("Error al timbrar factura: %v", err)
+			utils.RespondWithError(w, fmt.Sprintf("Error al timbrar la factura: %v", err))
+			return
+		}
+
+		// Guardar el resultado en la base de datos
+		err = db.GuardarFacturaTimbrada(db.GetDB(), resultadoTimbrado)
+		if err != nil {
+			log.Printf("Error al guardar factura timbrada: %v", err)
+			utils.RespondWithError(w, "Error al guardar la factura timbrada")
+			return
+		}
+
+		// Responder con el XML/PDF/timbre fiscal digital
+		utils.RespondWithJSON(w, http.StatusOK, resultadoTimbrado)
 	})))
 
 	// Endpoint para obtener detalles de empresa por ID desde adm_empresa
