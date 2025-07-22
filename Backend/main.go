@@ -20,9 +20,7 @@ import (
 )
 
 func main() {
-	// Endpoint para descargar una factura del historial (ZIP con PDF, XML y JSON)
-	// ...existing code...
-	// Endpoint para obtener facturas de la empresa activa del usuario
+
 	http.Handle("/api/facturas-empresa-activa", utils.EnableCors(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)

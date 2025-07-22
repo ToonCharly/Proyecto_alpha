@@ -3,10 +3,12 @@ package handlers
 import (
 	"Facts/internal/db"
 	"Facts/internal/models"
+	"Facts/internal/pac"
 	"Facts/internal/services"
 	"encoding/base64"
 	"encoding/json"
 	"net/http"
+	"os"
 )
 
 // TimbrarFacturaHandler recibe una FacturaCFDI, timbra y retorna el resultado
@@ -33,20 +35,13 @@ func TimbrarFacturaHandler(factura models.FacturaCFDI) (map[string]interface{}, 
 		return nil, err
 	}
 
-	// 4. Timbrar el XML con el PAC
-	// Usa los argumentos individuales que espera EnviarXMLAlPAC
-	xmlTimbrado, err := services.EnviarXMLAlPAC(
+	// 4. Timbrar el XML con el PAC y extraer el timbre fiscal digital usando la función integrada
+	timbre, xmlTimbrado, err := services.TimbrarFactura(
 		xmlCFDI,
 		factura.EmisorRFC,
 		factura.ClaveCSD,
 		"https://api.pac.com/timbrar",
 	)
-	if err != nil {
-		return nil, err
-	}
-
-	// 5. Extraer timbre fiscal digital
-	timbre, err := models.ExtraerTimbreFiscal(string(xmlTimbrado))
 	if err != nil {
 		return nil, err
 	}
@@ -101,11 +96,22 @@ func TimbrarCFDIHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 2. Timbrar el XML con el PAC
-	pacURL := "https://api.pac.com/timbrar" // Debe venir de config/env
-	pacUser := factura.EmisorRFC
-	pacPass := factura.ClaveCSD
-	xmlTimbrado, err := services.TimbrarConPAC(xmlFirmado, pacURL, pacUser, pacPass)
+	// 2. Timbrar el XML con el PAC (configuración real)
+	pacURL := os.Getenv("PAC_URL")
+	pacUser := os.Getenv("PAC_USER")
+	pacPass := os.Getenv("PAC_PASS")
+	if pacURL == "" || pacUser == "" || pacPass == "" {
+		factura.LogError = "Configuración de PAC incompleta. Verifica las variables de entorno PAC_URL, PAC_USER y PAC_PASS."
+		resultado := map[string]interface{}{
+			"error":     factura.LogError,
+			"folio":     factura.NumeroFolio,
+			"log_error": factura.LogError,
+		}
+		db.GuardarFacturaTimbrada(db.GetDB(), resultado)
+		http.Error(w, factura.LogError, http.StatusInternalServerError)
+		return
+	}
+	xmlTimbrado, err := pac.TimbrarConPAC(string(xmlFirmado), pacURL, pacUser, pacPass)
 	if err != nil {
 		factura.LogError = "Error al timbrar con PAC: " + err.Error()
 		resultado := map[string]interface{}{
@@ -174,6 +180,11 @@ func TimbrarCFDIHandler(w http.ResponseWriter, r *http.Request) {
 		"metodo_pago":           factura.MetodoPago,
 		"forma_pago":            factura.FormaPago,
 		// Agrega aquí más campos si lo necesitas
+	}
+
+	// Log de timbrado exitoso
+	if timbre != nil && timbre.UUID != "" {
+		println("TIMBRADO EXITOSO | UUID:", timbre.UUID, "| Fecha:", timbre.FechaTimbrado, "| SelloSAT:", timbre.SelloSAT, "| SelloCFD:", timbre.SelloCFD, "| CertificadoSAT:", timbre.NoCertificadoSAT)
 	}
 	if err := db.GuardarFactura(db.GetDB(), resultado); err != nil {
 		factura.LogError = "Error guardando factura: " + err.Error()

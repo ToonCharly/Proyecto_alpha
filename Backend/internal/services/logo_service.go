@@ -11,6 +11,8 @@ import (
 	"Facts/internal/models"
 )
 
+const errConectarDB = "error al conectar a la base de datos: %w"
+
 // LogoService maneja las operaciones relacionadas con logos
 type LogoService struct{}
 
@@ -24,7 +26,7 @@ func (s *LogoService) GuardarLogo(logoReq models.LogoRequest) (*models.LogoEmpre
 	// Conectar a la base de datos
 	dbConn, err := db.ConnectUserDB()
 	if err != nil {
-		return nil, fmt.Errorf("error al conectar a la base de datos: %w", err)
+		return nil, fmt.Errorf(errConectarDB, err)
 	}
 	defer dbConn.Close()
 
@@ -78,7 +80,7 @@ func (s *LogoService) ObtenerLogoPorID(id int) (*models.LogoEmpresa, error) {
 	// Conectar a la base de datos
 	dbConn, err := db.ConnectUserDB()
 	if err != nil {
-		return nil, fmt.Errorf("error al conectar a la base de datos: %w", err)
+		return nil, fmt.Errorf(errConectarDB, err)
 	}
 	defer dbConn.Close()
 
@@ -118,7 +120,7 @@ func (s *LogoService) ObtenerLogoActivoPorUsuario(idUsuario int) (*models.LogoEm
 	// Conectar a la base de datos
 	dbConn, err := db.ConnectUserDB()
 	if err != nil {
-		return nil, fmt.Errorf("error al conectar a la base de datos: %w", err)
+		return nil, fmt.Errorf(errConectarDB, err)
 	}
 	defer dbConn.Close()
 
@@ -160,7 +162,7 @@ func (s *LogoService) ListarLogosPorUsuario(idUsuario int) ([]models.LogoRespons
 	// Conectar a la base de datos
 	dbConn, err := db.ConnectUserDB()
 	if err != nil {
-		return nil, fmt.Errorf("error al conectar a la base de datos: %w", err)
+		return nil, fmt.Errorf(errConectarDB, err)
 	}
 	defer dbConn.Close()
 
@@ -205,7 +207,7 @@ func (s *LogoService) ActivarLogo(idLogo, idUsuario int) error {
 	// Conectar a la base de datos
 	dbConn, err := db.ConnectUserDB()
 	if err != nil {
-		return fmt.Errorf("error al conectar a la base de datos: %w", err)
+		return fmt.Errorf(errConectarDB, err)
 	}
 	defer dbConn.Close()
 
@@ -244,7 +246,7 @@ func (s *LogoService) EliminarLogo(idLogo, idUsuario int) error {
 	// Conectar a la base de datos
 	dbConn, err := db.ConnectUserDB()
 	if err != nil {
-		return fmt.Errorf("error al conectar a la base de datos: %w", err)
+		return fmt.Errorf(errConectarDB, err)
 	}
 	defer dbConn.Close()
 

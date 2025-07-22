@@ -16,7 +16,6 @@ import (
 	"github.com/phpdave11/gofpdf"
 )
 
-// Función auxiliar para dividir texto de manera segura manteniendo caracteres UTF-8
 func splitTextSafely(pdf *gofpdf.Fpdf, texto string, ancho float64) []string {
 	// Dividir texto manualmente para evitar problemas con SplitText
 	if len(texto) <= 80 {

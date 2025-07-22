@@ -2,6 +2,7 @@ package services
 
 import (
 	"Facts/internal/models"
+	"Facts/internal/pac"
 	"bytes"
 	"crypto"
 	"crypto/rand"
@@ -12,8 +13,6 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -625,25 +624,29 @@ type TimbreFiscalDigital struct {
 	Version          string
 }
 
-// Envía el XML firmado al PAC y recibe el XML timbrado
-func TimbrarConPAC(xmlFirmado []byte, pacURL string, pacUser string, pacPass string) ([]byte, error) {
-	client := &http.Client{Timeout: 30 * time.Second}
-	request, err := http.NewRequest("POST", pacURL, bytes.NewReader(xmlFirmado))
+// Genera el XML firmado, lo timbra con Solución Factible y retorna el XML timbrado y el timbre fiscal digital
+func GenerarYTimbrarCFDIConPAC(factura models.Factura, keyPath string, claveCSD string, xsltPath string, pacUser string, pacPass string) ([]byte, *TimbreFiscalDigital, error) {
+	// 1. Genera el XML firmado
+	xmlFirmado, err := ProcesarKeyYGenerarCFDI(factura, keyPath, claveCSD, xsltPath)
 	if err != nil {
-		return nil, err
+		return nil, nil, fmt.Errorf("error generando XML firmado: %w", err)
 	}
-	request.Header.Set("Content-Type", "text/xml")
-	request.SetBasicAuth(pacUser, pacPass)
-	resp, err := client.Do(request)
+
+	// 2. Timbrar con Solución Factible (PAC)
+	endpoint := "https://demo-facturacion.solucionfactible.com/ws/rest/timbrado"
+	xmlTimbradoBytes, err := pac.TimbrarConPAC(string(xmlFirmado), factura.EmisorRFC, pacPass, endpoint)
 	if err != nil {
-		return nil, err
+		return nil, nil, fmt.Errorf("error timbrando con PAC: %w", err)
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("PAC error: %s, body: %s", resp.Status, string(body))
+	xmlTimbrado := string(xmlTimbradoBytes)
+
+	// 3. Extraer el timbre fiscal digital
+	timbre, err := ExtraerTimbreFiscalDigital([]byte(xmlTimbrado))
+	if err != nil {
+		return []byte(xmlTimbrado), nil, fmt.Errorf("error extrayendo timbre fiscal digital: %w", err)
 	}
-	return io.ReadAll(resp.Body)
+
+	return []byte(xmlTimbrado), timbre, nil
 }
 
 // Extrae el Timbre Fiscal Digital del XML timbrado
